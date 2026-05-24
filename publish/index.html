@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AetherPak App Registry</title>
+  <style>
+    :root {
+      --bg: #09090b; --card: #18181b; --border: #27272a;
+      --text: #f4f4f5; --text-muted: #a1a1aa;
+      --primary: #8b5cf6; --primary-glow: rgba(139,92,246,0.15); --success: #10b981;
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); line-height: 1.5; padding: 2rem 1rem; min-height: 100vh; overflow-x: hidden; }
+    body::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 600px; height: 300px; background: radial-gradient(circle, rgba(139,92,246,0.08) 0%, rgba(9,9,11,0) 70%); z-index: -1; pointer-events: none; }
+    .container { max-width: 820px; margin: 0 auto; }
+    header { text-align: center; margin-bottom: 2.5rem; animation: fadeIn 0.8s ease-out; }
+    .logo-badge { display: inline-block; padding: 0.25rem 0.75rem; background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.3); border-radius: 9999px; font-size: 0.8rem; font-weight: 600; color: var(--primary); margin-bottom: 1rem; box-shadow: 0 0 15px var(--primary-glow); }
+    h1 { font-size: 2.5rem; font-weight: 800; letter-spacing: -0.04em; background: linear-gradient(to right, #fff, #d8b4fe); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .subtitle { color: var(--text-muted); margin-top: 0.25rem; }
+    #app-content { animation: slideUp 0.7s ease-out 0.15s both; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; position: relative; overflow: hidden; transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), border-color 0.3s, box-shadow 0.3s; }
+    .card::before { content: ''; position: absolute; inset: 0; background: radial-gradient(600px circle at var(--mouse-x, -200px) var(--mouse-y, -200px), rgba(255,255,255,0.04), transparent 40%); pointer-events: none; }
+    .card > * { position: relative; z-index: 1; }
+    .card:hover { transform: translateY(-4px); border-color: rgba(139,92,246,0.4); box-shadow: 0 8px 30px rgba(0,0,0,0.3), 0 0 20px rgba(139,92,246,0.05); }
+    .section-label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+    .code-block { position: relative; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 3rem 0.75rem 0.9rem; font-family: var(--font-mono); font-size: 0.85rem; overflow-x: auto; }
+    .btn-copy { position: absolute; top: 50%; right: 0.6rem; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; color: var(--text-muted); display: flex; padding: 0.25rem; border-radius: 4px; transition: all 0.2s; }
+    .btn-copy:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+    .btn-copy.success { color: var(--success); }
+    .actions { margin-top: 1rem; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+    .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; font-size: 0.85rem; text-decoration: none; cursor: pointer; border: 1px solid rgba(139,92,246,0.25); background: rgba(139,92,246,0.1); color: var(--primary); transition: all 0.2s; }
+    .btn:hover { background: var(--primary); color: #fff; box-shadow: 0 0 15px rgba(139,92,246,0.3); }
+    .btn.ghost { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: var(--text-muted); }
+    .btn.ghost:hover { background: rgba(255,255,255,0.1); color: var(--text); box-shadow: none; }
+    .app-head { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.25rem; }
+    .app-icon { width: 52px; height: 52px; border-radius: 12px; flex-shrink: 0; background: rgba(255,255,255,0.04); border: 1px solid var(--border); object-fit: contain; }
+    .app-icon.placeholder { display: flex; align-items: center; justify-content: center; color: var(--primary); }
+    .app-name { font-size: 1.35rem; font-weight: 700; }
+    .app-id { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted); }
+    .app-summary { color: var(--text-muted); font-size: 0.95rem; margin: 0.25rem 0 0.5rem; }
+    .badge { padding: 0.15rem 0.5rem; font-size: 0.72rem; font-family: var(--font-mono); border-radius: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); }
+    .badge.primary { background: rgba(139,92,246,0.12); border-color: rgba(139,92,246,0.25); color: var(--primary); }
+    .releases { margin-top: 1.25rem; border-left: 2px solid var(--border); padding-left: 1.25rem; }
+    .release { position: relative; padding-bottom: 1.25rem; }
+    .release:last-child { padding-bottom: 0; }
+    .release::before { content: ''; position: absolute; left: calc(-1.25rem - 6px); top: 0.35rem; width: 10px; height: 10px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 3px var(--bg); }
+    .release.old::before { background: var(--text-muted); }
+    .release-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .release-date { color: var(--text-muted); font-size: 0.85rem; margin-left: auto; }
+    .release-meta { color: var(--text-muted); font-size: 0.78rem; font-family: var(--font-mono); margin: 0.4rem 0 0.5rem; }
+    .empty-state { text-align: center; padding: 3rem; border: 2px dashed var(--border); border-radius: 16px; color: var(--text-muted); }
+    .loading { display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 4rem; color: var(--text-muted); }
+    .spinner { width: 40px; height: 40px; border: 3px solid rgba(139,92,246,0.15); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+    footer { text-align: center; padding: 3rem 0 1rem; color: var(--text-muted); font-size: 0.85rem; }
+    footer a { color: var(--primary); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo-badge">AETHERPAK PROJECT</div>
+      <h1>Flatpak Repository</h1>
+      <p class="subtitle">OCI-backed Flatpak repository registry for independent maintainers.</p>
+    </header>
+    <main id="app-content"><div class="loading"><div class="spinner"></div><p>Loading application registry…</p></div></main>
+    <footer><p>Powered by <a href="https://github.com/aetherpak" target="_blank" rel="noopener">AetherPak</a> &bull; GitHub Pages &amp; GHCR</p></footer>
+  </div>
+
+  <script>
+    const remoteName = 'aetherpak';
+    const ICON_COPY = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+    const ICON_DL = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
+    const ICON_APP = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>`;
+
+    function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+    function attr(s) { return String(s).replace(/'/g, '%27'); }
+    function fmtSize(b) { b = +b || 0; const u = ['B','KB','MB','GB']; let i = 0; while (b >= 1024 && i < u.length-1) { b /= 1024; i++; } return `${b.toFixed(b < 10 && i > 0 ? 1 : 0)} ${u[i]}`; }
+    function fmtDate(ts) { const d = new Date((+ts) * 1000); return isNaN(d) ? '' : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }); }
+    function appMeta(xml) {
+      try { const doc = new DOMParser().parseFromString(xml, 'application/xml');
+        const pick = sel => { const e = [...doc.querySelectorAll(sel)]; return (e.find(x => !x.getAttribute('xml:lang')) || e[0])?.textContent; };
+        return { name: pick('component > name'), summary: pick('component > summary') }; }
+      catch (e) { return {}; }
+    }
+    function copyToClipboard(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        const o = btn.innerHTML; btn.classList.add('success');
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+        setTimeout(() => { btn.classList.remove('success'); btn.innerHTML = o; }, 1500);
+      });
+    }
+    function setupCardHover(card) {
+      card.addEventListener('mousemove', e => {
+        const r = card.getBoundingClientRect();
+        card.style.setProperty('--mouse-x', (e.clientX - r.left) + 'px');
+        card.style.setProperty('--mouse-y', (e.clientY - r.top) + 'px');
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const pagesUrl = location.origin + location.pathname.replace(/\/(index\.html)?$/, '');
+      const el = document.getElementById('app-content');
+      const render = html => { el.innerHTML = html; el.querySelectorAll('.card').forEach(setupCardHover); };
+      const legacyCmd = `flatpak remote-add --if-not-exists --user --no-gpg-verify ${remoteName} oci+${pagesUrl}`;
+
+      function codeBlock(label, cmd) {
+        return `
+          <div class="section-label">${label}</div>
+          <div class="code-block"><code>${esc(cmd)}</code>
+            <button class="btn-copy" onclick="copyToClipboard('${attr(cmd)}', this)" title="Copy">${ICON_COPY}</button></div>`;
+      }
+
+      function buildSetup(signing) {
+        const links = `
+          <div class="actions">
+            <a class="btn" href="index.flatpakrepo" download>${ICON_DL} Download .flatpakrepo</a>
+            <a class="btn ghost" href="index/static" target="_blank">View OCI index</a>
+          </div>`;
+        if (signing && signing.enabled && signing.publicKey && signing.lookaside) {
+          const keyUrl = `${pagesUrl}/${signing.publicKey}`;
+          const keyFile = signing.publicKey.split('/').pop();
+          const look = `${pagesUrl}/${signing.lookaside}`;
+          // flatpak --gpg-import needs a local file, so fetch the key first.
+          const verified = `curl -fsSLO ${keyUrl} && flatpak remote-add --user --gpg-import=${keyFile} --signature-lookaside=${look} ${remoteName} oci+${pagesUrl}`;
+          return `
+            <div class="card">
+              ${codeBlock('Add this repository — verified (flatpak ≥ 1.17)', verified)}
+              <details style="margin-top:1rem;">
+                <summary style="cursor:pointer;color:var(--text-muted);font-size:0.85rem;">Older clients (&lt; 1.17) — unverified</summary>
+                <p class="app-summary" style="margin-top:0.5rem;">These clients cannot read the signature lookaside; the remote is added without verification.</p>
+                ${codeBlock('Add this repository — unverified', legacyCmd)}
+              </details>
+              ${links}
+            </div>`;
+        }
+        return `
+          <div class="card">
+            ${codeBlock('Add this repository (once)', legacyCmd)}
+            ${links}
+          </div>`;
+      }
+
+      fetch('sigs/signing.json')
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null)
+        .then(signing => {
+          const setup = buildSetup(signing);
+          return fetch('index/static').then(r => { if (!r.ok) throw new Error('load'); return r.json(); }).then(data => {
+        const apps = {};
+        (data.Results || []).forEach(res => (res.Images || []).forEach(img => {
+          const L = img.Labels || {}; const ref = L['org.flatpak.ref'];
+          if (!ref || !L['org.flatpak.metadata']) return;        // only installable entries
+          const [, id, arch, branch] = ref.split('/'); if (!branch) return;
+          const a = apps[id] || (apps[id] = { id, icon: L['org.freedesktop.appstream.icon-64'], meta: appMeta(L['org.freedesktop.appstream.appdata'] || ''), ch: {} });
+          const c = a.ch[branch] || (a.ch[branch] = { branch, arches: new Set(), ts: 0, isize: L['org.flatpak.installed-size'], dsize: L['org.flatpak.download-size'], commit: L['org.flatpak.commit'] });
+          c.arches.add(arch); c.ts = Math.max(c.ts, +L['org.flatpak.timestamp'] || 0);
+        }));
+
+        const ids = Object.keys(apps).sort();
+        if (!ids.length) { render(setup + `<div class="empty-state"><h2>No applications published</h2></div>`); return; }
+
+        const cards = ids.map(id => {
+          const app = apps[id];
+          const name = app.meta.name || id.split('.').pop();
+          const icon = app.icon
+            ? `<img class="app-icon" src="${esc(app.icon)}" alt="">`
+            : `<div class="app-icon placeholder">${ICON_APP}</div>`;
+          const summary = app.meta.summary ? `<p class="app-summary">${esc(app.meta.summary)}</p>` : '';
+          const rels = Object.values(app.ch).sort((a, b) => b.ts - a.ts).map((c, i) => {
+            const cmd = `flatpak install --user ${remoteName} ${id}//${c.branch}`;
+            // One-click ref; scheme must match gen_flatpakrefs.ref_filename.
+            const refFile = `refs/${id}-${c.branch.replace(/\//g, '-')}.flatpakref`;
+            const arches = [...c.arches].sort().map(a => `<span class="badge">${esc(a)}</span>`).join('');
+            return `
+              <div class="release ${i ? 'old' : ''}">
+                <div class="release-head">
+                  <span class="badge primary">${esc(c.branch)}</span>${arches}
+                  <span class="release-date">${i ? '' : 'latest &bull; '}${c.ts ? 'released ' + fmtDate(c.ts) : ''}</span>
+                </div>
+                <div class="release-meta">${fmtSize(c.isize)} installed &bull; ${fmtSize(c.dsize)} download${c.commit ? ' &bull; ' + esc(c.commit.slice(0, 10)) : ''}</div>
+                <div class="actions"><a class="btn" href="${esc(refFile)}" download>${ICON_DL} Install (${esc(c.branch)})</a></div>
+                <div class="code-block"><code>${esc(cmd)}</code>
+                  <button class="btn-copy" onclick="copyToClipboard('${attr(cmd)}', this)" title="Copy">${ICON_COPY}</button></div>
+              </div>`;
+          }).join('');
+          return `
+            <div class="card">
+              <div class="app-head">${icon}<div><div class="app-name">${esc(name)}</div><div class="app-id">${esc(id)}</div></div></div>
+              ${summary}
+              <div class="section-label" style="margin-top:1rem;">Releases</div>
+              <div class="releases">${rels}</div>
+            </div>`;
+        }).join('');
+
+        render(setup + cards);
+      }).catch(() => {
+        el.innerHTML = `<div class="empty-state" style="border-color:#ef4444;color:#f87171;"><h2>Failed to load repository</h2><p>Serve this page over HTTP and ensure index/static exists.</p></div>`;
+      });
+      });
+    });
+  </script>
+</body>
+</html>

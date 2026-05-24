@@ -1,0 +1,215 @@
+name: Build & Publish Flatpak Repository
+on:
+  workflow_call:
+    inputs:
+      manifest-path:
+        description: "Path to the Flatpak manifest."
+        required: true
+        type: string
+      runtime:
+        description: "flathub container tag (e.g. gnome-50, freedesktop-24.08)."
+        required: true
+        type: string
+      arches:
+        description: "Space-separated subset of: x86_64 aarch64."
+        required: false
+        type: string
+        default: "x86_64 aarch64"
+      branch:
+        description: "Flatpak branch (channel). When unset: 'stable' on tag pushes, 'beta' on the default branch, else the git ref name."
+        required: false
+        type: string
+        default: ""
+      run-linter:
+        required: false
+        type: boolean
+        default: true
+      deploy:
+        description: "Deploy to GitHub Pages. Set false to host elsewhere."
+        required: false
+        type: boolean
+        default: true
+      registry:
+        required: false
+        type: string
+        default: "ghcr.io"
+      oci-repository:
+        required: false
+        type: string
+        default: ""
+      pages-url:
+        description: "Public URL the index is served from. Defaults to the project's Pages URL; set to your custom domain if you use one."
+        required: false
+        type: string
+        default: ""
+      cache:
+        required: false
+        type: boolean
+        default: true
+      landing-page:
+        description: "Write the static landing page (index.html)."
+        required: false
+        type: boolean
+        default: true
+      signing:
+        description: "Image signing mode: auto, gpg, or off. Signs only when the gpg-private-key secret is set."
+        required: false
+        type: string
+        default: "auto"
+      runtime-repo:
+        description: "RuntimeRepo URL written into each one-click .flatpakref so the app's runtime can auto-install. Empty omits it."
+        required: false
+        type: string
+        default: "https://dl.flathub.org/repo/flathub.flatpakrepo"
+      artifact-name:
+        description: "Name of the uploaded site artifact when deploy is false."
+        required: false
+        type: string
+        default: aetherpak-site
+      concurrency-group:
+        description: "Override the lock that serializes publishes to one shared index. Defaults to one group per repository; set this only if a repo publishes to several independent sites."
+        required: false
+        type: string
+        default: ""
+    outputs:
+      pages-url:
+        description: "URL the index and .flatpakrepo are written against."
+        value: ${{ jobs.prep.outputs.pages-url }}
+    secrets:
+      gpg-private-key:
+        description: "ASCII-armored GPG private key. When set (and signing != off), images are signed."
+        required: false
+      gpg-private-key-passphrase:
+        description: "Passphrase for the GPG private key, if protected."
+        required: false
+
+jobs:
+  prep:
+    name: "AetherPak: Prepare"
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+      pages-url: ${{ steps.m.outputs.pages-url }}
+    steps:
+      - name: Resolve architectures & Pages URL
+        id: m
+        shell: bash
+        env:
+          ARCHES: ${{ inputs.arches }}
+          PAGES_URL: ${{ inputs.pages-url }}
+          DEFAULT_PAGES_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+        run: |
+          set -euo pipefail
+          include="[]"
+          for a in $ARCHES; do
+            case "$a" in
+              x86_64)  include="$(jq -c '. + [{"arch":"x86_64","runner":"ubuntu-latest"}]' <<< "$include")";;
+              aarch64) include="$(jq -c '. + [{"arch":"aarch64","runner":"ubuntu-24.04-arm"}]' <<< "$include")";;
+              *) echo "::error::Unsupported arch '$a' (only x86_64, aarch64 are available in the flathub container)."; exit 1;;
+            esac
+          done
+          echo "matrix={\"include\":$include}" >> "$GITHUB_OUTPUT"
+          url="$PAGES_URL"; [ -n "$url" ] || url="$DEFAULT_PAGES_URL"
+          echo "pages-url=$url" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: "AetherPak: Build (${{ matrix.arch }})"
+    needs: prep
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix: ${{ fromJSON(needs.prep.outputs.matrix) }}
+    permissions:
+      contents: read
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:${{ inputs.runtime }}
+      options: --privileged
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+      - name: Build Flatpak from manifest
+        uses: aetherpak/actions/build@v1
+        with:
+          manifest-path: ${{ inputs.manifest-path }}
+          arch: ${{ matrix.arch }}
+          branch: ${{ inputs.branch }}
+          repo-path: _repo_${{ matrix.arch }}
+          run-linter: ${{ inputs.run-linter }}
+          cache: ${{ inputs.cache }}
+      - name: Upload OSTree repository
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-${{ matrix.arch }}
+          path: _repo_${{ matrix.arch }}
+
+  # Publish and deploy are one job: index/static is a read-modify-write seeded from
+  # the deployed copy, so a later run must not start before this run's deploy is
+  # live. Keep deploy here, not a separate job. Serialized per repo (below).
+  publish:
+    name: "AetherPak: Publish & Deploy"
+    needs: [prep, build]
+    runs-on: ubuntu-latest
+    # One run in-flight + one pending; 3+ at once keep only the newest pending, so
+    # re-push any skipped app.
+    concurrency:
+      group: ${{ inputs.concurrency-group != '' && inputs.concurrency-group || format('aetherpak-publish-{0}', github.repository) }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+      pages: write
+      id-token: write
+    environment:
+      name: ${{ inputs.deploy && 'github-pages' || '' }}
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+      - name: Download built repositories
+        uses: actions/download-artifact@v8
+        with:
+          path: repos
+      - name: Publish x86_64
+        if: ${{ contains(inputs.arches, 'x86_64') }}
+        uses: aetherpak/actions/publish@v1
+        with:
+          repo-path: repos/repo-x86_64
+          branch: ${{ inputs.branch }}
+          registry: ${{ inputs.registry }}
+          oci-repository: ${{ inputs.oci-repository }}
+          pages-url: ${{ needs.prep.outputs.pages-url }}
+          upload-pages-artifact: "false"
+          landing-page: ${{ inputs.landing-page }}
+          signing: ${{ inputs.signing }}
+          runtime-repo: ${{ inputs.runtime-repo }}
+          gpg-private-key: ${{ secrets.gpg-private-key }}
+          gpg-private-key-passphrase: ${{ secrets.gpg-private-key-passphrase }}
+      - name: Publish aarch64
+        if: ${{ contains(inputs.arches, 'aarch64') }}
+        uses: aetherpak/actions/publish@v1
+        with:
+          repo-path: repos/repo-aarch64
+          branch: ${{ inputs.branch }}
+          registry: ${{ inputs.registry }}
+          oci-repository: ${{ inputs.oci-repository }}
+          pages-url: ${{ needs.prep.outputs.pages-url }}
+          upload-pages-artifact: "false"
+          landing-page: ${{ inputs.landing-page }}
+          signing: ${{ inputs.signing }}
+          runtime-repo: ${{ inputs.runtime-repo }}
+          gpg-private-key: ${{ secrets.gpg-private-key }}
+          gpg-private-key-passphrase: ${{ secrets.gpg-private-key-passphrase }}
+      - name: Upload Pages artifact
+        if: ${{ inputs.deploy }}
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+      - name: Deploy to GitHub Pages
+        id: deploy
+        if: ${{ inputs.deploy }}
+        uses: actions/deploy-pages@v5
+      - name: Upload site artifact
+        if: ${{ !inputs.deploy }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: _site

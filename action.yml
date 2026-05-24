@@ -1,0 +1,166 @@
+name: "AetherPak Flatpak Registry Publisher"
+description: "Build a Flatpak, push OCI layers to a registry, update the static index, and publish it to GitHub Pages."
+
+inputs:
+  # ── Build/Import Inputs ────────────────────────────────────────────────────
+  manifest-path:
+    description: "Path to the Flatpak manifest (JSON/YAML) within the checked-out sources."
+    required: false
+    default: ""
+  prebuilt-bundle-path:
+    description: "Path to a pre-built .flatpak bundle file (alternative to manifest-path)."
+    required: false
+    default: ""
+  prebuilt-repo-path:
+    description: "Path to an existing OSTree repository directory (alternative to manifest-path)."
+    required: false
+    default: ""
+  app-id:
+    description: "Reverse-DNS app id (fallback if not building/resolving from repository)."
+    required: false
+    default: ""
+  branch:
+    description: "Flatpak branch (channel). When unset: 'stable' on tag pushes, 'beta' on the default branch, else the git ref name."
+    required: false
+    default: ""
+  arch:
+    description: "Flatpak CPU architecture (e.g. x86_64, aarch64)."
+    required: false
+    default: "x86_64"
+  run-linter:
+    description: "Whether to run flathub manifest and repository linters."
+    required: false
+    default: "true"
+  cache:
+    description: "Whether to cache flatpak runtimes and builder files."
+    required: false
+    default: "true"
+  repo-path:
+    description: "The OSTree repository path."
+    required: false
+    default: "_repo"
+
+  # ── Publish Inputs ─────────────────────────────────────────────────────────
+  registry:
+    description: "OCI registry host (e.g. ghcr.io)."
+    required: false
+    default: "ghcr.io"
+  insecure-registry:
+    description: "Whether to skip TLS verification for the OCI registry (default: false)."
+    required: false
+    default: "false"
+  oci-repository:
+    description: "Target registry repository path without host (defaults to GITHUB_REPOSITORY)."
+    required: false
+    default: ""
+  pages-url:
+    description: "The final public URL where Pages will serve this (e.g. https://owner.github.io/repo)."
+    required: true
+  registry-token:
+    description: "Registry auth token (defaults to the GitHub token, used for GHCR). If blank, login is skipped."
+    required: false
+    default: ${{ github.token }}
+  upload-pages-artifact:
+    description: "Whether to upload the generated website as a GitHub Pages artifact."
+    required: false
+    default: "true"
+  landing-page:
+    description: "Write the static landing page (index.html). Set false to use your own page built from index/static."
+    required: false
+    default: "true"
+  pages-artifact-name:
+    description: "The name of the uploaded Pages artifact."
+    required: false
+    default: "github-pages"
+  site-dir:
+    description: "The directory where the landing page, index, and repo files are generated."
+    required: false
+    default: "_site"
+  signing:
+    description: "Image signing mode: auto (sign iff a key is set), gpg (require a key), or off."
+    required: false
+    default: "auto"
+  gpg-private-key:
+    description: "ASCII-armored GPG private key used to sign images. Empty disables signing under 'auto'."
+    required: false
+    default: ""
+  gpg-private-key-passphrase:
+    description: "Passphrase for the GPG private key, if it is protected."
+    required: false
+    default: ""
+  sig-dir:
+    description: "Site-relative directory for signatures, the public key, and signing.json."
+    required: false
+    default: "sigs"
+  runtime-repo:
+    description: "RuntimeRepo URL written into each .flatpakref so one-click installs can fetch the app's runtime. Empty omits it."
+    required: false
+    default: "https://dl.flathub.org/repo/flathub.flatpakrepo"
+  refs-dir:
+    description: "Site-relative directory for the generated per-app .flatpakref files."
+    required: false
+    default: "refs"
+
+outputs:
+  repo-path:
+    description: "Path to the OSTree repository containing the application."
+    value: ${{ steps.build.outputs.repo-path }}
+  app-id:
+    description: "Resolved Reverse-DNS Application ID."
+    value: ${{ steps.build.outputs.app-id }}
+  branch:
+    description: "Resolved Flatpak branch."
+    value: ${{ steps.build.outputs.branch }}
+  arch:
+    description: "Resolved application architecture."
+    value: ${{ steps.build.outputs.arch }}
+  signing-path:
+    description: "Which signing path ran: 'gpg' or 'off'."
+    value: ${{ steps.publish.outputs.signing-path }}
+  public-key-url:
+    description: "Public URL of the exported public key, or empty when unsigned."
+    value: ${{ steps.publish.outputs.public-key-url }}
+  signature-lookaside-url:
+    description: "Public URL of the signature lookaside directory, or empty when unsigned."
+    value: ${{ steps.publish.outputs.signature-lookaside-url }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Build or Import Flatpak Application
+      id: build
+      uses: ./build
+      with:
+        manifest-path: ${{ inputs.manifest-path }}
+        prebuilt-bundle-path: ${{ inputs.prebuilt-bundle-path }}
+        prebuilt-repo-path: ${{ inputs.prebuilt-repo-path }}
+        app-id: ${{ inputs.app-id }}
+        branch: ${{ inputs.branch }}
+        arch: ${{ inputs.arch }}
+        run-linter: ${{ inputs.run-linter }}
+        cache: ${{ inputs.cache }}
+        repo-path: ${{ inputs.repo-path }}
+
+    - name: Publish OCI to GHCR & Register Index to Pages
+      id: publish
+      uses: ./publish
+      with:
+        repo-path: ${{ steps.build.outputs.repo-path }}
+        app-id: ${{ steps.build.outputs.app-id }}
+        branch: ${{ steps.build.outputs.branch }}
+        arch: ${{ steps.build.outputs.arch }}
+        registry: ${{ inputs.registry }}
+        insecure-registry: ${{ inputs.insecure-registry }}
+        oci-repository: ${{ inputs.oci-repository }}
+        pages-url: ${{ inputs.pages-url }}
+        registry-token: ${{ inputs.registry-token }}
+        upload-pages-artifact: ${{ inputs.upload-pages-artifact }}
+        landing-page: ${{ inputs.landing-page }}
+        pages-artifact-name: ${{ inputs.pages-artifact-name }}
+        site-dir: ${{ inputs.site-dir }}
+        signing: ${{ inputs.signing }}
+        gpg-private-key: ${{ inputs.gpg-private-key }}
+        gpg-private-key-passphrase: ${{ inputs.gpg-private-key-passphrase }}
+        sig-dir: ${{ inputs.sig-dir }}
+        runtime-repo: ${{ inputs.runtime-repo }}
+        refs-dir: ${{ inputs.refs-dir }}

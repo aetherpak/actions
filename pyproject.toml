@@ -1,0 +1,21 @@
+[project]
+name = "aetherpak-actions"
+version = "0.0.0"
+requires-python = ">=3.14"
+
+[dependency-groups]
+dev = ["pre-commit", "pytest", "ty"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]

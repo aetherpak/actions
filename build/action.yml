@@ -1,0 +1,186 @@
+name: "AetherPak Build/Import"
+description: "Compile a Flatpak app from a manifest (via flatpak-builder@v6), or import a pre-built bundle or OSTree repository."
+
+inputs:
+  manifest-path:
+    description: "Path to the Flatpak manifest (JSON/YAML) within the checked-out sources."
+    required: false
+    default: ""
+  prebuilt-bundle-path:
+    description: "Path to a pre-built .flatpak bundle file."
+    required: false
+    default: ""
+  prebuilt-repo-path:
+    description: "Path to an existing OSTree repository directory."
+    required: false
+    default: ""
+  app-id:
+    description: "Reverse-DNS app id (fallback if not building/resolving from repository)."
+    required: false
+    default: ""
+  branch:
+    description: "Flatpak branch (channel). When unset: 'stable' on tag pushes, 'beta' on the default branch, else the git ref name."
+    required: false
+    default: ""
+  arch:
+    description: "Target CPU architecture (default: x86_64)."
+    required: false
+    default: "x86_64"
+  run-linter:
+    description: "Whether to run flatpak-builder-lint verification (default: true)."
+    required: false
+    default: "true"
+  cache:
+    description: "Enable flatpak-builder caching for manifest builds (default: true)."
+    required: false
+    default: "true"
+  repo-path:
+    description: "Target path to export or store the OSTree repository."
+    required: false
+    default: "_repo"
+
+outputs:
+  repo-path:
+    description: "Path to the OSTree repository containing the application."
+    value: ${{ steps.resolve.outputs.repo-path }}
+  app-id:
+    description: "Resolved Reverse-DNS Application ID."
+    value: ${{ steps.resolve.outputs.app-id }}
+  branch:
+    description: "Resolved Flatpak branch."
+    value: ${{ steps.resolve.outputs.branch }}
+  arch:
+    description: "Resolved application architecture."
+    value: ${{ steps.resolve.outputs.arch }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Validate Inputs
+      shell: bash
+      run: |
+        set -euo pipefail
+        SRC_COUNT=0
+        if [ -n "${{ inputs.manifest-path }}" ]; then SRC_COUNT=$((SRC_COUNT + 1)); fi
+        if [ -n "${{ inputs.prebuilt-bundle-path }}" ]; then SRC_COUNT=$((SRC_COUNT + 1)); fi
+        if [ -n "${{ inputs.prebuilt-repo-path }}" ]; then SRC_COUNT=$((SRC_COUNT + 1)); fi
+
+        if [ $SRC_COUNT -eq 0 ]; then
+          echo "::error::You must provide at least one of: manifest-path, prebuilt-bundle-path, or prebuilt-repo-path."
+          exit 1
+        elif [ $SRC_COUNT -gt 1 ]; then
+          echo "::error::Conflicting inputs. Provide only ONE of: manifest-path, prebuilt-bundle-path, or prebuilt-repo-path."
+          exit 1
+        fi
+
+    - name: Resolve channel
+      id: channel
+      shell: bash
+      env:
+        INPUT_BRANCH: ${{ inputs.branch }}
+        DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      run: |
+        set -euo pipefail
+        if [ -n "$INPUT_BRANCH" ]; then
+          name="$INPUT_BRANCH"
+        else
+          name="$(bash "${{ github.action_path }}/../shared/resolve-channel.sh")"
+        fi
+        echo "Resolved channel: ${name}"
+        echo "name=${name}" >> "$GITHUB_OUTPUT"
+
+    # Prebuilt imports need flatpak/ostree; manifest builds get them from the container.
+    - name: Ensure Flatpak tooling
+      if: ${{ inputs.manifest-path == '' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        MISSING=""
+        command -v flatpak >/dev/null 2>&1 || MISSING="$MISSING flatpak"
+        command -v ostree  >/dev/null 2>&1 || MISSING="$MISSING ostree"
+        if [ -n "$MISSING" ] && command -v apt-get >/dev/null 2>&1; then
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update && sudo apt-get install -y $MISSING
+        fi
+
+    - name: Build Flatpak App
+      if: ${{ inputs.manifest-path != '' }}
+      uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+      with:
+        manifest-path: ${{ inputs.manifest-path }}
+        arch: ${{ inputs.arch }}
+        branch: ${{ steps.channel.outputs.name }}
+        repo-dir: ${{ inputs.repo-path }}
+        cache: ${{ inputs.cache }}
+        cache-key: aetherpak-flatpak-${{ inputs.arch }}-${{ hashFiles(inputs.manifest-path) }}
+        build-bundle: false
+        mirror-screenshots-url: https://dl.flathub.org/media
+        upload-artifact: false
+
+    - name: Import Pre-built Bundle
+      if: ${{ inputs.prebuilt-bundle-path != '' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "Importing Flatpak bundle: ${{ inputs.prebuilt-bundle-path }}..."
+        flatpak build-import-bundle "${{ inputs.repo-path }}" "${{ inputs.prebuilt-bundle-path }}"
+
+    - name: Copy Pre-built OSTree Repository
+      if: ${{ inputs.prebuilt-repo-path != '' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        SRC="${{ inputs.prebuilt-repo-path }}"
+        DST="${{ inputs.repo-path }}"
+        if [ "$SRC" != "$DST" ]; then
+          echo "Copying OSTree repo from $SRC to $DST..."
+          mkdir -p "$DST"
+          # Use hardlinks copy (-l) to save space and time
+          cp -al "$SRC"/. "$DST"/
+        fi
+
+    - name: Resolve App Info from Repository
+      id: resolve
+      shell: bash
+      run: |
+        set -euo pipefail
+        REPO="${{ inputs.repo-path }}"
+
+        REF="$(ostree refs --repo="${REPO}" | grep "^app/" | head -n 1 || true)"
+
+        if [ -n "$REF" ]; then
+          echo "Found ref in repository: $REF"
+          # Parse ref structure: app/app-id/arch/branch
+          IFS='/' read -r reftype app_id arch branch <<< "$REF"
+        else
+          echo "::warning::No application ref (app/*) found in repository. Falling back to inputs."
+          app_id="${{ inputs.app-id }}"
+          branch="${{ steps.channel.outputs.name }}"
+          arch="${{ inputs.arch }}"
+        fi
+
+        if [ -z "$app_id" ]; then
+          echo "::error::Could not resolve Application ID (app-id). Please provide it or ensure the repository/manifest contains it."
+          exit 1
+        fi
+
+        echo "Resolved App ID: ${app_id}"
+        echo "Resolved Branch: ${branch}"
+        echo "Resolved Arch: ${arch}"
+
+        echo "repo-path=${REPO}" >> "$GITHUB_OUTPUT"
+        echo "app-id=${app_id}" >> "$GITHUB_OUTPUT"
+        echo "branch=${branch}" >> "$GITHUB_OUTPUT"
+        echo "arch=${arch}" >> "$GITHUB_OUTPUT"
+
+    - name: Run Flatpak Linter
+      if: ${{ inputs.run-linter == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ -n "${{ inputs.manifest-path }}" ]; then
+          echo "Linting manifest..."
+          flatpak-builder-lint manifest "${{ inputs.manifest-path }}"
+        fi
+        echo "Linting repository..."
+        flatpak-builder-lint repo "${{ inputs.repo-path }}"

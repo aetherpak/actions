@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AetherPak Actions: Flatpak repositories on GitHub</title>
+  <meta name="description" content="GitHub Actions that build Flatpak apps and host them as a Flatpak repository on GHCR and GitHub Pages.">
+  <style>
+    :root {
+      --bg: #09090b; --card: #18181b; --border: #27272a;
+      --text: #f4f4f5; --text-muted: #a1a1aa;
+      --primary: #8b5cf6; --primary-glow: rgba(139,92,246,0.15); --success: #10b981;
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-sans); line-height: 1.6; padding: 2rem 1rem 0; min-height: 100vh; overflow-x: hidden; }
+    body::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 800px; height: 360px; background: radial-gradient(circle, rgba(139,92,246,0.10) 0%, rgba(9,9,11,0) 70%); z-index: -1; pointer-events: none; }
+    .container { max-width: 760px; margin: 0 auto; }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { font-family: var(--font-mono); }
+
+    header { text-align: center; margin: 1.5rem 0 3rem; animation: fadeIn 0.8s ease-out; }
+    .badge { display: inline-block; padding: 0.25rem 0.75rem; background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.3); border-radius: 9999px; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.08em; color: var(--primary); margin-bottom: 1.25rem; box-shadow: 0 0 15px var(--primary-glow); }
+    h1 { font-size: 2.75rem; font-weight: 800; letter-spacing: -0.045em; line-height: 1.1; background: linear-gradient(to right, #fff, #d8b4fe); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .tagline { color: var(--text-muted); font-size: 1.15rem; margin-top: 0.75rem; max-width: 540px; margin-inline: auto; }
+
+    section { animation: slideUp 0.7s ease-out both; }
+    section + section { margin-top: 2.5rem; }
+    h2 { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 1rem; }
+    h3.cfg { font-size: 1rem; font-weight: 600; margin: 1.75rem 0 0.5rem; }
+    p { color: #d4d4d8; }
+    .lead { font-size: 1.05rem; }
+    ul.points { list-style: none; margin-top: 1rem; display: grid; gap: 0.6rem; }
+    ul.points li { padding-left: 1.5rem; position: relative; color: #d4d4d8; }
+    ul.points li::before { content: '→'; position: absolute; left: 0; color: var(--primary); }
+
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; }
+    .step { display: flex; gap: 0.9rem; }
+    .step + .step { margin-top: 1.5rem; }
+    .step-num { flex-shrink: 0; width: 1.75rem; height: 1.75rem; border-radius: 9999px; background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.3); color: var(--primary); font-weight: 700; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; }
+    .step-body { flex: 1; min-width: 0; }
+    .step-body h4 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .step-body p { font-size: 0.95rem; color: var(--text-muted); margin-bottom: 0.6rem; }
+
+    .tabs { display: flex; gap: 0.25rem; border-bottom: 1px solid var(--border); margin-bottom: 1.25rem; }
+    .tab { padding: 0.6rem 1rem; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; color: var(--text-muted); font: inherit; font-weight: 600; font-size: 0.92rem; cursor: pointer; transition: color 0.2s; }
+    .tab:hover { color: var(--text); }
+    .tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--primary); }
+    .panel[hidden] { display: none; }
+    .panel { animation: fadeIn 0.3s ease-out; }
+
+    .code-block { position: relative; background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-radius: 10px; }
+    .code-block pre { margin: 0; padding: 0.9rem 3rem 0.9rem 1rem; overflow-x: auto; }
+    .code-block code { font-size: 0.83rem; color: #e4e4e7; white-space: pre; }
+    .code-block.inline code { white-space: pre-wrap; word-break: break-all; }
+    .code-block .k { color: #93c5fd; }
+    .code-block .s { color: #86efac; }
+    .code-block .e { color: #d8b4fe; }
+    .code-block .c { color: #71717a; font-style: italic; }
+    .btn-copy { position: absolute; top: 0.55rem; right: 0.55rem; background: rgba(255,255,255,0.04); border: 1px solid var(--border); cursor: pointer; color: var(--text-muted); padding: 0.3rem; border-radius: 6px; display: flex; transition: all 0.2s; }
+    .btn-copy:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+    .btn-copy.success { color: var(--success); border-color: var(--success); }
+    .hint { font-size: 0.85rem; color: var(--text-muted); margin: 0.75rem 0 0.4rem; }
+
+    .opts { display: grid; gap: 0.5rem; }
+    .opt { display: grid; grid-template-columns: 9rem 1fr; gap: 0.75rem; font-size: 0.92rem; padding: 0.5rem 0; border-top: 1px solid var(--border); }
+    .opt:first-child { border-top: none; }
+    .opt code { color: var(--primary); font-size: 0.85rem; }
+    .opt span { color: var(--text-muted); }
+
+    .links { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+    .link-card { display: block; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; transition: all 0.2s; }
+    .link-card:hover { border-color: rgba(139,92,246,0.4); transform: translateY(-2px); text-decoration: none; }
+    .link-card .t { color: var(--text); font-weight: 600; font-size: 0.95rem; }
+    .link-card .d { color: var(--text-muted); font-size: 0.82rem; margin-top: 0.15rem; }
+
+    .preview { margin-top: 1rem; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 30px rgba(139,92,246,0.06); }
+    .preview img { display: block; width: 100%; height: auto; }
+    .caption { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.7rem; text-align: center; }
+    footer { text-align: center; padding: 3.5rem 0 2rem; color: var(--text-muted); font-size: 0.85rem; }
+
+    .linkbtn { background: none; border: none; padding: 0; font: inherit; color: var(--primary); cursor: pointer; }
+    .linkbtn:hover { text-decoration: underline; }
+    dialog.modal { inset: 0; margin: auto; max-width: 560px; width: calc(100% - 2rem); background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+    dialog.modal::backdrop { background: rgba(9,9,11,0.7); backdrop-filter: blur(2px); }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+    .modal-head h3 { font-size: 1.05rem; font-weight: 600; }
+    .modal-x { background: none; border: none; color: var(--text-muted); font-size: 1.4rem; line-height: 1; cursor: pointer; padding: 0 0.35rem; border-radius: 6px; }
+    .modal-x:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+    dialog.modal p { font-size: 0.95rem; color: var(--text-muted); }
+    dialog.modal .code-block { margin: 0.9rem 0 0.4rem; }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+    section:nth-of-type(1) { animation-delay: 0.05s; }
+    section:nth-of-type(2) { animation-delay: 0.15s; }
+    section:nth-of-type(3) { animation-delay: 0.25s; }
+    section:nth-of-type(4) { animation-delay: 0.35s; }
+    section:nth-of-type(5) { animation-delay: 0.45s; }
+    @media (max-width: 560px) { h1 { font-size: 2.1rem; } .links, .opt { grid-template-columns: 1fr; } .opt { gap: 0.1rem; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="badge">AETHERPAK</div>
+      <h1>Flatpak repositories on GitHub</h1>
+      <p class="tagline">GitHub Actions that build Flatpak apps and host them as a Flatpak repository, using GHCR for blobs and GitHub Pages for the index.</p>
+    </header>
+
+    <section>
+      <h2>What it is</h2>
+      <p class="lead">A static-HTTP OSTree repository serves an app as many small objects, so clients make hundreds of requests. That is slow, and it trips GitHub Pages rate limits. AetherPak uses Flatpak's native OCI support instead:</p>
+      <ul class="points">
+        <li>Application layers (blobs) live in GHCR as OCI images.</li>
+        <li>A small JSON index and a landing page are served from GitHub Pages.</li>
+        <li>Clients read the index from Pages and pull layers from GHCR in large chunks.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>What your users get</h2>
+      <p>Every repository gets a landing page like this, with a one-click <code>.flatpakref</code> install button and copy-paste commands for each app and channel.</p>
+      <div class="preview"><img src="preview.png" alt="Generated AetherPak registry page showing GNOME Sudoku with install commands" loading="lazy"></div>
+      <p class="caption">The page AetherPak deploys for your repository.</p>
+    </section>
+
+    <section>
+      <h2>Usage</h2>
+      <div class="card">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <h4>Enable GitHub Pages</h4>
+              <p>Repository Settings, then Pages, then Source: GitHub Actions.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <h4>Add a signing key <span style="color:var(--text-muted);font-weight:400">(optional)</span></h4>
+              <p>Generate a GPG key and store it as your repo's <code>AETHERPAK_GPG_KEY</code> secret (<button class="linkbtn" onclick="document.getElementById('keygen').showModal()">see how</button>). With <code>signing: auto</code> (the default) the workflow signs every image once the key is present, publishing the signature and public key beside the index so clients verify on install. With no key set, nothing changes.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <h4>Add the workflow</h4>
+              <p>Create <code>.github/workflows/publish.yml</code>. It builds from your manifest for x86_64 and aarch64 and deploys to Pages.</p>
+              <div class="code-block">
+                <pre><code>name: Publish Flatpak
+on: { push: { branches: [main] } }
+permissions:
+  contents: read
+  packages: write
+  pages: write
+  id-token: write
+jobs:
+  publish:
+    uses: aetherpak/actions/.github/workflows/publish.yml@main
+    with:
+      manifest-path: org.example.App.json
+      runtime: gnome-50
+    secrets:
+      gpg-private-key: ${{ secrets.AETHERPAK_GPG_KEY }}  # signs when the key is set</code></pre>
+                <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
+              </div>
+              <p class="hint">Pin to a specific commit for reproducible builds:</p>
+              <div class="code-block inline">
+                <pre><code>uses: aetherpak/actions/.github/workflows/publish.yml@__COMMIT_SHA__</code></pre>
+                <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
+              </div>
+            </div>
+          </div>
+        </div>
+    </section>
+
+    <section>
+      <h2>Configuration</h2>
+      <div class="opts">
+        <div class="opt"><code>manifest-path</code><span>Flatpak manifest to build. Required.</span></div>
+        <div class="opt"><code>runtime</code><span>flathub builder container tag (gnome-50, freedesktop-24.08, …). Required.</span></div>
+        <div class="opt"><code>arches</code><span>Architectures to build. Default <code>x86_64 aarch64</code>.</span></div>
+        <div class="opt"><code>branch</code><span>Flatpak branch (channel). <code>stable</code> on tags, <code>beta</code> on the default branch, else the ref name.</span></div>
+        <div class="opt"><code>deploy</code><span>Deploy to Pages. Set <code>false</code> to host the site yourself.</span></div>
+        <div class="opt"><code>run-linter</code><span>Run <code>flatpak-builder-lint</code>. Default <code>true</code>.</span></div>
+        <div class="opt"><code>cache</code><span>Cache flatpak runtimes and builder files. Default <code>true</code>.</span></div>
+        <div class="opt"><code>pages-url</code><span>Public URL of the index. Defaults to the project's Pages URL.</span></div>
+        <div class="opt"><code>registry</code><span>OCI registry host. Default <code>ghcr.io</code>.</span></div>
+        <div class="opt"><code>oci-repository</code><span>Image repository path. Defaults to this repository.</span></div>
+        <div class="opt"><code>signing</code><span>GPG-sign images: <code>auto</code> (sign when a key is set), <code>gpg</code>, or <code>off</code>. Default <code>auto</code>.</span></div>
+        <div class="opt"><code>runtime-repo</code><span><code>RuntimeRepo</code> in each one-click <code>.flatpakref</code>. Defaults to Flathub; empty omits it.</span></div>
+        <div class="opt"><code>landing-page</code><span>Write the static <code>index.html</code>. Set <code>false</code> to render your own page.</span></div>
+        <div class="opt"><code>artifact-name</code><span>Site artifact name when <code>deploy: false</code>. Default <code>aetherpak-site</code>.</span></div>
+        <div class="opt"><code>concurrency-group</code><span>Override the per-repository publish lock. Only for repos publishing several independent sites.</span></div>
+      </div>
+
+      <div class="tabs" role="tablist" style="margin-top: 1.5rem;">
+        <button class="tab" role="tab" data-tab="domain" aria-selected="true">Custom domain</button>
+        <button class="tab" role="tab" data-tab="registry" aria-selected="false">Custom registry</button>
+        <button class="tab" role="tab" data-tab="byo" aria-selected="false">Bring your build</button>
+      </div>
+
+      <div class="panel" data-tab="domain">
+        <p>Set <code>pages-url</code> to your domain (also set it under Settings, then Pages):</p>
+        <div class="code-block inline">
+          <pre><code>with:
+  manifest-path: org.example.App.json
+  runtime: gnome-50
+  pages-url: https://flatpak.example.com</code></pre>
+          <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
+        </div>
+      </div>
+
+      <div class="panel" data-tab="registry" hidden>
+        <p>Blobs go to GHCR by default. For another image path within GHCR, set <code>oci-repository</code>. To push to a different registry, use the <code>publish</code> action directly so you can supply its credentials:</p>
+        <div class="code-block">
+          <pre><code>- uses: aetherpak/actions/publish@main
+  with:
+    repo-path: _repo                              # or bundle-path: app.flatpak
+    registry: registry.example.com
+    oci-repository: my-org/my-app
+    registry-token: ${{ secrets.REGISTRY_TOKEN }} # registry password
+    pages-url: https://flatpak.example.com</code></pre>
+          <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
+        </div>
+        <p class="hint">The index points clients at this registry for the blobs. Add <code>insecure-registry: true</code> for a local or HTTP registry.</p>
+      </div>
+
+      <div class="panel" data-tab="byo" hidden>
+        <p>Build with any toolchain (a manifest, Rust/Tauri, a script). Produce an OSTree repo or a <code>.flatpak</code> bundle, then publish it. <code>publish</code> resolves the app id, arch, and branch from the repo.</p>
+        <div class="code-block">
+          <pre><code>name: Publish Flatpak
+on: { push: { branches: [main] } }
+permissions:
+  contents: read
+  packages: write
+  pages: write
+  id-token: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      # Build your app here, producing an OSTree repo (or a .flatpak bundle).
+      - uses: aetherpak/actions/publish@main
+        with:
+          repo-path: _repo            # or: bundle-path: app.flatpak
+          pages-url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+      - id: deploy
+        uses: actions/deploy-pages@v5</code></pre>
+          <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Learn more</h2>
+      <div class="links">
+        <a class="link-card" href="https://github.com/aetherpak/actions"><div class="t">Repository</div><div class="d">Source, issues, and releases</div></a>
+        <a class="link-card" href="https://github.com/aetherpak/actions/blob/main/README.md"><div class="t">README</div><div class="d">Usage and options</div></a>
+        <a class="link-card" href="https://github.com/aetherpak/actions/blob/main/ARCHITECTURE.md"><div class="t">Architecture</div><div class="d">How it works and its limits</div></a>
+        <a class="link-card" href="https://github.com/aetherpak/actions/blob/main/CONTRIBUTING.md"><div class="t">Contributing</div><div class="d">Developing and testing</div></a>
+      </div>
+    </section>
+
+    <footer>
+      <p>AetherPak · MIT licensed · Served via GitHub Pages &amp; GHCR</p>
+    </footer>
+  </div>
+
+  <dialog id="keygen" class="modal">
+    <div class="modal-head">
+      <h3>Generate a signing key</h3>
+      <button class="modal-x" aria-label="Close" onclick="this.closest('dialog').close()">&times;</button>
+    </div>
+    <p>Create a passphrase-less 4096-bit RSA key and store the armored private key as your repository's <code>AETHERPAK_GPG_KEY</code> secret with the <a href="https://cli.github.com/" target="_blank" rel="noopener">GitHub CLI</a>. Run it once from a clone of the repo, with <code>gh auth login</code> done:</p>
+    <div class="code-block">
+      <pre><code># Generate a passphrase-less signing key
+gpg --batch --gen-key &lt;&lt;'EOF'
+%no-protection
+Key-Type: RSA
+Key-Length: 4096
+Name-Real: Example Releases
+Name-Email: releases@example.org
+Expire-Date: 0
+%commit
+EOF
+
+# Store the private key as the repo secret the workflow reads
+gpg --armor --export-secret-keys releases@example.org \
+  | gh secret set AETHERPAK_GPG_KEY</code></pre>
+      <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
+    </div>
+    <p class="hint">The workflow reads <code>AETHERPAK_GPG_KEY</code> and, with <code>signing: auto</code>, signs every image as soon as the secret exists. To rotate, re-run this and re-publish each channel.</p>
+  </dialog>
+
+  <script>
+    function copyBlock(btn) {
+      const code = btn.parentElement.querySelector('code').innerText;
+      navigator.clipboard.writeText(code).then(() => {
+        btn.classList.add('success');
+        setTimeout(() => btn.classList.remove('success'), 1500);
+      });
+    }
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabs = tab.closest('.tabs');
+        tabs.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', String(t === tab)));
+        tabs.parentElement.querySelectorAll('.panel').forEach(p => { p.hidden = p.dataset.tab !== tab.dataset.tab; });
+      });
+    });
+    // Minimal, dependency-free highlighter for the YAML/shell snippets.
+    function esc(s) { return s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+    function highlight(text) {
+      return text.split('\n').map(line => {
+        const m = line.match(/(^|\s)(#.*)$/);
+        const comment = m ? m[2] : '';
+        const code = m ? line.slice(0, line.length - comment.length) : line;
+        const h = esc(code)
+          .replace(/^(\s*(?:-\s*)?)([\w.-]+)(:)/, "$1<span class='k'>$2</span>$3")
+          .replace(/(\$\{\{[^}]*\}\})/g, "<span class='e'>$1</span>")
+          .replace(/("[^"]*")/g, "<span class='s'>$1</span>");
+        return comment ? h + "<span class='c'>" + esc(comment) + "</span>" : h;
+      }).join('\n');
+    }
+    document.querySelectorAll('.code-block code').forEach(c => { c.innerHTML = highlight(c.textContent); });
+
+    const ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+    document.querySelectorAll('.btn-copy').forEach(b => { b.innerHTML = ICON; });
+
+    // Click the backdrop (outside the dialog content) to close.
+    document.querySelectorAll('dialog.modal').forEach(d => {
+      d.addEventListener('click', e => { if (e.target === d) d.close(); });
+    });
+  </script>
+</body>
+</html>

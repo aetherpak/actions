@@ -1,0 +1,155 @@
+# Architecture
+
+## Overview
+
+AetherPak turns a Flatpak app into a hosted Flatpak repository backed by two
+GitHub services:
+
+- **GHCR** holds the application as OCI images (the large blobs).
+- **GitHub Pages** serves a small JSON index (`index/static`), a landing page
+  (`index.html`), a `.flatpakrepo` remote-config file, and per-app `.flatpakref`
+  files under `refs/`.
+
+A client adds the Pages URL as an `oci+https://` Flatpak remote, reads the index,
+and pulls image layers from GHCR by digest.
+
+## Pipeline
+
+```
+manifest --build--> OSTree repo --publish--> OCI image in GHCR
+                                         \--> index/static + index.html on Pages
+client:  Pages index --(digest)--> GHCR blobs
+```
+
+1. **build** runs `flatpak-builder` through the official `flatpak-builder@v6`
+   action, inside `ghcr.io/flathub-infra/flatpak-github-actions:<runtime>`, and
+   exports an OSTree repo. Alternatively it imports a prebuilt `.flatpak` bundle
+   or copies an existing OSTree repo. It reads `app-id`/`arch`/`branch` from the
+   repo ref `app/<id>/<arch>/<branch>`. The branch is the channel: with no
+   `branch` input it defaults to `stable` on tag pushes, `beta` on the default
+   branch, and the git ref name otherwise.
+2. **publish** converts the OSTree repo to an OCI image (`flatpak build-bundle
+   --oci`), pushes it to `ghcr.io/<owner>/<repo>` (tag `<branch>-<arch>`, signing
+   it when a GPG key is configured; see "Signing"), inspects the pushed image for
+   its digest and `org.flatpak.*` labels, and merges an entry into `index/static`.
+   It then reconciles the index, dropping entries whose image no longer exists in
+   the registry, writes `index.flatpakrepo`, generates a per-app
+   `refs/<app>-<channel>.flatpakref` for each installable entry in the reconciled
+   index, copies the static `index.html`, and optionally uploads and deploys the
+   Pages artifact.
+3. The **reusable workflow** runs `build` per architecture (a matrix, in the
+   container), then a single `publish` job that merges all architectures, deploys,
+   and is the unit that publishes one app. It is **single-app**: to host several
+   apps, give each a path-filtered caller workflow (see "Multiple apps" below).
+
+Deployment is optional. With `deploy: false` the reusable workflow uploads the
+built site as a plain artifact instead of deploying it, so the files can be served
+from a subpath of an existing Pages site or from external hosting. `pages-url`
+sets the URL the index and `.flatpakrepo` are written against.
+
+## The index (`index/static`)
+
+A JSON document Flatpak reads directly:
+
+```json
+{
+  "Registry": "https://ghcr.io",
+  "Results": [
+    {
+      "Name": "owner/repo",
+      "Images": [
+        {
+          "Digest": "sha256:...",
+          "Architecture": "amd64",
+          "Tags": ["stable"],
+          "Labels": {
+            "org.flatpak.ref": "app/org.example.App/x86_64/stable",
+            "org.flatpak.commit": "...",
+            "org.flatpak.metadata": "..."
+          }
+        }
+      ]
+    }
+  ]
+}
+```
+
+- `merge_index.py` adds or replaces one image per `(ref, arch)` and never rewrites
+  the file destructively, so matrix runs across arches, branches, and apps
+  accumulate into one index.
+- Flatpak resolves an app from the labels and pulls the manifest by `Digest`. The
+  GHCR tag is not used for resolution; it only keeps the digest referenced. Images
+  are tagged `<branch>-<arch>` so multi-arch pushes do not overwrite each other's
+  tags.
+- The landing page hides entries without `org.flatpak.metadata` (ones a client
+  could not install).
+
+## Signing (optional)
+
+Signing is opt-in and GPG-only (Flatpak's OCI verification uses the
+`containers/image` simple-signing lookaside, which is GPG, not cosign/keyless).
+When a key is configured, `skopeo copy --sign-by` writes a detached signature to
+a `registries.d` `lookaside-staging` directory inside the site, and `signing.py`
+emits the supporting files:
+
+- `sigs/<repo>@sha256=<digest>/signature-1`: the detached signature per image.
+- `sigs/key.asc`: the exported public key; `sigs/signing.json`: the manifest
+  the landing page reads to show verified-install commands.
+- Each `.flatpakref` carries `GPGKey` (base64 of the binary key) and
+  `SignatureLookaside`, so installs from the ref are verified too (a key the
+  `.flatpakrepo` format cannot hold).
+
+`index/static` is cumulative (seeded from the deployed site) but the Pages deploy
+replaces the whole site, so each run **backfills** any signature the final index
+references but did not just write, fetching it from the deployed site. Rotation
+therefore only fully takes effect once every still-listed image has been
+re-signed. `mode` is `auto` (sign iff a key is set), `gpg` (require a key, fail
+otherwise), or `off`.
+
+## Multiple apps and serialized publishing
+
+`index/static` is one file shared by every app. A publish run seeds it from the
+deployed Pages copy, merges its app, reconciles, and deploys: a read-modify-write
+whose only synchronization channel is the deployed index, so two concurrent runs
+would race (both seed the same copy; the last deploy wins).
+
+The reusable workflow stays single-app and serializes publishing instead. The
+`publish` job also deploys (deploy must be inside the lock, since the next run
+seeds from the deployed index) under a job-level `concurrency` group keyed per
+repository (`cancel-in-progress: false`). Every per-app caller workflow shares the
+group, so publishes run one at a time; GitHub keeps one pending run, so a burst of
+3+ simultaneous triggers needs a re-push for any skipped app. Builds stay parallel:
+each pushes an independent OCI image, not the shared index.
+
+Many apps therefore means one path-filtered caller workflow per app; only changed
+apps rebuild.
+
+## Dependencies
+
+- GitHub Pages deployed from Actions (`upload-pages-artifact` + `deploy-pages`).
+- GHCR with anonymous pull (public package) for unauthenticated installs.
+- Flatpak's OCI remote support (`oci+https://`) and `flatpak-builder-lint`.
+- The flathub builder container, published for amd64 and arm64.
+- Runner-provided `skopeo`, `jq`, `python3`; `flatpak` and `ostree` are installed
+  on demand when missing.
+
+## Assumptions
+
+- The GHCR package is public; otherwise anonymous `flatpak install` fails.
+- `runtime` matches the app's runtime and exists as a flathub container tag.
+- Architectures are a subset of `x86_64`/`aarch64`, since the container is built
+  for amd64/arm64 only.
+- One repository (`Name` is `<owner>/<repo>`) is the unit of the index.
+
+## Limitations
+
+- **Removal is reconcile-based.** Publish merges, then drops index entries whose
+  image is gone from the registry (definitive not-found only; transient or auth
+  errors keep the entry). To remove an app, channel, or arch, delete its image
+  from the registry and re-run publish. There is no in-action delete; registry
+  blob deletion is a manual step (see README Maintenance).
+- **Linter strictness.** `flatpak-builder-lint` enforces Flathub store policies,
+  some of which fail for self-hosted apps. Screenshots are mirrored to cover the
+  common case; set `run-linter: false` to skip the rest.
+- **Architecture set.** Limited to what the flathub container provides
+  (amd64/arm64).

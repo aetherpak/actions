@@ -1,0 +1,23 @@
+# Flatpak and Build Outputs
+.flatpak-builder/
+_build/
+_repo/
+_oci-image/
+_site/
+
+# Test Outputs
+_repo_test/
+_repo_test_oci/
+_site_test/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+uv.lock
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo

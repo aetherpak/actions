@@ -1,0 +1,347 @@
+name: Test Actions
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  unit-tests:
+    name: Run Python Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      # Match the publish action, which pins Python 3.14 via setup-python, so
+      # the suite runs on the same interpreter the scripts use in production.
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Run Tests
+        env:
+          UV_PYTHON_DOWNLOADS: never
+        run: uvx --python "$(command -v python3)" pytest
+
+  lint:
+    name: Lint (pre-commit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.10'
+
+      # The ty pre-commit hook runs `uv run ty check`, so uv must be on PATH.
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.1
+
+  integration-test:
+    name: Mock Integration Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Install Flatpak & OSTree
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak ostree
+
+      - name: Start Local OCI Registry
+        run: |
+          docker run -d -p 5001:5000 --name registry registry:2
+          # Wait for registry to start
+          for _ in {1..10}; do
+            curl -s http://localhost:5001/v2/ && break
+            sleep 1
+          done
+      - name: Create Mock OSTree Repository
+        run: |
+          mkdir -p tests/mock_repo
+          ostree init --mode=archive --repo=tests/mock_repo
+          mkdir -p tests/mock_contents
+          cat > tests/mock_contents/metadata <<EOF
+          [Application]
+          name=org.flatpak.MockApp
+          runtime=org.freedesktop.Platform/x86_64/23.08
+          sdk=org.freedesktop.Sdk/x86_64/23.08
+          EOF
+          ostree commit --repo=tests/mock_repo --branch=app/org.flatpak.MockApp/x86_64/stable -m "mock app commit" tests/mock_contents
+
+      - name: Run Build Action
+        id: build_step
+        uses: ./build
+        with:
+          prebuilt-repo-path: tests/mock_repo
+          repo-path: _repo_test
+          run-linter: "false"
+
+      - name: Verify Build Action Outputs
+        run: |
+          if [ "${{ steps.build_step.outputs.app-id }}" != "org.flatpak.MockApp" ]; then
+            echo "Error: app-id output is wrong"
+            exit 1
+          fi
+          if [ "${{ steps.build_step.outputs.branch }}" != "stable" ]; then
+            echo "Error: branch output is wrong"
+            exit 1
+          fi
+          if [ "${{ steps.build_step.outputs.arch }}" != "x86_64" ]; then
+            echo "Error: arch output is wrong"
+            exit 1
+          fi
+      - name: Run Publish Action
+        id: publish_step
+        uses: ./publish
+        with:
+          repo-path: ${{ steps.build_step.outputs.repo-path }}
+          registry: "localhost:5001"
+          insecure-registry: "true"
+          oci-repository: "aetherpak/mock-app"
+          pages-url: "http://localhost:9999"
+          registry-token: "" # skip login for local registry
+          upload-pages-artifact: "false"
+
+      - name: Verify Generated Index
+        run: |
+          if [ ! -f "_site/index/static" ]; then
+            echo "Error: index/static not generated"
+            exit 1
+          fi
+          if [ ! -f "_site/org.flatpak.MockApp.flatpakrepo" ]; then
+            echo "Error: flatpakrepo file not generated"
+            exit 1
+          fi
+
+          # Check index contents (Registry must be a plain URL, not oci+ prefixed)
+          REGISTRY_URL="$(jq -r '.Registry' _site/index/static)"
+          if [ "$REGISTRY_URL" != "https://localhost:5001" ]; then
+            echo "Error: Registry URL in index is wrong: $REGISTRY_URL"
+            exit 1
+          fi
+
+          NAME="$(jq -r '.Results[0].Name' _site/index/static)"
+          if [ "$NAME" != "aetherpak/mock-app" ]; then
+            echo "Error: Result Name in index is wrong: $NAME"
+            exit 1
+          fi
+
+          REF="$(jq -r '.Results[0].Images[0].Labels["org.flatpak.ref"]' _site/index/static)"
+          if [ "$REF" != "app/org.flatpak.MockApp/x86_64/stable" ]; then
+            echo "Error: Image Ref Label in index is wrong: $REF"
+            exit 1
+          fi
+
+          # flatpak needs the full label set in the index, not just the ref
+          for label in org.flatpak.commit org.flatpak.metadata; do
+            VAL="$(jq -r --arg l "$label" '.Results[0].Images[0].Labels[$l] // empty' _site/index/static)"
+            if [ -z "$VAL" ]; then
+              echo "Error: required label $label missing from index"
+              exit 1
+            fi
+          done
+
+          echo "All checks passed! Integration test successful!"
+
+          # Regression: the default (no-key) path is byte-for-byte today's behavior
+          # — no signature dir, and the action reports the off path.
+          if [ -d "_site/sigs" ]; then
+            echo "Error: unsigned publish unexpectedly produced _site/sigs"; exit 1
+          fi
+          if [ "${{ steps.publish_step.outputs.signing-path }}" != "off" ]; then
+            echo "Error: unsigned publish should report signing-path=off"; exit 1
+          fi
+
+      - name: Reconcile drops missing entries, keeps present
+        run: |
+          set -euo pipefail
+          # MockApp was pushed to the mock registry, so its digest probes present.
+          # Add a ghost entry whose digest does not exist; reconcile must drop it.
+          python3 - <<'PY'
+          import json
+          p = "_site/index/static"
+          idx = json.load(open(p))
+          idx["Results"].append({
+              "Name": "aetherpak/ghost",
+              "Images": [{
+                  "Digest": "sha256:" + "0" * 64,
+                  "Architecture": "amd64",
+                  "Labels": {"org.flatpak.ref": "app/org.flatpak.Ghost/x86_64/stable"},
+                  "Tags": ["stable"],
+              }],
+          })
+          json.dump(idx, open(p, "w"), indent=2)
+          PY
+
+          python3 publish/reconcile.py \
+            --index-path _site/index/static \
+            --registry "https://localhost:5001" --insecure
+
+          python3 - <<'PY'
+          import json
+          idx = json.load(open("_site/index/static"))
+          names = [r["Name"] for r in idx["Results"]]
+          assert "aetherpak/ghost" not in names, f"ghost should be reconciled away: {names}"
+          assert "aetherpak/mock-app" in names, f"mock-app should remain: {names}"
+          print("reconcile integration ok")
+          PY
+
+  signing-integration-test:
+    name: Mock Signing Integration Test (auto activation)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Install Flatpak & OSTree
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak ostree
+
+      - name: Start Local OCI Registry
+        run: |
+          docker run -d -p 5001:5000 --name registry registry:2
+          for _ in {1..10}; do curl -s http://localhost:5001/v2/ && break; sleep 1; done
+
+      - name: Create Mock OSTree Repository
+        run: |
+          mkdir -p tests/mock_repo
+          ostree init --mode=archive --repo=tests/mock_repo
+          mkdir -p tests/mock_contents
+          cat > tests/mock_contents/metadata <<EOF
+          [Application]
+          name=org.flatpak.MockApp
+          runtime=org.freedesktop.Platform/x86_64/23.08
+          sdk=org.freedesktop.Sdk/x86_64/23.08
+          EOF
+          ostree commit --repo=tests/mock_repo --branch=app/org.flatpak.MockApp/x86_64/stable -m "mock app commit" tests/mock_contents
+
+      - name: Generate ephemeral signing key
+        run: |
+          set -euo pipefail
+          GNUPGHOME="$(mktemp -d)"; export GNUPGHOME
+          cat > "$GNUPGHOME/params" <<EOF
+          %no-protection
+          Key-Type: RSA
+          Key-Length: 2048
+          Name-Real: AetherPak CI
+          Name-Email: ci@aetherpak.local
+          Expire-Date: 0
+          %commit
+          EOF
+          gpg --batch --gen-key "$GNUPGHOME/params"
+          { echo "AEP_GPG_KEY<<EOF"; gpg --armor --export-secret-keys; echo "EOF"; } >> "$GITHUB_ENV"
+
+      - name: Run Build Action
+        id: build_step
+        uses: ./build
+        with:
+          prebuilt-repo-path: tests/mock_repo
+          repo-path: _repo_test
+          run-linter: "false"
+
+      - name: Run Publish Action (key present, default mode)
+        id: signed_publish
+        uses: ./publish
+        with:
+          repo-path: ${{ steps.build_step.outputs.repo-path }}
+          registry: "localhost:5001"
+          insecure-registry: "true"
+          oci-repository: "aetherpak/mock-app"
+          pages-url: "http://localhost:9999"
+          registry-token: ""
+          upload-pages-artifact: "false"
+          # NOTE: no `signing:` here — default is `auto`, so the key alone enables it.
+          gpg-private-key: ${{ env.AEP_GPG_KEY }}
+
+      - name: Verify auto-activation, signature, key, and metadata
+        run: |
+          set -euo pipefail
+          # Auto-activation: a key under the default mode must select the gpg path.
+          test "${{ steps.signed_publish.outputs.signing-path }}" = "gpg" \
+            || { echo "auto mode with a key should report signing-path=gpg"; exit 1; }
+
+          REF="localhost:5001/aetherpak/mock-app:stable-x86_64"
+          DIGEST="$(jq -r '.Results[0].Images[0].Digest' _site/index/static)"
+          SIG="_site/sigs/aetherpak/mock-app@${DIGEST/:/=}/signature-1"
+
+          test -f "$SIG"               || { echo "missing signature: $SIG"; exit 1; }
+          test -f "_site/sigs/key.asc" || { echo "missing key.asc"; exit 1; }
+          test -f "_site/sigs/signing.json" || { echo "missing signing.json"; exit 1; }
+
+          ENABLED="$(jq -r '.enabled' _site/sigs/signing.json)"
+          test "$ENABLED" = "true" || { echo "signing.json not enabled"; exit 1; }
+
+          # The signed subject is the pushed manifest; verify against the key.asc.
+          skopeo inspect --raw --tls-verify=false "docker://$REF" > manifest.json
+          skopeo standalone-verify manifest.json "$REF" any "$SIG" \
+            --public-key-file _site/sigs/key.asc
+
+          echo "Signing integration test successful!"
+
+  signing-gate-test:
+    name: Mock Signing Gate (gpg requires a key)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Install Flatpak & OSTree
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak ostree
+
+      - name: Create Mock OSTree Repository
+        run: |
+          mkdir -p tests/mock_repo
+          ostree init --mode=archive --repo=tests/mock_repo
+          mkdir -p tests/mock_contents
+          cat > tests/mock_contents/metadata <<EOF
+          [Application]
+          name=org.flatpak.MockApp
+          runtime=org.freedesktop.Platform/x86_64/23.08
+          sdk=org.freedesktop.Sdk/x86_64/23.08
+          EOF
+          ostree commit --repo=tests/mock_repo --branch=app/org.flatpak.MockApp/x86_64/stable -m "mock app commit" tests/mock_contents
+
+      - name: Run Build Action
+        id: build_step
+        uses: ./build
+        with:
+          prebuilt-repo-path: tests/mock_repo
+          repo-path: _repo_test
+          run-linter: "false"
+
+      - name: Publish with signing=gpg but no key (must fail)
+        id: gate
+        continue-on-error: true
+        uses: ./publish
+        with:
+          repo-path: ${{ steps.build_step.outputs.repo-path }}
+          registry: "localhost:5001"
+          insecure-registry: "true"
+          oci-repository: "aetherpak/mock-app"
+          pages-url: "http://localhost:9999"
+          registry-token: ""
+          upload-pages-artifact: "false"
+          signing: "gpg"
+
+      - name: Assert it failed
+        run: |
+          if [ "${{ steps.gate.outcome }}" != "failure" ]; then
+            echo "Error: signing=gpg without a key must fail"; exit 1
+          fi
+          echo "gpg gate correctly rejected an empty key"
