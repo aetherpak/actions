@@ -33,7 +33,7 @@ client:  Pages index --(digest)--> GHCR blobs
    it when a GPG key is configured; see "Signing"), inspects the pushed image for
    its digest and `org.flatpak.*` labels, and merges an entry into `index/static`.
    It then reconciles the index, dropping entries whose image no longer exists in
-   the registry, writes `index.flatpakrepo`, generates a per-app
+   the registry, writes `<owner>-<repo>.flatpakrepo`, generates a per-app
    `refs/<app>-<channel>.flatpakref` for each installable entry in the reconciled
    index, copies the static `index.html`, and optionally uploads and deploys the
    Pages artifact.

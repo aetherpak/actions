@@ -9,7 +9,7 @@ GitHub Pages for a small registry index and a landing page.
     <img src="https://raw.githubusercontent.com/aetherpak/actions/main/docs/site/preview.png" alt="AetherPak registry landing page with one-click Flatpak install" width="480">
   </a>
   <br>
-  <em>The page AetherPak deploys — <a href="https://aetherpak.github.io/actions-demo/">live demo</a> · <a href="https://github.com/aetherpak/actions-demo">demo repo</a></em>
+  <em>The page AetherPak deploys. <a href="https://aetherpak.github.io/actions-demo/">Live demo</a> · <a href="https://github.com/aetherpak/actions-demo">demo repo</a></em>
 </p>
 
 ## Why OCI + Pages
@@ -51,7 +51,7 @@ After the first run, make the GHCR package public so users can install without
 authenticating: the package's page, then **Package settings**, then **Change
 visibility**, then **Public**.
 
-For an organization repository, an owner must first allow public packages —
+For an organization repository, an owner must first allow public packages,
 otherwise the image is created private and can't be switched. Do this **before**
 the first publish: **Organization → Settings → Packages → Package creation**,
 then enable **Public**.
@@ -113,7 +113,7 @@ enabled the ref is verified (it embeds the key and signature lookaside), so the
 install is verified too.
 
 To add the whole repository from the command line instead (the remote is named
-`<owner>-<repo>` by default — override with `remote-name`):
+`<owner>-<repo>` by default; override with `remote-name`):
 
 ```bash
 # unsigned, or older clients (< 1.17):
@@ -130,7 +130,7 @@ flatpak install --user <owner>-<repo> org.example.App
 
 A `<owner>-<repo>.flatpakrepo` (linked from the landing page) configures the remote
 for every app and channel. When signing is on it embeds the public key, but a
-`.flatpakrepo` cannot carry the signature lookaside — so adding it through a GUI
+`.flatpakrepo` cannot carry the signature lookaside, so adding it through a GUI
 installer leaves verification incomplete until you run the `remote-modify` command
 the landing page shows after download:
 
@@ -180,21 +180,11 @@ and clients can install with verification.
          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
    ```
 
-3. Install with verification (flatpak ≥ 1.17.x). The landing page prints the
-   exact command for your repository:
-
-   ```bash
-   # flatpak --gpg-import needs a local file, so download the public key first
-   curl -fsSLO https://<owner>.github.io/<repo>/sigs/key.asc
-   flatpak remote-add --user \
-     --gpg-import=key.asc \
-     --signature-lookaside=https://<owner>.github.io/<repo>/sigs \
-     aetherpak oci+https://<owner>.github.io/<repo>
-   flatpak install --user aetherpak org.example.App
-   ```
-
-   Older clients (< 1.17.x) cannot read the lookaside; they fall back to the
-   `--no-gpg-verify` command, also shown on the landing page.
+3. Install with verification. With a key set, the landing page shows the verified
+   `remote-add` for your repository (the signed commands under
+   [Installing published apps](#installing-published-apps)). Clients on flatpak
+   < 1.17 cannot read the lookaside and fall back to the `--no-gpg-verify`
+   command, also shown on the landing page.
 
 **Rotation:** generate a new key, replace the secret, and re-publish **every
 channel**. Each publish re-signs the image it pushes, and rotation only fully
