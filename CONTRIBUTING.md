@@ -85,39 +85,26 @@ A `commit-msg` hook (`conventional-pre-commit`) enforces this locally once
 
 ## Releasing
 
-Consumers pin actions via `aetherpak/actions/<action>@v1`, so the floating tags
-must always track the latest patch. `.github/workflows/semver.yml` enforces this
-and **auto-fixes** the floating tags after every release.
+Releases are automated by [release-please](https://github.com/googleapis/release-please)
+(`.github/workflows/release.yml`), driven by the Conventional Commits above.
 
-1. **Pick the version** from the commits since the last tag: `fix`/`chore` →
-   patch, `feat` → minor, a breaking change → major.
-2. **Tag the release commit** (annotated) and push it:
-
-   ```bash
-   git tag -a v1.2.0 -m v1.2.0
-   git push origin v1.2.0
-   ```
-
-3. **Publish the GitHub Release** (newest is Latest):
-
-   ```bash
-   gh release create v1.2.0 --title v1.2.0 --generate-notes --verify-tag --latest
-   ```
-
-4. **The floating tags move themselves.** Publishing the Release triggers
-   *Check SemVer Tags*, which repoints `v1.2` and `v1` to the new patch using the
-   `AETHERPAK_ACTION_BOT` GitHub App. The run is green once the tags line up. If
-   it ever isn't (normal case — releasing the newest version), the equivalent
-   manual fix is:
-
-   ```bash
-   git tag -f v1.2 v1.2.0 && git tag -f v1 v1.2.0
-   git push -f origin v1.2 v1
-   ```
+1. **Land `feat`/`fix` commits on `main`.** release-please maintains a standing
+   *"chore(main): release X.Y.Z"* PR with the computed version and `CHANGELOG.md`
+   (`feat` → minor, `fix` → patch, breaking → major; `chore`/`ci`/`docs`-only
+   changes don't trigger a release). You can also refresh it from the *Release*
+   workflow's run button.
+2. **Merge that PR** when ready — release-please tags `vX.Y.Z` and publishes the
+   GitHub Release.
+3. Publishing fires *Check SemVer Tags* (`semver.yml`), which moves the floating
+   `vX.Y`/`vX` tags to the new patch. (Both run as the `AETHERPAK_ACTION_BOT`
+   GitHub App, so release-please's release actually triggers the checker — a
+   `GITHUB_TOKEN` release would not.)
 
 Notes:
 
 - Releases are **immutable** (repo setting). A mistake means a new patch — you
   cannot edit or re-point a published version in place.
-- Every patch tag needs its own published Release, and the root `action.yml`
-  must keep its `branding` block; the checker errors otherwise.
+- The root `action.yml` must keep its `branding` block or the checker errors.
+- To release by hand if ever needed: tag `vX.Y.Z`, `gh release create vX.Y.Z
+  --generate-notes --verify-tag --latest`; the checker then moves the floating
+  tags.
