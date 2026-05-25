@@ -133,8 +133,8 @@
           <div class="step">
             <div class="step-num">1</div>
             <div class="step-body">
-              <h4>Enable GitHub Pages</h4>
-              <p>Repository Settings, then Pages, then Source: GitHub Actions.</p>
+              <h4>Enable GitHub Pages &amp; public packages</h4>
+              <p>Turn on Pages, and make the published GHCR package public so anyone can install without authenticating (<button class="linkbtn" onclick="document.getElementById('enable').showModal()">see how</button>). Organization repos must allow public packages first.</p>
             </div>
           </div>
           <div class="step">
@@ -273,6 +273,16 @@ jobs:
       <p>AetherPak · MIT licensed · Served via GitHub Pages &amp; GHCR</p>
     </footer>
   </div>
+
+  <dialog id="enable" class="modal">
+    <div class="modal-head">
+      <h3>Enable Pages &amp; public packages</h3>
+      <button class="modal-x" aria-label="Close" onclick="this.closest('dialog').close()">&times;</button>
+    </div>
+    <p><strong style="color:var(--text)">Repository</strong> — turn on Pages: Settings, then Pages, then Source: <code>GitHub Actions</code>. After the first publish, make the image public so <code>flatpak install</code> works without authentication: the package's page, then Package settings, then Change visibility, then <code>Public</code>.</p>
+    <p style="margin-top:0.9rem;"><strong style="color:var(--text)">Organization</strong> — for an org-owned repo, an owner must allow public packages <em>before</em> the first publish, or the image is created private and can't be switched: Organization, then Settings, then Packages, then Package creation, then enable <code>Public</code>.</p>
+    <p class="hint">Personal-account repos skip the organization step. The package appears only after the workflow's first successful publish.</p>
+  </dialog>
 
   <dialog id="keygen" class="modal">
     <div class="modal-head">
