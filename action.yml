@@ -2,7 +2,6 @@ name: "AetherPak Flatpak Registry Publisher"
 description: "Build a Flatpak, push OCI layers to a registry, update the static index, and publish it to GitHub Pages."
 
 inputs:
-  # ── Build/Import Inputs ────────────────────────────────────────────────────
   manifest-path:
     description: "Path to the Flatpak manifest (JSON/YAML) within the checked-out sources."
     required: false
@@ -40,7 +39,6 @@ inputs:
     required: false
     default: "_repo"
 
-  # ── Publish Inputs ─────────────────────────────────────────────────────────
   registry:
     description: "OCI registry host (e.g. ghcr.io)."
     required: false
