@@ -121,8 +121,13 @@ jobs:
             echo "Error: index/static not generated"
             exit 1
           fi
-          if [ ! -f "_site/org.flatpak.MockApp.flatpakrepo" ]; then
+          if [ ! -f "_site/index.flatpakrepo" ]; then
             echo "Error: flatpakrepo file not generated"
+            exit 1
+          fi
+          # The headline one-click install: a per-app .flatpakref under refs/.
+          if [ ! -f "_site/refs/org.flatpak.MockApp-stable.flatpakref" ]; then
+            echo "Error: per-app .flatpakref not generated"
             exit 1
           fi
 
