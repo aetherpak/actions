@@ -80,6 +80,9 @@ cosmetic:
   footer.
 - Prefer summary-only; add a body only to explain non-obvious *why*.
 
+A `commit-msg` hook (`conventional-pre-commit`) enforces this locally once
+`make setup` has run.
+
 ## Releasing
 
 Consumers pin actions via `aetherpak/actions/<action>@v1`, so the floating tags
