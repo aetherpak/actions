@@ -61,4 +61,60 @@ remote.
 - Python is linted and formatted by ruff and type-checked by ty (`pyproject.toml`).
   Public functions carry type hints and terse Sphinx/RST docstrings
   (`:param:`/`:returns:`).
-- Keep commit messages short and imperative.
+
+## Commits
+
+Use [Conventional Commits](https://www.conventionalcommits.org/). The release
+version is derived from commit types (see Releasing), so the prefix is not
+cosmetic:
+
+```
+<type>(<optional scope>): <imperative summary>
+```
+
+- **Types:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `ci`.
+- **Scopes** are optional but encouraged where they sharpen intent —
+  `publish`, `build`, `site`, `ci` (e.g. `feat(publish): …`, `fix(ci): …`).
+- Summary: short, imperative, lower-case, no trailing period.
+- **Breaking change:** add `!` (`feat(publish)!: …`) or a `BREAKING CHANGE:`
+  footer.
+- Prefer summary-only; add a body only to explain non-obvious *why*.
+
+## Releasing
+
+Consumers pin actions via `aetherpak/actions/<action>@v1`, so the floating tags
+must always track the latest patch. `.github/workflows/semver.yml` enforces this
+and **auto-fixes** the floating tags after every release.
+
+1. **Pick the version** from the commits since the last tag: `fix`/`chore` →
+   patch, `feat` → minor, a breaking change → major.
+2. **Tag the release commit** (annotated) and push it:
+
+   ```bash
+   git tag -a v1.2.0 -m v1.2.0
+   git push origin v1.2.0
+   ```
+
+3. **Publish the GitHub Release** (newest is Latest):
+
+   ```bash
+   gh release create v1.2.0 --title v1.2.0 --generate-notes --verify-tag --latest
+   ```
+
+4. **The floating tags move themselves.** Publishing the Release triggers
+   *Check SemVer Tags*, which repoints `v1.2` and `v1` to the new patch using the
+   `AETHERPAK_ACTION_BOT` GitHub App. The run is green once the tags line up. If
+   it ever isn't (normal case — releasing the newest version), the equivalent
+   manual fix is:
+
+   ```bash
+   git tag -f v1.2 v1.2.0 && git tag -f v1 v1.2.0
+   git push -f origin v1.2 v1
+   ```
+
+Notes:
+
+- Releases are **immutable** (repo setting). A mistake means a new patch — you
+  cannot edit or re-point a published version in place.
+- Every patch tag needs its own published Release, and the root `action.yml`
+  must keep its `branding` block; the checker errors otherwise.
