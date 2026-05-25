@@ -76,7 +76,8 @@
     .link-card .t { color: var(--text); font-weight: 600; font-size: 0.95rem; }
     .link-card .d { color: var(--text-muted); font-size: 0.82rem; margin-top: 0.15rem; }
 
-    .preview { margin-top: 1rem; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 30px rgba(139,92,246,0.06); }
+    .preview { display: block; margin-top: 1rem; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 30px rgba(139,92,246,0.06); transition: border-color 0.2s; }
+    .preview:hover { border-color: rgba(139,92,246,0.4); }
     .preview img { display: block; width: 100%; height: auto; }
     .caption { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.7rem; text-align: center; }
     footer { text-align: center; padding: 3.5rem 0 2rem; color: var(--text-muted); font-size: 0.85rem; }
@@ -123,8 +124,8 @@
     <section>
       <h2>What your users get</h2>
       <p>Every repository gets a landing page like this, with a one-click <code>.flatpakref</code> install button and copy-paste commands for each app and channel.</p>
-      <div class="preview"><img src="preview.png" alt="Generated AetherPak registry page showing GNOME Sudoku with install commands" loading="lazy"></div>
-      <p class="caption">The page AetherPak deploys for your repository.</p>
+      <a class="preview" href="https://aetherpak.github.io/actions-demo/" target="_blank" rel="noopener"><img src="preview.png" alt="Live AetherPak actions-demo registry page showing GNOME Sudoku with install commands" loading="lazy"></a>
+      <p class="caption">A live page AetherPak deploys — captured from the <a href="https://github.com/aetherpak/actions-demo" target="_blank" rel="noopener">actions-demo</a> repository.</p>
     </section>
 
     <section>
@@ -266,6 +267,8 @@ jobs:
         <a class="link-card" href="https://github.com/aetherpak/actions/blob/main/README.md"><div class="t">README</div><div class="d">Usage and options</div></a>
         <a class="link-card" href="https://github.com/aetherpak/actions/blob/main/ARCHITECTURE.md"><div class="t">Architecture</div><div class="d">How it works and its limits</div></a>
         <a class="link-card" href="https://github.com/aetherpak/actions/blob/main/CONTRIBUTING.md"><div class="t">Contributing</div><div class="d">Developing and testing</div></a>
+        <a class="link-card" href="https://aetherpak.github.io/actions-demo/"><div class="t">Live demo</div><div class="d">A repository published with AetherPak</div></a>
+        <a class="link-card" href="https://github.com/aetherpak/actions-demo"><div class="t">Demo repository</div><div class="d">A working example to fork</div></a>
       </div>
     </section>
 
