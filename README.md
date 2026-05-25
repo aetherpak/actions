@@ -234,6 +234,20 @@ The pipeline is also available as composite actions for custom workflows:
   or `bundle-path` (a `.flatpak`), so you can publish output from any toolchain
   (for example a Rust/Tauri build) without the `build` action.
 
+The reusable workflow pushes blobs to GHCR. To target another registry, call
+`publish` directly with `registry`, `oci-repository`, and `registry-token` (add
+`insecure-registry: true` for a local or HTTP registry):
+
+```yaml
+- uses: aetherpak/actions/publish@v1
+  with:
+    repo-path: _repo            # or bundle-path: app.flatpak
+    registry: registry.example.com
+    oci-repository: my-org/my-app
+    registry-token: ${{ secrets.REGISTRY_TOKEN }}
+    pages-url: https://flatpak.example.com
+```
+
 ## More
 
 - [ARCHITECTURE.md](ARCHITECTURE.md): how the pieces fit together, what it relies
