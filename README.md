@@ -39,8 +39,14 @@ jobs:
 app's runtime (`gnome-50`, `freedesktop-24.08`, `kde-6.7`, and so on). By default
 the app is built for `x86_64` and `aarch64` and deployed to Pages.
 
-After the first run, set the GHCR package to public so users can install without
-authenticating.
+After the first run, make the GHCR package public so users can install without
+authenticating: the package's page, then **Package settings**, then **Change
+visibility**, then **Public**.
+
+For an organization repository, an owner must first allow public packages —
+otherwise the image is created private and can't be switched. Do this **before**
+the first publish: **Organization → Settings → Packages → Package creation**,
+then enable **Public**.
 
 ### Options
 
