@@ -1,6 +1,10 @@
 name: "AetherPak Flatpak Registry Publisher"
 description: "Build a Flatpak, push OCI layers to a registry, update the static index, and publish it to GitHub Pages."
 
+branding:
+  icon: package
+  color: purple
+
 inputs:
   manifest-path:
     description: "Path to the Flatpak manifest (JSON/YAML) within the checked-out sources."
