@@ -4,6 +4,14 @@ GitHub Actions that build Flatpak applications and host them as a Flatpak
 repository, using GitHub Container Registry (GHCR) for the package blobs and
 GitHub Pages for a small registry index and a landing page.
 
+<p align="center">
+  <a href="https://aetherpak.github.io/actions-demo/">
+    <img src="https://raw.githubusercontent.com/aetherpak/actions/main/docs/site/preview.png" alt="AetherPak registry landing page with one-click Flatpak install" width="480">
+  </a>
+  <br>
+  <em>The page AetherPak deploys — <a href="https://aetherpak.github.io/actions-demo/">live demo</a> · <a href="https://github.com/aetherpak/actions-demo">demo repo</a></em>
+</p>
+
 ## Why OCI + Pages
 
 A static-HTTP OSTree repository serves an app as many small objects, so clients
