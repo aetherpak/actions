@@ -111,6 +111,7 @@ jobs:
           registry: "localhost:5001"
           insecure-registry: "true"
           oci-repository: "aetherpak/mock-app"
+          remote-name: "aetherpak-test"
           pages-url: "http://localhost:9999"
           registry-token: "" # skip login for local registry
           upload-pages-artifact: "false"
@@ -121,8 +122,13 @@ jobs:
             echo "Error: index/static not generated"
             exit 1
           fi
-          if [ ! -f "_site/index.flatpakrepo" ]; then
+          if [ ! -f "_site/aetherpak-test.flatpakrepo" ]; then
             echo "Error: flatpakrepo file not generated"
+            exit 1
+          fi
+          # Unsigned: the repo file must NOT carry a key (the verified path is opt-in).
+          if grep -q '^GPGKey=' "_site/aetherpak-test.flatpakrepo"; then
+            echo "Error: unsigned .flatpakrepo unexpectedly contains GPGKey"
             exit 1
           fi
           # The headline one-click install: a per-app .flatpakref under refs/.
@@ -266,6 +272,7 @@ jobs:
           registry: "localhost:5001"
           insecure-registry: "true"
           oci-repository: "aetherpak/mock-app"
+          remote-name: "aetherpak-test"
           pages-url: "http://localhost:9999"
           registry-token: ""
           upload-pages-artifact: "false"
@@ -289,6 +296,15 @@ jobs:
 
           ENABLED="$(jq -r '.enabled' _site/sigs/signing.json)"
           test "$ENABLED" = "true" || { echo "signing.json not enabled"; exit 1; }
+
+          # Signed: the .flatpakrepo embeds the public key (so adding the remote needs
+          # no key fetch). Verify it carries GPGKey and that it equals key.asc.
+          REPO_FILE="_site/aetherpak-test.flatpakrepo"
+          test -f "$REPO_FILE" || { echo "missing $REPO_FILE"; exit 1; }
+          grep -q '^GPGKey=' "$REPO_FILE" || { echo "signed .flatpakrepo missing GPGKey"; exit 1; }
+          grep '^GPGKey=' "$REPO_FILE" | sed 's/^GPGKey=//' | base64 -d > /tmp/embedded.gpg
+          gpg --dearmor < _site/sigs/key.asc > /tmp/keyasc.gpg
+          cmp -s /tmp/embedded.gpg /tmp/keyasc.gpg || { echo "embedded GPGKey != key.asc"; exit 1; }
 
           # The signed subject is the pushed manifest; verify against the key.asc.
           skopeo inspect --raw --tls-verify=false "docker://$REF" > manifest.json

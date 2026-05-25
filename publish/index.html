@@ -26,8 +26,9 @@
     .card > * { position: relative; z-index: 1; }
     .card:hover { transform: translateY(-4px); border-color: rgba(139,92,246,0.4); box-shadow: 0 8px 30px rgba(0,0,0,0.3), 0 0 20px rgba(139,92,246,0.05); }
     .section-label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
-    .code-block { position: relative; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 3rem 0.75rem 0.9rem; font-family: var(--font-mono); font-size: 0.85rem; overflow-x: auto; }
-    .btn-copy { position: absolute; top: 50%; right: 0.6rem; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; color: var(--text-muted); display: flex; padding: 0.25rem; border-radius: 4px; transition: all 0.2s; }
+    .code-block { position: relative; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 3rem 0.75rem 0.9rem; font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.55; overflow-x: auto; }
+    .code-block code { white-space: pre; }
+    .btn-copy { position: absolute; top: 0.6rem; right: 0.6rem; background: transparent; border: none; cursor: pointer; color: var(--text-muted); display: flex; padding: 0.25rem; border-radius: 4px; transition: all 0.2s; }
     .btn-copy:hover { color: var(--text); background: rgba(255,255,255,0.06); }
     .btn-copy.success { color: var(--success); }
     .actions { margin-top: 1rem; display: flex; gap: 0.75rem; flex-wrap: wrap; }
@@ -57,6 +58,14 @@
     footer { text-align: center; padding: 3rem 0 1rem; color: var(--text-muted); font-size: 0.85rem; }
     footer a { color: var(--primary); text-decoration: none; }
     footer a:hover { text-decoration: underline; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; padding: 1rem; z-index: 100; }
+    .modal-backdrop.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid rgba(139,92,246,0.4); border-radius: 16px; padding: 1.75rem; max-width: 560px; width: 100%; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 30px rgba(139,92,246,0.1); }
+    .modal h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .step-badge { display: inline-block; padding: 0.15rem 0.6rem; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); border-radius: 9999px; font-size: 0.72rem; font-weight: 600; color: var(--success); margin-bottom: 0.9rem; }
+    .modal p { color: var(--text-muted); font-size: 0.92rem; margin-bottom: 1rem; }
+    .modal-close { position: absolute; top: 1rem; right: 1rem; background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.4rem; line-height: 1; }
+    .modal-foot { margin-top: 1.25rem; display: flex; justify-content: flex-end; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -74,13 +83,20 @@
   </div>
 
   <script>
-    const remoteName = 'aetherpak';
+    // Stamped with the resolved remote name by the publish action; falls back to a
+    // sensible default if the page is served without being stamped.
+    const remoteName = (n => /^__.+__$/.test(n) ? 'aetherpak' : n)('__AETHERPAK_REMOTE_NAME__');
     const ICON_COPY = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
     const ICON_DL = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
     const ICON_APP = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>`;
 
     function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
-    function attr(s) { return String(s).replace(/'/g, '%27'); }
+    // Copy a code block's command by reading its text, so multi-line commands (with
+    // `\` continuations) copy verbatim without any string-escaping in the markup.
+    function copyCmd(btn) { copyToClipboard(btn.parentElement.querySelector('code').textContent, btn); }
+    function openRepoModal() { document.getElementById('repo-modal')?.classList.add('open'); }
+    function closeRepoModal() { document.getElementById('repo-modal')?.classList.remove('open'); }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRepoModal(); });
     function fmtSize(b) { b = +b || 0; const u = ['B','KB','MB','GB']; let i = 0; while (b >= 1024 && i < u.length-1) { b /= 1024; i++; } return `${b.toFixed(b < 10 && i > 0 ? 1 : 0)} ${u[i]}`; }
     function fmtDate(ts) { const d = new Date((+ts) * 1000); return isNaN(d) ? '' : d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }); }
     function appMeta(xml) {
@@ -108,27 +124,33 @@
       const pagesUrl = location.origin + location.pathname.replace(/\/(index\.html)?$/, '');
       const el = document.getElementById('app-content');
       const render = html => { el.innerHTML = html; el.querySelectorAll('.card').forEach(setupCardHover); };
-      const legacyCmd = `flatpak remote-add --if-not-exists --user --no-gpg-verify ${remoteName} oci+${pagesUrl}`;
+      const legacyCmd = `flatpak remote-add --if-not-exists --user --no-gpg-verify \\
+  ${remoteName} \\
+  oci+${pagesUrl}`;
 
       function codeBlock(label, cmd) {
         return `
           <div class="section-label">${label}</div>
           <div class="code-block"><code>${esc(cmd)}</code>
-            <button class="btn-copy" onclick="copyToClipboard('${attr(cmd)}', this)" title="Copy">${ICON_COPY}</button></div>`;
+            <button class="btn-copy" onclick="copyCmd(this)" title="Copy">${ICON_COPY}</button></div>`;
       }
 
       function buildSetup(signing) {
-        const links = `
-          <div class="actions">
-            <a class="btn" href="index.flatpakrepo" download>${ICON_DL} Download .flatpakrepo</a>
-            <a class="btn ghost" href="index/static" target="_blank">View OCI index</a>
-          </div>`;
-        if (signing && signing.enabled && signing.publicKey && signing.lookaside) {
-          const keyUrl = `${pagesUrl}/${signing.publicKey}`;
-          const keyFile = signing.publicKey.split('/').pop();
+        const repoFile = `${remoteName}.flatpakrepo`;
+        const viewIndex = `<a class="btn ghost" href="index/static" target="_blank">View OCI index</a>`;
+        if (signing && signing.enabled && signing.lookaside) {
           const look = `${pagesUrl}/${signing.lookaside}`;
-          // flatpak --gpg-import needs a local file, so fetch the key first.
-          const verified = `curl -fsSLO ${keyUrl} && flatpak remote-add --user --gpg-import=${keyFile} --signature-lookaside=${look} ${remoteName} oci+${pagesUrl}`;
+          // The key rides in the .flatpakrepo (no curl); the lookaside must be a flag
+          // because a repo file can't carry it.
+          const verified = `flatpak remote-add --user \\
+  --signature-lookaside=${look} \\
+  ${remoteName} \\
+  ${pagesUrl}/${repoFile}`;
+          // Adding the repo file alone leaves the remote lookaside-less; the modal
+          // hands over this one command to complete verification.
+          const modifyCmd = `flatpak remote-modify --user \\
+  --signature-lookaside=${look} \\
+  ${remoteName}`;
           return `
             <div class="card">
               ${codeBlock('Add this repository — verified (flatpak ≥ 1.17)', verified)}
@@ -137,13 +159,30 @@
                 <p class="app-summary" style="margin-top:0.5rem;">These clients cannot read the signature lookaside; the remote is added without verification.</p>
                 ${codeBlock('Add this repository — unverified', legacyCmd)}
               </details>
-              ${links}
+              <div class="actions">
+                <a class="btn" href="${repoFile}" download onclick="openRepoModal()">${ICON_DL} Download .flatpakrepo</a>
+                ${viewIndex}
+              </div>
+            </div>
+            <div class="modal-backdrop" id="repo-modal" onclick="if (event.target === this) closeRepoModal()">
+              <div class="modal">
+                <button class="modal-close" title="Close" onclick="closeRepoModal()">&times;</button>
+                <span class="step-badge">ONE MORE STEP</span>
+                <h2>Enable verified installs</h2>
+                <p>The repository file adds the remote and trusts the signing key — but Flatpak can’t store the signature location in a repo file. Once the repository is added, run this once to turn on signature verification:</p>
+                <div class="code-block"><code>${esc(modifyCmd)}</code>
+                  <button class="btn-copy" onclick="copyCmd(this)" title="Copy">${ICON_COPY}</button></div>
+                <div class="modal-foot"><button class="btn" onclick="closeRepoModal()">Got it</button></div>
+              </div>
             </div>`;
         }
         return `
           <div class="card">
             ${codeBlock('Add this repository (once)', legacyCmd)}
-            ${links}
+            <div class="actions">
+              <a class="btn" href="${repoFile}" download>${ICON_DL} Download .flatpakrepo</a>
+              ${viewIndex}
+            </div>
           </div>`;
       }
 
@@ -187,7 +226,7 @@
                 <div class="release-meta">${fmtSize(c.isize)} installed &bull; ${fmtSize(c.dsize)} download${c.commit ? ' &bull; ' + esc(c.commit.slice(0, 10)) : ''}</div>
                 <div class="actions"><a class="btn" href="${esc(refFile)}" download>${ICON_DL} Install (${esc(c.branch)})</a></div>
                 <div class="code-block"><code>${esc(cmd)}</code>
-                  <button class="btn-copy" onclick="copyToClipboard('${attr(cmd)}', this)" title="Copy">${ICON_COPY}</button></div>
+                  <button class="btn-copy" onclick="copyCmd(this)" title="Copy">${ICON_COPY}</button></div>
               </div>`;
           }).join('');
           return `

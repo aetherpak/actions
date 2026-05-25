@@ -81,6 +81,10 @@ inputs:
     description: "Site-relative directory for the generated per-app .flatpakref files."
     required: false
     default: "refs"
+  remote-name:
+    description: "Flatpak remote name (and the .flatpakrepo filename). Defaults to the GitHub repo slug '<owner>-<repo>'; override for a friendlier name."
+    required: false
+    default: ""
 
 outputs:
   signing-path:
@@ -173,6 +177,13 @@ runs:
         REPO="$(echo "${REPO}" | tr '[:upper:]' '[:lower:]')"
         echo "repo=${REPO}" >> "$GITHUB_OUTPUT"
         echo "image=${{ inputs.registry }}/${REPO}" >> "$GITHUB_OUTPUT"
+
+        # Flatpak remote name = the .flatpakrepo filename a GUI installer adds, so
+        # both default to the repo slug '<owner>-<repo>'. Sanitize to a valid name.
+        RNAME="${{ inputs.remote-name }}"
+        [ -n "$RNAME" ] || RNAME="${GITHUB_REPOSITORY}"
+        RNAME="$(printf '%s' "$RNAME" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_-]#-#g')"
+        echo "remote-name=${RNAME}" >> "$GITHUB_OUTPUT"
 
         if [ -n "${{ inputs.registry-token }}" ]; then
           echo "Logging in to ${{ inputs.registry }}..."
@@ -318,7 +329,7 @@ runs:
           --out "$SITE/$SIG_DIR/signing.json" \
           --sig-dir "$SIG_DIR" \
           --fingerprint "${{ steps.signing.outputs.fingerprint }}" \
-          --remote-name aetherpak
+          --remote-name "${{ steps.target.outputs.remote-name }}"
 
         PAGES="${{ inputs.pages-url }}"; PAGES="${PAGES%/}"
         echo "public-key-url=${PAGES}/${SIG_DIR}/key.asc" >> "$GITHUB_OUTPUT"
@@ -359,20 +370,34 @@ runs:
           --arch "${{ steps.vars.outputs.arch }}"
 
         # One repo-level .flatpakrepo configures the remote for every app and channel.
-        cat > "${{ inputs.site-dir }}/index.flatpakrepo" <<EOF
+        # Named <remote>.flatpakrepo because GUI installers derive the remote name
+        # from the filename.
+        REPO_FILE="${{ inputs.site-dir }}/${{ steps.target.outputs.remote-name }}.flatpakrepo"
+        cat > "$REPO_FILE" <<EOF
         [Flatpak Repo]
         Title=AetherPak (${{ steps.target.outputs.repo }})
         Url=oci+${{ inputs.pages-url }}
         Homepage=${{ inputs.pages-url }}
         Comment=Flatpak repository powered by AetherPak (Pages index + OCI registry blobs)
         EOF
-
-        # Static landing page (reads index/static at runtime); optional.
-        if [ "${{ inputs.landing-page }}" = "true" ]; then
-          cp "${{ github.action_path }}/index.html" "${{ inputs.site-dir }}/index.html"
+        if [ "${{ steps.signing.outputs.sign }}" = "true" ]; then
+          # Embed the trusted key so adding the remote needs no key fetch. The OCI
+          # signature lookaside can't live in a .flatpakrepo (flatpak drops unknown
+          # keys), so the remote is gpg-verify-on but lookaside-less until the client
+          # runs `remote-modify --signature-lookaside` — the landing page hands over
+          # exactly that command after the download.
+          export GNUPGHOME="${{ steps.signing.outputs.gnupghome }}"
+          printf 'GPGKey=%s\n' "$(gpg --export "${{ steps.signing.outputs.fingerprint }}" | base64 -w0)" >> "$REPO_FILE"
         fi
 
-        echo "Generated index/static, index.flatpakrepo, and index.html in ${{ inputs.site-dir }}."
+        # Static landing page (reads index/static at runtime); optional. The remote
+        # name is stamped in so the page's commands match the generated remote.
+        if [ "${{ inputs.landing-page }}" = "true" ]; then
+          sed "s/__AETHERPAK_REMOTE_NAME__/${{ steps.target.outputs.remote-name }}/g" \
+            "${{ github.action_path }}/index.html" > "${{ inputs.site-dir }}/index.html"
+        fi
+
+        echo "Generated index/static, ${{ steps.target.outputs.remote-name }}.flatpakrepo, and index.html in ${{ inputs.site-dir }}."
         echo "--- index/static contents ---"
         cat "${{ inputs.site-dir }}/index/static"
 
@@ -410,7 +435,7 @@ runs:
           --index-path "$SITE/index/static" \
           --out-dir "$SITE/$REFS_DIR" \
           --url "oci+$PAGES" \
-          --remote-name aetherpak \
+          --remote-name "${{ steps.target.outputs.remote-name }}" \
           --runtime-repo "${{ inputs.runtime-repo }}" \
           "${EXTRA[@]}"
 

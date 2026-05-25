@@ -62,6 +62,7 @@ then enable **Public**.
 | `cache` | `true` | cache flatpak runtimes and builder files |
 | `registry` | `ghcr.io` | OCI registry host for the image blobs |
 | `oci-repository` | this repository | image repository path within the registry |
+| `remote-name` | repo slug `<owner>-<repo>` | Flatpak remote name and `.flatpakrepo` filename; override for a friendlier name |
 | `signing` | `auto` | sign images: `auto` (sign when a key is set), `gpg`, or `off` (see [Signing](#signing-optional)) |
 | `runtime-repo` | Flathub `.flatpakrepo` | `RuntimeRepo` in each generated `.flatpakref`; empty omits it |
 | `landing-page` | `true` | write the static `index.html`; `false` to render your own page from `index/static` |
@@ -103,18 +104,35 @@ opening it adds the remote and installs the app in one step. When signing is
 enabled the ref is verified (it embeds the key and signature lookaside), so the
 install is verified too.
 
-To add the repository and install from the command line instead:
+To add the whole repository from the command line instead (the remote is named
+`<owner>-<repo>` by default — override with `remote-name`):
 
 ```bash
+# unsigned, or older clients (< 1.17):
 flatpak remote-add --if-not-exists --user --no-gpg-verify \
-  aetherpak oci+https://<owner>.github.io/<repo>
-flatpak install --user aetherpak org.example.App
+  <owner>-<repo> oci+https://<owner>.github.io/<repo>
+
+# signed (flatpak >= 1.17): verified, no key fetch needed
+flatpak remote-add --user \
+  --signature-lookaside=https://<owner>.github.io/<repo>/sigs \
+  <owner>-<repo> https://<owner>.github.io/<repo>/<owner>-<repo>.flatpakrepo
+
+flatpak install --user <owner>-<repo> org.example.App
 ```
 
-A single `index.flatpakrepo` (linked from the landing page) configures the remote
-for every app and channel in the repository. Each `.flatpakref` defaults its
-`RuntimeRepo` to Flathub so installing from it can pull the app's runtime; set
-the `runtime-repo` input to change or empty it.
+A `<owner>-<repo>.flatpakrepo` (linked from the landing page) configures the remote
+for every app and channel. When signing is on it embeds the public key, but a
+`.flatpakrepo` cannot carry the signature lookaside — so adding it through a GUI
+installer leaves verification incomplete until you run the `remote-modify` command
+the landing page shows after download:
+
+```bash
+flatpak remote-modify --user \
+  --signature-lookaside=https://<owner>.github.io/<repo>/sigs <owner>-<repo>
+```
+
+Each `.flatpakref` defaults its `RuntimeRepo` to Flathub so installing from it can
+pull the app's runtime; set the `runtime-repo` input to change or empty it.
 
 ## Signing (optional)
 

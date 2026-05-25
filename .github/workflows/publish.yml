@@ -37,6 +37,11 @@ on:
         required: false
         type: string
         default: ""
+      remote-name:
+        description: "Flatpak remote name (and the .flatpakrepo filename). Defaults to the GitHub repo slug '<owner>-<repo>'; override for a friendlier name."
+        required: false
+        type: string
+        default: ""
       pages-url:
         description: "Public URL the index is served from. Defaults to the project's Pages URL; set to your custom domain if you use one."
         required: false
@@ -176,6 +181,7 @@ jobs:
           branch: ${{ inputs.branch }}
           registry: ${{ inputs.registry }}
           oci-repository: ${{ inputs.oci-repository }}
+          remote-name: ${{ inputs.remote-name }}
           pages-url: ${{ needs.prep.outputs.pages-url }}
           upload-pages-artifact: "false"
           landing-page: ${{ inputs.landing-page }}
@@ -191,6 +197,7 @@ jobs:
           branch: ${{ inputs.branch }}
           registry: ${{ inputs.registry }}
           oci-repository: ${{ inputs.oci-repository }}
+          remote-name: ${{ inputs.remote-name }}
           pages-url: ${{ needs.prep.outputs.pages-url }}
           upload-pages-artifact: "false"
           landing-page: ${{ inputs.landing-page }}
