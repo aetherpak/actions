@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    # "/" covers .github/workflows + the root action; the composite sub-actions
+    # pin their own external actions, so scan those dirs too.
+    directories:
+      - "/"
+      - "/build"
+      - "/publish"
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+      include: scope
