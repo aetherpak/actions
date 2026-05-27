@@ -76,6 +76,11 @@ on:
         required: false
         type: string
         default: ""
+      submodules:
+        description: "Submodule fetch mode for actions/checkout. Accepts 'recursive' (default), 'true', or 'false'. Repos that vendor their flatpak sources as submodules need this; setting 'false' is a no-op on repos without submodules."
+        required: false
+        type: string
+        default: "recursive"
     outputs:
       pages-url:
         description: "URL the index and .flatpakrepo are written against."
@@ -131,6 +136,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          submodules: ${{ inputs.submodules }}
       - name: Build Flatpak from manifest
         uses: aetherpak/actions/build@v1
         with:
@@ -169,6 +176,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          submodules: ${{ inputs.submodules }}
       - name: Download built repositories
         uses: actions/download-artifact@v8
         with:
