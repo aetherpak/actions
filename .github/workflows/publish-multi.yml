@@ -123,7 +123,7 @@ jobs:
           echo "pages-url=$url" >> "$GITHUB_OUTPUT"
       - name: Plan
         id: p
-        uses: aetherpak/actions/plan@v1
+        uses: aetherpak/actions/plan@v2
         with:
           config:        ${{ inputs.config }}
           force:         ${{ (github.event_name == 'schedule' || inputs.force-all) && 'all' || inputs.app }}
@@ -149,7 +149,7 @@ jobs:
         with:
           submodules: ${{ inputs.submodules }}
       - name: Build
-        uses: aetherpak/actions/build@v1
+        uses: aetherpak/actions/build@v2
         with:
           manifest-path: ${{ matrix.manifest }}
           arch:          ${{ matrix.arch }}
@@ -175,7 +175,7 @@ jobs:
       contents: read
     steps:
       - name: Fetch + import + re-tag
-        uses: aetherpak/actions/prep-bundle@v1
+        uses: aetherpak/actions/prep-bundle@v2
         with:
           url:    ${{ matrix.bundle-url }}
           sha256: ${{ matrix.bundle-sha256 }}
@@ -212,7 +212,7 @@ jobs:
           name: repo-${{ matrix.app-id }}-${{ matrix.arch }}
           path: _repo
       - name: Push
-        uses: aetherpak/actions/publish-oci@v1
+        uses: aetherpak/actions/publish-oci@v2
         with:
           repo-path: _repo
           app-id: ${{ matrix.app-id }}
@@ -267,7 +267,7 @@ jobs:
           mkdir -p _records
           for dir in _records_in/*/; do cp -r "$dir." _records/; done
       - name: Build site
-        uses: aetherpak/actions/publish-site@v1
+        uses: aetherpak/actions/publish-site@v2
         with:
           records-dir: _records
           pages-url:    ${{ needs.plan.outputs.pages-url }}
