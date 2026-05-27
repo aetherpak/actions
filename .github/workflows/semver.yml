@@ -50,4 +50,5 @@ jobs:
         uses: jessehouwing/actions-semver-checker@v2
         with:
           auto-fix: true
+          check-marketplace: warning
           token: ${{ steps.app-token.outputs.token }}
