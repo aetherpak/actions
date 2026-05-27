@@ -83,45 +83,63 @@ runs:
           sudo apt-get update && sudo apt-get install -y $MISSING
         fi
 
-    - name: Import bundle (if provided)
-      if: ${{ inputs.bundle-path != '' }}
-      shell: bash
-      env:
-        REPO_PATH: ${{ inputs.repo-path }}
-        BUNDLE_PATH: ${{ inputs.bundle-path }}
-      run: |
-        set -euo pipefail
-        mkdir -p "${REPO_PATH}"
-        if [ ! -f "${REPO_PATH}/config" ]; then
-          ostree --repo="${REPO_PATH}" init --mode=archive-z2
-        fi
-        echo "Importing bundle ${BUNDLE_PATH} into ${REPO_PATH}..."
-        flatpak build-import-bundle "${REPO_PATH}" "${BUNDLE_PATH}"
-
-    - name: Resolve app info
+    - name: Import bundle and resolve app info
       id: vars
       shell: bash
       env:
         DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         REPO_PATH: ${{ inputs.repo-path }}
+        BUNDLE_PATH: ${{ inputs.bundle-path }}
         INPUT_APP_ID: ${{ inputs.app-id }}
         INPUT_ARCH: ${{ inputs.arch }}
         INPUT_BRANCH: ${{ inputs.branch }}
       run: |
         set -euo pipefail
-        REPO="${REPO_PATH}"
-        mkdir -p "$REPO/refs/heads" "$REPO/refs/mirrors" "$REPO/refs/remotes"
-        REF="$(ostree refs --repo="$REPO" | grep "^app/" | head -n 1 || true)"
-        ref_app_id=""; ref_arch=""; ref_branch=""
-        if [ -n "$REF" ]; then
-          IFS='/' read -r _ ref_app_id ref_arch ref_branch <<< "$REF"
-        fi
         default_channel="$(bash "${{ github.action_path }}/../shared/resolve-channel.sh")"
-        app_id="${INPUT_APP_ID}"; [ -n "$app_id" ] || app_id="$ref_app_id"
-        arch="${INPUT_ARCH}";     [ -n "$arch" ]   || arch="$ref_arch"
-        branch="${INPUT_BRANCH}"; [ -n "$branch" ] || branch="${ref_branch:-$default_channel}"
-        if [ -z "$app_id" ]; then echo "::error::Could not resolve app-id"; exit 1; fi
-        if [ -z "$arch" ]; then echo "::error::Could not resolve arch"; exit 1; fi
+
+        src_app_id=""; src_arch=""; src_branch=""; SRC_REF=""; SCRATCH=""
+        if [ -n "${BUNDLE_PATH}" ]; then
+          SCRATCH="$(mktemp -d)"
+          trap 'rm -rf "$SCRATCH"' EXIT
+          ostree --repo="$SCRATCH" init --mode=archive-z2
+          echo "Importing bundle ${BUNDLE_PATH} into scratch repo..."
+          flatpak build-import-bundle "$SCRATCH" "${BUNDLE_PATH}"
+          SRC_REF="$(ostree refs --repo="$SCRATCH" | grep '^app/' | head -n 1 || true)"
+          [ -n "$SRC_REF" ] || { echo "::error::No app/* ref found in bundle"; exit 1; }
+          IFS='/' read -r _ src_app_id src_arch src_branch <<< "$SRC_REF"
+        else
+          mkdir -p "${REPO_PATH}/refs/heads" "${REPO_PATH}/refs/mirrors" "${REPO_PATH}/refs/remotes"
+          REF="$(ostree refs --repo="${REPO_PATH}" | grep '^app/' | head -n 1 || true)"
+          if [ -n "$REF" ]; then
+            IFS='/' read -r _ src_app_id src_arch src_branch <<< "$REF"
+          fi
+        fi
+
+        app_id="${INPUT_APP_ID}"; [ -n "$app_id" ] || app_id="$src_app_id"
+        arch="${INPUT_ARCH}";     [ -n "$arch" ]   || arch="$src_arch"
+        branch="${INPUT_BRANCH}"; [ -n "$branch" ] || branch="${src_branch:-$default_channel}"
+        [ -n "$app_id" ] || { echo "::error::Could not resolve app-id"; exit 1; }
+        [ -n "$arch" ]   || { echo "::error::Could not resolve arch"; exit 1; }
+
+        # Rebind the bundle's source branch (often 'master') onto the published
+        # branch so build-update-repo / build-bundle --oci don't warn about
+        # "Deployed ref ... does not match commit". Idempotent when equal.
+        if [ -n "${BUNDLE_PATH}" ]; then
+          mkdir -p "${REPO_PATH}"
+          if [ ! -f "${REPO_PATH}/config" ]; then
+            ostree --repo="${REPO_PATH}" init --mode=archive-z2
+          fi
+          if [ "$src_branch" != "$branch" ]; then
+            echo "::notice::Rebinding bundle branch '$src_branch' -> '$branch'"
+          fi
+          flatpak build-commit-from \
+            --src-repo="$SCRATCH" \
+            --src-ref="$SRC_REF" \
+            --update-appstream \
+            --no-update-summary \
+            "${REPO_PATH}" "app/$app_id/$arch/$branch"
+        fi
+
         echo "app-id=$app_id" >> "$GITHUB_OUTPUT"
         echo "arch=$arch" >> "$GITHUB_OUTPUT"
         echo "branch=$branch" >> "$GITHUB_OUTPUT"
