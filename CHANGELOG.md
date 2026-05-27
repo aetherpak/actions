@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0](https://github.com/aetherpak/actions/compare/v1.2.1...v1.3.0) (2026-05-27)
+
+
+### Features
+
+* **plan:** add apps.yaml-to-matrix planner ([23aefd5](https://github.com/aetherpak/actions/commit/23aefd577f6b0154fc3d5a442a3d53e4414b13b3))
+* **plan:** add plan composite action ([2746c4d](https://github.com/aetherpak/actions/commit/2746c4d10c51393b038d306c75bcdb8504e434e7))
+* **prep-bundle:** add bundle fetch+import+re-tag composite ([c9dfcce](https://github.com/aetherpak/actions/commit/c9dfccedde67e38171fd9350e50195aef459b26f))
+* **publish-oci:** add parallel push+sign+record composite ([51407d4](https://github.com/aetherpak/actions/commit/51407d40be8d7004aa2ec35735fe840514be7481))
+* **publish-site:** add records-to-site composite ([f2fb962](https://github.com/aetherpak/actions/commit/f2fb962e50a61c27d8378cbaa0b3fb4609a92131))
+* **publish:** add records library for cell-level publish data ([1d808d3](https://github.com/aetherpak/actions/commit/1d808d326f6813b8e1258565ce847c5f25b6c37d))
+* **workflow:** add publish-multi.yml reusable workflow ([b2d7e3a](https://github.com/aetherpak/actions/commit/b2d7e3a909dae6a25c7f123d4a0d95ca1082a8a4))
+
 ## [1.2.1](https://github.com/aetherpak/actions/compare/v1.2.0...v1.2.1) (2026-05-27)
 
 
