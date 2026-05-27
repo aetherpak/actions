@@ -236,7 +236,11 @@ runs:
             SIGN_FLAGS="$SIGN_FLAGS --sign-passphrase-file $PASSFILE"
           fi
         fi
-        TAG="${VARS_APP_ID}-${VARS_BRANCH}-${VARS_ARCH}"
+        # flatpak strips the tag with a regex that disallows dots
+        # ([0-9A-Za-z_-] only), so an app-id like com.example.App leaves
+        # the embedded sig identity tagged and verification fails. Encode
+        # dots as underscores; canonical app-id stays in org.flatpak.ref.
+        TAG="${VARS_APP_ID//./_}-${VARS_BRANCH}-${VARS_ARCH}"
         skopeo $REGD_FLAG copy $TLS_FLAGS $SIGN_FLAGS --all \
           oci:_oci-image \
           "docker://${TARGET_IMAGE}:$TAG"
@@ -253,7 +257,7 @@ runs:
       run: |
         set -euo pipefail
         TLS_FLAGS=""; [ "${INSECURE_REGISTRY}" = "true" ] && TLS_FLAGS="--tls-verify=false"
-        TAG="${VARS_APP_ID}-${VARS_BRANCH}-${VARS_ARCH}"
+        TAG="${VARS_APP_ID//./_}-${VARS_BRANCH}-${VARS_ARCH}"
         OUT="$(skopeo inspect $TLS_FLAGS docker://${TARGET_IMAGE}:$TAG)"
         DIGEST="$(echo "$OUT" | jq -r '.Digest')"
         LABELS_FILE="${RUNNER_TEMP}/aetherpak-oci-labels.json"
