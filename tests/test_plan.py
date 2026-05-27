@@ -26,14 +26,67 @@ def test_validate_manifest_requires_runtime_and_known_arch() -> None:
 
 
 def test_validate_bundles_need_url_and_sha() -> None:
+    sha = "a" * 64
+    url = "https://example.com/app.flatpak"
     with pytest.raises(SystemExit):
-        plan_mod.validate({"id": "a", "bundles": {"x86_64": {"url": "u"}}})  # missing sha
+        plan_mod.validate({"id": "a", "bundles": {"x86_64": {"url": url}}})  # missing sha
     plan_mod.validate(
         {
             "id": "a",
-            "bundles": {"x86_64": {"url": "u", "sha256": "s"}},
+            "bundles": {"x86_64": {"url": url, "sha256": sha}},
         }
     )  # ok
+
+
+def test_validate_app_id_pattern() -> None:
+    sha = "a" * 64
+    url = "https://example.com/x.flatpak"
+    # Reject reserved characters that could escape a path component or shell.
+    for bad in ("../sneaky", "a/b", "a b", ".leading-dot", "-leading-dash"):
+        with pytest.raises(SystemExit):
+            plan_mod.validate(
+                {"id": bad, "bundles": {"x86_64": {"url": url, "sha256": sha}}}
+            )
+    # Accept Flatpak reverse-DNS form.
+    plan_mod.validate(
+        {"id": "org.example.App", "manifest": "apps/org.example.App/m.yaml", "runtime": "gnome-50"}
+    )
+
+
+def test_validate_branch_pattern() -> None:
+    with pytest.raises(SystemExit):
+        plan_mod.validate(
+            {"id": "a", "branch": "stable;rm -rf /", "manifest": "m.yaml", "runtime": "gnome-50"}
+        )
+    plan_mod.validate(
+        {"id": "a", "branch": "beta.1", "manifest": "m.yaml", "runtime": "gnome-50"}
+    )
+
+
+def test_validate_manifest_path_must_be_relative() -> None:
+    for bad in ("/abs/m.yaml", "../escape.yaml", "apps/../escape.yaml"):
+        with pytest.raises(SystemExit):
+            plan_mod.validate({"id": "a", "manifest": bad, "runtime": "gnome-50"})
+
+
+def test_validate_bundle_url_must_be_http() -> None:
+    sha = "a" * 64
+    with pytest.raises(SystemExit):
+        plan_mod.validate(
+            {"id": "a", "bundles": {"x86_64": {"url": "file:///etc/passwd", "sha256": sha}}}
+        )
+    plan_mod.validate(
+        {"id": "a", "bundles": {"x86_64": {"url": "http://example.com/x.flatpak", "sha256": sha}}}
+    )
+
+
+def test_validate_bundle_sha256_must_be_hex() -> None:
+    url = "https://example.com/x.flatpak"
+    for bad in ("short", "G" * 64, "a" * 63, "A" * 64):
+        with pytest.raises(SystemExit):
+            plan_mod.validate(
+                {"id": "a", "bundles": {"x86_64": {"url": url, "sha256": bad}}}
+            )
 
 
 def test_expand_matrix_manifest_and_bundles() -> None:

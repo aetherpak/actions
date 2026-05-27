@@ -35,6 +35,7 @@ import json
 import logging
 import os
 import pathlib
+import re
 import subprocess
 import sys
 from typing import Any
@@ -48,6 +49,15 @@ RUNNER_BY_ARCH = {
     "aarch64": "ubuntu-24.04-arm",
 }
 ZERO_SHA = "0" * 40
+
+# Reject anything that could escape a path component or inject into a shell:
+# Flatpak reverse-DNS app ids are letters/digits/`.`/`_`/`-`; branches are the
+# same minus the leading-char restriction. Manifest paths must stay within the
+# repo. Bundle URLs must be HTTP(S). sha256 must be 64 lowercase hex.
+APP_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$")
+BRANCH_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+SHA256_RE = re.compile(r"^[a-f0-9]{64}$")
+URL_RE = re.compile(r"^https?://")
 
 
 def die(msg: str) -> None:
@@ -90,17 +100,33 @@ def load_apps(path: pathlib.Path) -> list[dict[str, Any]]:
 def validate(entry: dict[str, Any]) -> None:
     """Assert that one apps.yaml entry is structurally valid.
 
+    Field shapes are enforced so values reach downstream actions, shell
+    commands, and filesystem paths only in well-known forms.
+
     :param entry: raw app entry dict from apps.yaml.
     :raises SystemExit: on any schema violation.
     """
     app_id = entry.get("id")
     if not app_id:
         die(f"app entry missing 'id': {entry!r}")
+    if not isinstance(app_id, str) or not APP_ID_RE.match(app_id):
+        die(f"'{app_id}': 'id' must match {APP_ID_RE.pattern}")
+    branch = entry.get("branch", "stable")
+    if not isinstance(branch, str) or not BRANCH_RE.match(branch):
+        die(f"'{app_id}': 'branch' must match {BRANCH_RE.pattern}")
     has_manifest = "manifest" in entry
     has_bundles = "bundles" in entry
     if has_manifest == has_bundles:
         die(f"'{app_id}': exactly one of 'manifest' or 'bundles' is required")
     if has_manifest:
+        manifest = entry["manifest"]
+        if not isinstance(manifest, str) or not manifest:
+            die(f"'{app_id}': 'manifest' must be a non-empty path")
+        # Manifest paths are relative to the caller repo root and feed
+        # `flatpak-builder` directly; reject escapes and absolute paths.
+        parts = pathlib.PurePosixPath(manifest).parts
+        if manifest.startswith("/") or ".." in parts:
+            die(f"'{app_id}': 'manifest' must be a relative path with no '..' segments")
         if not entry.get("runtime"):
             die(f"'{app_id}': 'runtime' is required when 'manifest' is set")
         for arch in entry.get("arches", ["x86_64"]):
@@ -115,6 +141,10 @@ def validate(entry: dict[str, Any]) -> None:
                 die(f"'{app_id}': unsupported bundle arch '{arch}'")
             if not isinstance(b, dict) or not b.get("url") or not b.get("sha256"):
                 die(f"'{app_id}' bundle '{arch}': 'url' and 'sha256' are required")
+            if not URL_RE.match(b["url"]):
+                die(f"'{app_id}' bundle '{arch}': 'url' must be http(s)://...")
+            if not SHA256_RE.match(b["sha256"]):
+                die(f"'{app_id}' bundle '{arch}': 'sha256' must be 64 lowercase hex chars")
 
 
 def previous_apps(base_sha: str, config_path: pathlib.Path) -> list[dict[str, Any]] | None:
