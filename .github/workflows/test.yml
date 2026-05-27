@@ -366,3 +366,66 @@ jobs:
             echo "Error: signing=gpg without a key must fail"; exit 1
           fi
           echo "gpg gate correctly rejected an empty key"
+
+  bundle-integration-test:
+    name: Mock Bundle Source Integration Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Install Flatpak & OSTree
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak ostree
+
+      - name: Start Local OCI Registry
+        run: |
+          docker run -d -p 5001:5000 --name registry registry:2
+          for _ in {1..10}; do curl -s http://localhost:5001/v2/ && break; sleep 1; done
+
+      - name: Build a one-off mock bundle
+        # Build a real .flatpak bundle in a throwaway repo, then discard the
+        # repo so publish has to init its own from the bundle alone — the
+        # consumer scenario the fix targets.
+        run: |
+          set -euo pipefail
+          mkdir -p tests/bundle_src
+          ostree init --mode=archive --repo=tests/bundle_src
+          mkdir -p tests/bundle_contents/files tests/bundle_contents/export
+          cat > tests/bundle_contents/metadata <<EOF
+          [Application]
+          name=org.flatpak.BundleApp
+          runtime=org.freedesktop.Platform/x86_64/23.08
+          sdk=org.freedesktop.Sdk/x86_64/23.08
+          EOF
+          ostree commit --repo=tests/bundle_src \
+            --branch=app/org.flatpak.BundleApp/x86_64/stable \
+            -m "mock bundle commit" tests/bundle_contents
+          flatpak build-bundle tests/bundle_src tests/mock.flatpak \
+            org.flatpak.BundleApp stable
+
+      - name: Publish from bundle (no pre-existing repo-path)
+        id: publish_step
+        uses: ./publish
+        with:
+          # `repo-path` must NOT exist — that's the consumer scenario.
+          repo-path: _repo_from_bundle
+          bundle-path: tests/mock.flatpak
+          registry: "localhost:5001"
+          insecure-registry: "true"
+          oci-repository: "aetherpak/bundle-app"
+          remote-name: "aetherpak-bundle-test"
+          pages-url: "http://localhost:9999"
+          registry-token: "" # skip login for local registry
+          upload-pages-artifact: "false"
+
+      - name: Verify the bundle round-tripped into the index
+        run: |
+          set -euo pipefail
+          if [ ! -f "_site/index/static" ]; then
+            echo "Error: index/static not generated"
+            exit 1
+          fi
+          REF="$(jq -r '.Results[0].Images[0].Labels["org.flatpak.ref"]' _site/index/static)"
+          test "$REF" = "app/org.flatpak.BundleApp/x86_64/stable"
