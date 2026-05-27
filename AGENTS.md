@@ -12,11 +12,29 @@ see [ARCHITECTURE.md](ARCHITECTURE.md); for the dev workflow, see
   `flatpak/flatpak-github-actions/flatpak-builder@v6` (inside the flathub
   container), or imports a `.flatpak` bundle or OSTree repo. Resolves
   `app-id`/`arch`/`branch` from the built repo.
-- `publish/action.yml`: converts the OSTree repo to an OCI image, pushes it to
-  GHCR (signing it when a GPG key is set), merges `index/static`, reconciles the
-  index against the registry, and writes `index.flatpakrepo`, per-app
-  `refs/*.flatpakref`, and `index.html`. Resolves `app-id`/`arch`/`branch` from
-  the repo when not given; usable on its own with `repo-path` or `bundle-path`.
+- `publish/action.yml`: thin one-shot wrapper around `publish-oci` then
+  `publish-site` (one cell, one site, in one job). Suited to single-cell
+  consumers with their own runner.
+- `publish-oci/action.yml`: parallel-safe push half — OSTree -> OCI image, sign,
+  push, inspect, emit a per-cell record under `<records-dir>/<app-id>-<arch>/`.
+- `publish-site/action.yml`: single-instance aggregator — reads a records tree,
+  seeds `index/static` from the deployed Pages copy, merges every cell,
+  reconciles, writes `<remote>.flatpakrepo`, per-app `.flatpakref` files,
+  signing metadata, and the landing page; backfills signatures.
+- `publish/records.py`: tiny library shared between publish-oci (writer) and
+  publish-site (reader); defines the `Record` shape and the `<records-dir>/
+  <app-id>-<arch>/{record.json,labels.json,sigs/...}` layout.
+- `prep-bundle/action.yml`: fetch a `.flatpak` URL, verify SHA-256, import into
+  an OSTree repo, and re-tag the imported `app/<id>/<arch>/<bundle_branch>` ref
+  to the consumer-declared `branch`. Channel-normalizes bundle sources so
+  publish-oci sees a ref matching the requested channel.
+- `plan/action.yml` + `plan/plan.py`: expand `apps.yaml` into a build matrix,
+  narrowed by `git diff` since `BASE_SHA`. Consumed by `publish-multi.yml`.
+- `.github/workflows/publish-multi.yml`: multi-app reusable workflow. Calls
+  `plan` once, runs `build-manifest` / `prep-bundle` matrix jobs in parallel
+  (both producing a uniform `repo-<app-id>-<arch>` artifact), then
+  `publish-oci` (parallel push) feeding `publish-site` (single,
+  concurrency-locked) and one Pages deploy.
 - `publish/merge_index.py`: merges one image into `index/static` (one entry per
   ref+arch), carrying the full `org.flatpak.*` label set.
 - `publish/reconcile.py`: drops index entries whose image is gone from the
@@ -62,6 +80,13 @@ Keep these intact when changing the code:
 7. In the reusable workflow, publish and deploy stay in one `concurrency`-locked
    job. The index is a read-modify-write seeded from the deployed copy, so
    splitting deploy out or dropping the lock reopens the cross-run merge race.
+8. `publish-oci` and `publish-site` share their record shape via
+   `publish/records.py`. Any field added to a record is added once, used in both
+   places, and covered by a `tests/test_records.py` case.
+9. `apps.yaml`'s `branch` field is load-bearing for both source kinds:
+   manifest entries build at it; bundle entries are re-tagged to it by
+   `prep-bundle`. plan.py's default of `'stable'` is the consumer-facing
+   fallback when `branch` is omitted.
 
 ## Testing
 
