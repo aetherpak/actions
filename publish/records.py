@@ -40,7 +40,9 @@ class Record:
         # should already have caught them upstream.
         for name, value in (("app_id", self.app_id), ("arch", self.arch)):
             if "/" in value or "\\" in value or value in ("..", "."):
-                raise ValueError(f"Record {name!r} must not contain path separators or traversal segments")
+                raise ValueError(
+                    f"Record {name!r} must not contain path separators or traversal segments"
+                )
 
     def cell_dir(self, root: pathlib.Path) -> pathlib.Path:
         """Return the cell directory path for this record under *root*.
