@@ -29,7 +29,7 @@ client:  Pages index --(digest)--> GHCR blobs
    `branch` input it defaults to `stable` on tag pushes, `beta` on the default
    branch, and the git ref name otherwise.
 2. **publish** converts the OSTree repo to an OCI image (`flatpak build-bundle
-   --oci`), pushes it to `ghcr.io/<owner>/<repo>` (tag `<branch>-<arch>`, signing
+   --oci`), pushes it to `ghcr.io/<owner>/<repo>` (tag `<app-id>-<branch>-<arch>`, signing
    it when a GPG key is configured; see "Signing"), inspects the pushed image for
    its digest and `org.flatpak.*` labels, and merges an entry into `index/static`.
    It then reconciles the index, dropping entries whose image no longer exists in
@@ -79,8 +79,8 @@ A JSON document Flatpak reads directly:
   accumulate into one index.
 - Flatpak resolves an app from the labels and pulls the manifest by `Digest`. The
   GHCR tag is not used for resolution; it only keeps the digest referenced. Images
-  are tagged `<branch>-<arch>` so multi-arch pushes do not overwrite each other's
-  tags.
+  are tagged `<app-id>-<branch>-<arch>` so several apps in the same meta-repo can
+  share one OCI image path without overwriting each other's tags.
 - The landing page hides entries without `org.flatpak.metadata` (ones a client
   could not install).
 

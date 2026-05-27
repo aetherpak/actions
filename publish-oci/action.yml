@@ -206,7 +206,7 @@ runs:
             SIGN_FLAGS="$SIGN_FLAGS --sign-passphrase-file $PASSFILE"
           fi
         fi
-        TAG="${{ steps.vars.outputs.branch }}-${{ steps.vars.outputs.arch }}"
+        TAG="${{ steps.vars.outputs.app-id }}-${{ steps.vars.outputs.branch }}-${{ steps.vars.outputs.arch }}"
         skopeo $REGD_FLAG copy $TLS_FLAGS $SIGN_FLAGS --all \
           oci:_oci-image \
           "docker://${{ steps.target.outputs.image }}:$TAG"
@@ -217,7 +217,7 @@ runs:
       run: |
         set -euo pipefail
         TLS_FLAGS=""; [ "${{ inputs.insecure-registry }}" = "true" ] && TLS_FLAGS="--tls-verify=false"
-        TAG="${{ steps.vars.outputs.branch }}-${{ steps.vars.outputs.arch }}"
+        TAG="${{ steps.vars.outputs.app-id }}-${{ steps.vars.outputs.branch }}-${{ steps.vars.outputs.arch }}"
         OUT="$(skopeo inspect $TLS_FLAGS docker://${{ steps.target.outputs.image }}:$TAG)"
         DIGEST="$(echo "$OUT" | jq -r '.Digest')"
         LABELS_FILE="${RUNNER_TEMP}/aetherpak-oci-labels.json"
