@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.3](https://github.com/aetherpak/actions/compare/v2.1.2...v2.1.3) (2026-05-27)
+
+
+### Bug Fixes
+
+* **prep-bundle:** rebind xa.ref via build-commit-from ([5cc8c0b](https://github.com/aetherpak/actions/commit/5cc8c0bede3a7736356d0ac084455d7f716da433))
+
 ## [2.1.2](https://github.com/aetherpak/actions/compare/v2.1.1...v2.1.2) (2026-05-27)
 
 
