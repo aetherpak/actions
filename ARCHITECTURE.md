@@ -145,7 +145,7 @@ The workflow runs in five stages:
 2. **build-manifest** (matrix) — `aetherpak/actions/build@v2` in the flathub
    container, one job per `(app, arch)`; uploads `repo-<app-id>-<arch>`.
 3. **prep-bundle** (matrix) — `aetherpak/actions/prep-bundle@v2` per bundle
-   cell: fetch URL, verify SHA-256, import into an OSTree repo, and **re-tag**
+   cell: fetch URL, verify SHA-256, import into an OSTree repo, and **rebind**
    the imported `app/<id>/<arch>/<bundle_branch>` ref to
    `app/<id>/<arch>/<branch>`. Uploads the same `repo-<app-id>-<arch>`
    artifact shape build-manifest does.
@@ -164,9 +164,12 @@ parallel because each pushes an independent OCI image, not the shared index.
 
 Upstream `.flatpak` bundles typically carry `app/<id>/<arch>/master` (flatpak-
 builder's default when the upstream manifest omits a branch). `prep-bundle`
-re-tags this ref to `app/<id>/<arch>/<branch>` using the `aetherpak.yaml` entry's
+rebinds this ref to `app/<id>/<arch>/<branch>` using the `aetherpak.yaml` entry's
 `branch` (defaulting to `'stable'`) so the published channel matches what
-`aetherpak.yaml` declares.
+`aetherpak.yaml` declares. The rebind goes through `flatpak build-commit-from`
+so the commit's `xa.ref` binding is rewritten alongside the ref name — a
+plain ref rename would leave the binding stale and `flatpak install` would
+reject the deployed ref as mismatched.
 
 `index/static` is one file shared by every app. A publish-site run seeds it
 from the deployed Pages copy, merges every record in the current run,

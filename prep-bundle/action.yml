@@ -1,5 +1,5 @@
 name: "AetherPak Prep Bundle"
-description: "Fetch a .flatpak bundle, verify SHA-256, import into an OSTree repo, and re-tag to the consumer-declared channel."
+description: "Fetch a .flatpak bundle, verify SHA-256, import into an OSTree repo, and rebind the commit to the consumer-declared channel."
 
 inputs:
   url:
@@ -9,7 +9,7 @@ inputs:
     description: "Expected SHA-256 of the downloaded bundle."
     required: true
   branch:
-    description: "Target channel; the imported app/* ref is re-tagged to this branch."
+    description: "Target channel; the imported app/* ref is rebound to this branch (xa.ref binding rewritten)."
     required: false
     default: "stable"
   repo-path:
@@ -47,7 +47,7 @@ runs:
         curl -fL --retry 3 -o "$BUNDLE" "$URL"
         echo "$SHA  $BUNDLE" | sha256sum -c -
 
-    - name: Import + re-tag
+    - name: Import + rebind
       shell: bash
       env:
         REPO: ${{ inputs.repo-path }}
@@ -55,21 +55,29 @@ runs:
         TARGET_BRANCH: ${{ inputs.branch }}
       run: |
         set -euo pipefail
+
+        # build-commit-from rewrites the commit's xa.ref binding; a bare
+        # `ostree refs --create` leaves the binding on the source branch and
+        # flatpak verification rejects the deployed ref as a mismatch.
+        SCRATCH="$(mktemp -d)"
+        trap 'rm -rf "$SCRATCH"' EXIT
+        ostree --repo="$SCRATCH" init --mode=archive-z2
+        flatpak build-import-bundle "$SCRATCH" "$BUNDLE"
+
+        SRC_REF="$(ostree --repo="$SCRATCH" refs | grep '^app/' | head -1 || true)"
+        [ -n "$SRC_REF" ] || { echo "::error::no app/* ref in imported bundle"; exit 1; }
+        IFS='/' read -r _ app_id arch src_branch <<< "$SRC_REF"
+        target_ref="app/$app_id/$arch/$TARGET_BRANCH"
+
         mkdir -p "$REPO"
         [ -f "$REPO/config" ] || ostree --repo="$REPO" init --mode=archive-z2
-        flatpak build-import-bundle "$REPO" "$BUNDLE"
 
-        # Upstream bundles typically carry app/<id>/<arch>/master (flatpak-builder's
-        # default when the manifest omits a branch). Re-tag to the consumer's
-        # declared channel so publish sees a ref matching `branch`, and
-        # `flatpak build-bundle --oci ... <branch>` succeeds without ref-mismatch.
-        orig_ref="$(ostree --repo="$REPO" refs | grep '^app/' | head -1 || true)"
-        [ -n "$orig_ref" ] || { echo "::error::no app/* ref in imported bundle"; exit 1; }
-        IFS='/' read -r _ ref_app_id ref_arch _ref_branch <<< "$orig_ref"
-        target_ref="app/$ref_app_id/$ref_arch/$TARGET_BRANCH"
-        if [ "$orig_ref" != "$target_ref" ]; then
-          rev="$(ostree --repo="$REPO" rev-parse "$orig_ref")"
-          ostree --repo="$REPO" refs --create="$target_ref" "$rev"
-          ostree --repo="$REPO" refs --delete "$orig_ref"
-          echo "Re-tagged $orig_ref -> $target_ref"
+        if [ "$src_branch" != "$TARGET_BRANCH" ]; then
+          echo "::notice::Rebinding bundle branch '$src_branch' -> '$TARGET_BRANCH'"
         fi
+        flatpak build-commit-from \
+          --src-repo="$SCRATCH" \
+          --src-ref="$SRC_REF" \
+          --update-appstream \
+          --no-update-summary \
+          "$REPO" "$target_ref"
