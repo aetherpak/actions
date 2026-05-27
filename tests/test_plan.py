@@ -156,14 +156,14 @@ def test_select_ids_diff_picks_only_touched() -> None:
 def test_select_ids_diff_picks_bundle_sha_bumps() -> None:
     prev = [{"id": "x", "bundles": {"x86_64": {"url": "u", "sha256": "old"}}}]
     curr = [{"id": "x", "bundles": {"x86_64": {"url": "u", "sha256": "new"}}}]
-    ids = plan_mod.select_ids(curr, prev, force="", changed=["apps.yaml"])
+    ids = plan_mod.select_ids(curr, prev, force="", changed=["aetherpak.yaml"])
     assert ids == ["x"]
 
 
 def test_expand_matrix_bundle_branch_defaults_to_stable() -> None:
     # Bundle source: branch is load-bearing (drives the published channel via
     # prep-bundle's re-tag). plan.py's default of 'stable' is the fallback when
-    # apps.yaml omits the field.
+    # aetherpak.yaml omits the field.
     apps = [{"id": "x", "bundles": {"x86_64": {"url": "u", "sha256": "s"}}}]
     rows = plan_mod.expand_matrix(apps, ["x"])
     assert rows[0]["source"] == "bundle"
@@ -191,14 +191,14 @@ def test_previous_and_diff_handle_empty_base_sha() -> None:
     # rebuilds everything.
     from pathlib import Path
 
-    assert plan_mod.previous_apps("", Path("apps.yaml")) is None
-    assert plan_mod.previous_apps("0" * 40, Path("apps.yaml")) is None
+    assert plan_mod.previous_apps("", Path("aetherpak.yaml")) is None
+    assert plan_mod.previous_apps("0" * 40, Path("aetherpak.yaml")) is None
     assert plan_mod.diff_files("") is None
     assert plan_mod.diff_files("0" * 40) is None
 
 
 def test_plan_py_emits_matrix(tmp_path: Path, monkeypatch) -> None:
-    config = tmp_path / "apps.yaml"
+    config = tmp_path / "aetherpak.yaml"
     config.write_text(
         "apps:\n"
         "  - id: a.one\n"

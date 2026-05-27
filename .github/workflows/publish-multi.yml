@@ -3,17 +3,17 @@ on:
   workflow_call:
     inputs:
       config:
-        description: "Path to apps.yaml (relative to the caller repo root)."
+        description: "Path to aetherpak.yaml (relative to the caller repo root)."
         required: false
         type: string
-        default: "apps.yaml"
+        default: "aetherpak.yaml"
       app:
         description: "Rebuild only this app id (leave blank for change detection)."
         required: false
         type: string
         default: ""
       force-all:
-        description: "Rebuild every app in apps.yaml."
+        description: "Rebuild every app in aetherpak.yaml."
         required: false
         type: boolean
         default: false

@@ -1,11 +1,11 @@
 name: "AetherPak Plan"
-description: "Expand apps.yaml into a build matrix, narrowed to the apps changed since BASE_SHA."
+description: "Expand aetherpak.yaml into a build matrix, narrowed to the apps changed since BASE_SHA."
 
 inputs:
   config:
-    description: "Path to the apps.yaml file."
+    description: "Path to the aetherpak.yaml file."
     required: false
-    default: "apps.yaml"
+    default: "aetherpak.yaml"
   force:
     description: "'' to use change detection, '<app-id>' for a single app, 'all' for everything."
     required: false

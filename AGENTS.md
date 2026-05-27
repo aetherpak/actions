@@ -28,7 +28,7 @@ see [ARCHITECTURE.md](ARCHITECTURE.md); for the dev workflow, see
   an OSTree repo, and re-tag the imported `app/<id>/<arch>/<bundle_branch>` ref
   to the consumer-declared `branch`. Channel-normalizes bundle sources so
   publish-oci sees a ref matching the requested channel.
-- `plan/action.yml` + `plan/plan.py`: expand `apps.yaml` into a build matrix,
+- `plan/action.yml` + `plan/plan.py`: expand `aetherpak.yaml` into a build matrix,
   narrowed by `git diff` since `BASE_SHA`. Consumed by `publish-multi.yml`.
 - `.github/workflows/publish-multi.yml`: multi-app reusable workflow. Calls
   `plan` once, runs `build-manifest` / `prep-bundle` matrix jobs in parallel
@@ -83,7 +83,7 @@ Keep these intact when changing the code:
 8. `publish-oci` and `publish-site` share their record shape via
    `publish/records.py`. Any field added to a record is added once, used in both
    places, and covered by a `tests/test_records.py` case.
-9. `apps.yaml`'s `branch` field is load-bearing for both source kinds:
+9. `aetherpak.yaml`'s `branch` field is load-bearing for both source kinds:
    manifest entries build at it; bundle entries are re-tagged to it by
    `prep-bundle`. plan.py's default of `'stable'` is the consumer-facing
    fallback when `branch` is omitted.

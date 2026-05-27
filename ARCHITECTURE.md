@@ -108,7 +108,7 @@ otherwise), or `off`.
 
 ## Multiple apps and serialized publishing
 
-For more than one app, use `.github/workflows/publish-multi.yml` and declare apps in `apps.yaml`:
+For more than one app, use `.github/workflows/publish-multi.yml` and declare apps in `aetherpak.yaml`:
 
 ```yaml
 apps:
@@ -129,9 +129,9 @@ apps:
 
 The workflow runs in five stages:
 
-1. **plan** — expand `apps.yaml` into a matrix; narrow it to apps touched since
+1. **plan** — expand `aetherpak.yaml` into a matrix; narrow it to apps touched since
    `BASE_SHA` (gitlink/manifest-dir diffs for manifest sources; per-entry diff
-   of `apps.yaml` for everything else).
+   of `aetherpak.yaml` for everything else).
 2. **build-manifest** (matrix) — `aetherpak/actions/build@v1` in the flathub
    container, one job per `(app, arch)`; uploads `repo-<app-id>-<arch>`.
 3. **prep-bundle** (matrix) — `aetherpak/actions/prep-bundle@v1` per bundle
@@ -154,9 +154,9 @@ parallel because each pushes an independent OCI image, not the shared index.
 
 Upstream `.flatpak` bundles typically carry `app/<id>/<arch>/master` (flatpak-
 builder's default when the upstream manifest omits a branch). `prep-bundle`
-re-tags this ref to `app/<id>/<arch>/<branch>` using the `apps.yaml` entry's
+re-tags this ref to `app/<id>/<arch>/<branch>` using the `aetherpak.yaml` entry's
 `branch` (defaulting to `'stable'`) so the published channel matches what
-`apps.yaml` declares.
+`aetherpak.yaml` declares.
 
 `index/static` is one file shared by every app. A publish-site run seeds it
 from the deployed Pages copy, merges every record in the current run,

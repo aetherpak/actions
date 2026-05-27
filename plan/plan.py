@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Expand apps.yaml into a build matrix, narrowed to the touched apps.
+"""Expand aetherpak.yaml into a build matrix, narrowed to the touched apps.
 
 Used by the `plan` composite action and the publish-multi.yml reusable workflow.
 
-Schema (apps.yaml entry):
+Schema (aetherpak.yaml entry):
     id          required; reverse-DNS app id.
     branch      optional; default 'stable'. Load-bearing for BOTH source kinds:
                 manifest entries build at this channel; bundle entries are
@@ -16,7 +16,7 @@ Schema (apps.yaml entry):
     bundles     map of arch -> {url, sha256}; mutually exclusive with `manifest`.
 
 Inputs (env):
-    CONFIG         path to apps.yaml (default: apps.yaml)
+    CONFIG         path to aetherpak.yaml (default: aetherpak.yaml)
     FORCE          '' | 'all' | '<app-id>'
     BASE_SHA       commit to diff against; empty / all-zeros -> rebuild all
     WORKFLOW_PATH  optional caller workflow file path; touching it forces rebuild-all
@@ -73,7 +73,7 @@ def die(msg: str) -> None:
 
 
 def load_apps_yaml(text: str) -> list[dict[str, Any]]:
-    """Parse apps.yaml text and return the ``apps`` list (empty list if absent).
+    """Parse aetherpak.yaml text and return the ``apps`` list (empty list if absent).
 
     :param text: raw YAML document text.
     :returns: list of app entry dicts.
@@ -83,9 +83,9 @@ def load_apps_yaml(text: str) -> list[dict[str, Any]]:
 
 
 def load_apps(path: pathlib.Path) -> list[dict[str, Any]]:
-    """Read, parse, and validate every entry in the apps.yaml at *path*.
+    """Read, parse, and validate every entry in the aetherpak.yaml at *path*.
 
-    :param path: filesystem path to apps.yaml.
+    :param path: filesystem path to aetherpak.yaml.
     :returns: validated list of app entry dicts.
     :raises SystemExit: if the file is missing or any entry fails validation.
     """
@@ -98,12 +98,12 @@ def load_apps(path: pathlib.Path) -> list[dict[str, Any]]:
 
 
 def validate(entry: dict[str, Any]) -> None:
-    """Assert that one apps.yaml entry is structurally valid.
+    """Assert that one aetherpak.yaml entry is structurally valid.
 
     Field shapes are enforced so values reach downstream actions, shell
     commands, and filesystem paths only in well-known forms.
 
-    :param entry: raw app entry dict from apps.yaml.
+    :param entry: raw app entry dict from aetherpak.yaml.
     :raises SystemExit: on any schema violation.
     """
     app_id = entry.get("id")
@@ -155,7 +155,7 @@ def previous_apps(base_sha: str, config_path: pathlib.Path) -> list[dict[str, An
     cannot parse it — all cases where the caller should treat every app as new.
 
     :param base_sha: git commit SHA to read the file from.
-    :param config_path: path to apps.yaml relative to the repo root.
+    :param config_path: path to aetherpak.yaml relative to the repo root.
     :returns: parsed app list, or ``None`` if unavailable.
     """
     if not base_sha or base_sha == ZERO_SHA:
@@ -235,7 +235,7 @@ def select_ids(
        relative to *apps_previous*; new apps (absent from previous) are always
        included.
 
-    :param apps_current: current app list from apps.yaml.
+    :param apps_current: current app list from aetherpak.yaml.
     :param apps_previous: app list at the base commit, or ``None`` if unavailable.
     :param force: ``"all"``, a specific app id, or ``""`` to skip forced selection.
     :param changed: list of changed files, or ``None`` when diff is unavailable.
@@ -329,7 +329,7 @@ def main() -> None:
     """CLI entry point: read env, compute the build matrix, emit GitHub outputs."""
     logging.basicConfig(format="%(message)s", level=logging.INFO)
 
-    config = pathlib.Path(os.environ.get("CONFIG", "apps.yaml"))
+    config = pathlib.Path(os.environ.get("CONFIG", "aetherpak.yaml"))
     force = os.environ.get("FORCE", "").strip()
     base_sha = os.environ.get("BASE_SHA", "").strip()
     workflow_path = os.environ.get("WORKFLOW_PATH", "").strip()

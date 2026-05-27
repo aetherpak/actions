@@ -156,7 +156,7 @@
             <div class="step-num">3</div>
             <div class="step-body">
               <h4>Add the workflow</h4>
-              <p>Pick the shape that matches your repository: one Flatpak per repo, or several Flatpaks declared in <code>apps.yaml</code>.</p>
+              <p>Pick the shape that matches your repository: one Flatpak per repo, or several Flatpaks declared in <code>aetherpak.yaml</code>.</p>
 
               <div class="tabs" role="tablist">
                 <button class="tab" role="tab" data-tab="usage-single" aria-selected="true">Single app</button>
@@ -194,14 +194,14 @@ jobs:
                 <div class="substep">
                   <div class="substep-num">a</div>
                   <div class="substep-body">
-                    <p>Add <code>apps.yaml</code> at the repo root, listing every Flatpak you publish (<button class="linkbtn" onclick="document.getElementById('appsyaml').showModal()">see example</button>). Each entry is either a Flatpak manifest checked into the repo (often via submodule) or a prebuilt <code>.flatpak</code> bundle imported from an upstream release.</p>
+                    <p>Add <code>aetherpak.yaml</code> at the repo root, listing every Flatpak you publish (<button class="linkbtn" onclick="document.getElementById('aetherpakyaml').showModal()">see example</button>). Each entry is either a Flatpak manifest checked into the repo (often via submodule) or a prebuilt <code>.flatpak</code> bundle imported from an upstream release.</p>
                   </div>
                 </div>
 
                 <div class="substep">
                   <div class="substep-num">b</div>
                   <div class="substep-body">
-                    <p>Add <code>.github/workflows/publish.yml</code>. It plans the matrix from <code>apps.yaml</code>, rebuilds only the apps that changed since the previous push, and deploys one combined site.</p>
+                    <p>Add <code>.github/workflows/publish.yml</code>. It plans the matrix from <code>aetherpak.yaml</code>, rebuilds only the apps that changed since the previous push, and deploys one combined site.</p>
                   </div>
                 </div>
                 <div class="code-block">
@@ -330,7 +330,7 @@ jobs:
       <div class="panel" data-tab="config-multi" hidden>
         <div class="card">
         <div class="opts">
-          <div class="opt"><code>config</code><span>Path to <code>apps.yaml</code>. Default <code>apps.yaml</code>.</span></div>
+          <div class="opt"><code>config</code><span>Path to <code>aetherpak.yaml</code>. Default <code>aetherpak.yaml</code>.</span></div>
           <div class="opt"><code>app</code><span>Rebuild only this app id (skip change detection). Use for one-off republishes.</span></div>
           <div class="opt"><code>force-all</code><span>Rebuild every app. Default <code>false</code>.</span></div>
           <div class="opt"><code>base-sha</code><span>Commit to diff against for change detection. Defaults to <code>github.event.before</code>.</span></div>
@@ -348,12 +348,12 @@ jobs:
           <div class="opt"><code>concurrency-group</code><span>Override the per-repository publish lock.</span></div>
         </div>
 
-        <div class="callout"><strong>Change detection:</strong> a manifest entry rebuilds when its manifest directory changes (including submodule gitlink bumps); any entry rebuilds when its <code>apps.yaml</code> dict changes (sha256 bumps, arch additions, runtime updates).</div>
+        <div class="callout"><strong>Change detection:</strong> a manifest entry rebuilds when its manifest directory changes (including submodule gitlink bumps); any entry rebuilds when its <code>aetherpak.yaml</code> dict changes (sha256 bumps, arch additions, runtime updates).</div>
 
         <div class="tabs" role="tablist">
           <button class="tab" role="tab" data-tab="multi-domain" aria-selected="true">Custom domain</button>
           <button class="tab" role="tab" data-tab="multi-registry" aria-selected="false">Custom registry</button>
-          <button class="tab" role="tab" data-tab="apps-yaml" aria-selected="false">apps.yaml</button>
+          <button class="tab" role="tab" data-tab="aetherpak-yaml" aria-selected="false">aetherpak.yaml</button>
         </div>
 
         <div class="panel" data-tab="multi-domain">
@@ -380,7 +380,7 @@ secrets:
           <p class="hint">The index points clients at this registry for the blobs.</p>
         </div>
 
-        <div class="panel" data-tab="apps-yaml" hidden>
+        <div class="panel" data-tab="aetherpak-yaml" hidden>
           <div class="opts">
             <div class="opt"><code>id</code><span>Reverse-DNS app id. Required. Must match the manifest's <code>app-id</code>.</span></div>
             <div class="opt"><code>branch</code><span>Flatpak channel. Default <code>stable</code>. Load-bearing for both source kinds.</span></div>
@@ -468,9 +468,9 @@ gpg --armor --export-secret-keys releases@example.org \
     <p class="hint">The workflow reads <code>AETHERPAK_GPG_KEY</code> and, with <code>signing: auto</code>, signs every image as soon as the secret exists. To rotate, re-run this and re-publish each channel.</p>
   </dialog>
 
-  <dialog id="appsyaml" class="modal">
+  <dialog id="aetherpakyaml" class="modal">
     <div class="modal-head">
-      <h3>apps.yaml example</h3>
+      <h3>aetherpak.yaml example</h3>
       <button class="modal-x" aria-label="Close" onclick="this.closest('dialog').close()">&times;</button>
     </div>
     <p>A meta-repository with one manifest-source app (vendored as a submodule) and one bundle-source app (imported from an upstream GitHub release):</p>
