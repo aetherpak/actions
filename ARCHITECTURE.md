@@ -108,21 +108,76 @@ otherwise), or `off`.
 
 ## Multiple apps and serialized publishing
 
-`index/static` is one file shared by every app. A publish run seeds it from the
-deployed Pages copy, merges its app, reconciles, and deploys: a read-modify-write
-whose only synchronization channel is the deployed index, so two concurrent runs
-would race (both seed the same copy; the last deploy wins).
+For more than one app, use `.github/workflows/publish-multi.yml` and declare apps in `apps.yaml`:
 
-The reusable workflow stays single-app and serializes publishing instead. The
-`publish` job also deploys (deploy must be inside the lock, since the next run
-seeds from the deployed index) under a job-level `concurrency` group keyed per
-repository (`cancel-in-progress: false`). Every per-app caller workflow shares the
-group, so publishes run one at a time; GitHub keeps one pending run, so a burst of
-3+ simultaneous triggers needs a re-push for any skipped app. Builds stay parallel:
-each pushes an independent OCI image, not the shared index.
+```yaml
+apps:
+  - id: org.example.App
+    manifest: apps/org.example.App/manifest.yaml
+    runtime: gnome-50
+    arches: [x86_64, aarch64]
+    branch: stable
+  - id: com.example.Other
+    bundles:
+      x86_64:
+        url: https://...
+        sha256: ...
+      aarch64:
+        url: https://...
+        sha256: ...
+```
 
-Many apps therefore means one path-filtered caller workflow per app; only changed
-apps rebuild.
+The workflow runs in five stages:
+
+1. **plan** — expand `apps.yaml` into a matrix; narrow it to apps touched since
+   `BASE_SHA` (gitlink/manifest-dir diffs for manifest sources; per-entry diff
+   of `apps.yaml` for everything else).
+2. **build-manifest** (matrix) — `aetherpak/actions/build@v1` in the flathub
+   container, one job per `(app, arch)`; uploads `repo-<app-id>-<arch>`.
+3. **prep-bundle** (matrix) — `aetherpak/actions/prep-bundle@v1` per bundle
+   cell: fetch URL, verify SHA-256, import into an OSTree repo, and **re-tag**
+   the imported `app/<id>/<arch>/<bundle_branch>` ref to
+   `app/<id>/<arch>/<branch>`. Uploads the same `repo-<app-id>-<arch>`
+   artifact shape build-manifest does.
+4. **publish-oci** (matrix) — `aetherpak/actions/publish-oci@v1` per cell;
+   source-agnostic: downloads `repo-<app-id>-<arch>` and pushes. Parallel-safe;
+   writes one record artifact `aetherpak-record-<app-id>-<arch>` per cell.
+5. **publish-site** (single, concurrency-locked) — downloads every record
+   artifact, runs `aetherpak/actions/publish-site@v1` which merges them into
+   `index/static`, reconciles, writes the `.flatpakrepo`, `.flatpakref` files,
+   landing page, signing metadata, and Pages artifact; `deploy-pages` follows.
+
+The concurrency lock lives on `publish-site` only — `publish-oci` cells stay
+parallel because each pushes an independent OCI image, not the shared index.
+
+### Channel handling for bundle sources
+
+Upstream `.flatpak` bundles typically carry `app/<id>/<arch>/master` (flatpak-
+builder's default when the upstream manifest omits a branch). `prep-bundle`
+re-tags this ref to `app/<id>/<arch>/<branch>` using the `apps.yaml` entry's
+`branch` (defaulting to `'stable'`) so the published channel matches what
+`apps.yaml` declares.
+
+`index/static` is one file shared by every app. A publish-site run seeds it
+from the deployed Pages copy, merges every record in the current run,
+reconciles, and deploys: a read-modify-write whose only synchronization channel
+is the deployed index. The lock prevents two `publish-site` jobs from racing
+the seed-merge-deploy window.
+
+### Records contract
+
+Each `publish-oci` cell writes:
+
+```
+<records-dir>/<app-id>-<arch>/
+  record.json    { app-id, arch, branch, name, registry, digest, ref, tag }
+  labels.json    full OCI label set from `skopeo inspect`
+  sigs/<repo>@sha256=<hex>/signature-1   # only when signed
+```
+
+`publish-site` walks the tree in any order. Each record drives one
+`merge_index.py` call; any `sigs/` subtree under a record is copied into
+`_site/sigs/` (paths are content-addressed by digest so cells never collide).
 
 ## Dependencies
 
