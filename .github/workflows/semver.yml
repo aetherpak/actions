@@ -18,6 +18,25 @@ jobs:
         with:
           app-id: ${{ vars.AETHERPAK_ACTION_BOT_APP_ID }}
           private-key: ${{ secrets.AETHERPAK_ACTION_BOT_APP_PRIVATE_KEY }}
+      - name: Wait for Marketplace to index release
+        if: github.event_name == 'release'
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          SLUG: aetherpak-flatpak-registry-publisher
+        run: |
+          url="https://github.com/marketplace/actions/${SLUG}?version=${TAG}"
+          deadline=$((SECONDS + 300))
+          attempt=0
+          while (( SECONDS < deadline )); do
+            attempt=$((attempt + 1))
+            if curl -fsSL "$url" 2>/dev/null | grep -Fq ">${TAG}<"; then
+              echo "Marketplace serves ${TAG} (attempt ${attempt})"
+              exit 0
+            fi
+            echo "Marketplace not yet serving ${TAG} (attempt ${attempt})"
+            sleep 10
+          done
+          echo "::warning::Marketplace did not surface ${TAG} within 5 min; running checker anyway"
       - uses: jessehouwing/actions-semver-checker@v2
         with:
           auto-fix: true
