@@ -25,9 +25,10 @@ see [ARCHITECTURE.md](ARCHITECTURE.md); for the dev workflow, see
   publish-site (reader); defines the `Record` shape and the `<records-dir>/
   <app-id>-<arch>/{record.json,labels.json,sigs/...}` layout.
 - `prep-bundle/action.yml`: fetch a `.flatpak` URL, verify SHA-256, import into
-  an OSTree repo, and re-tag the imported `app/<id>/<arch>/<bundle_branch>` ref
-  to the consumer-declared `branch`. Channel-normalizes bundle sources so
-  publish-oci sees a ref matching the requested channel.
+  an OSTree repo, and rebind the imported `app/<id>/<arch>/<bundle_branch>` ref
+  to the consumer-declared `branch` (via `flatpak build-commit-from`, which
+  rewrites the commit's `xa.ref` binding — a bare ref rename would leave
+  flatpak install warning about a deployed-ref mismatch).
 - `plan/action.yml` + `plan/plan.py`: expand `aetherpak.yaml` into a build matrix,
   narrowed by `git diff` since `BASE_SHA`. Consumed by `publish-multi.yml`.
 - `.github/workflows/publish-multi.yml`: multi-app reusable workflow. Calls
@@ -84,7 +85,7 @@ Keep these intact when changing the code:
    `publish/records.py`. Any field added to a record is added once, used in both
    places, and covered by a `tests/test_records.py` case.
 9. `aetherpak.yaml`'s `branch` field is load-bearing for both source kinds:
-   manifest entries build at it; bundle entries are re-tagged to it by
+   manifest entries build at it; bundle entries are rebound to it by
    `prep-bundle`. plan.py's default of `'stable'` is the consumer-facing
    fallback when `branch` is omitted.
 

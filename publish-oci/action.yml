@@ -121,9 +121,8 @@ runs:
         [ -n "$app_id" ] || { echo "::error::Could not resolve app-id"; exit 1; }
         [ -n "$arch" ]   || { echo "::error::Could not resolve arch"; exit 1; }
 
-        # Rebind the bundle's source branch (often 'master') onto the published
-        # branch so build-update-repo / build-bundle --oci don't warn about
-        # "Deployed ref ... does not match commit". Idempotent when equal.
+        # build-commit-from rewrites the commit's xa.ref binding to the
+        # published branch (idempotent when src and target already agree).
         if [ -n "${BUNDLE_PATH}" ]; then
           mkdir -p "${REPO_PATH}"
           if [ ! -f "${REPO_PATH}/config" ]; then
