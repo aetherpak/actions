@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.2](https://github.com/aetherpak/actions/compare/v2.1.1...v2.1.2) (2026-05-27)
+
+
+### Bug Fixes
+
+* **publish-oci:** rebind bundle ref to target branch ([#17](https://github.com/aetherpak/actions/issues/17)) ([6dc8d4b](https://github.com/aetherpak/actions/commit/6dc8d4b36182cd75e9d6fb31b7c1cb288f8f3cfd))
+
 ## [2.1.1](https://github.com/aetherpak/actions/compare/v2.1.0...v2.1.1) (2026-05-27)
 
 
