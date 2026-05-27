@@ -202,7 +202,9 @@ Each `publish-oci` cell writes:
   image is gone from the registry (definitive not-found only; transient or auth
   errors keep the entry). To remove an app, channel, or arch, delete its image
   from the registry and re-run publish. There is no in-action delete; registry
-  blob deletion is a manual step (see README Maintenance).
+  blob deletion is a manual step (see README Maintenance). Both reusable
+  workflows accept `reconcile-only: true` to skip every build and just reconcile,
+  for catching up the listing after a deletion.
 - **Linter strictness.** `flatpak-builder-lint` enforces Flathub store policies,
   some of which fail for self-hosted apps. Screenshots are mirrored to cover the
   common case; set `run-linter: false` to skip the rest.
