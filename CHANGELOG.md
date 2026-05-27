@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/aetherpak/actions/compare/v2.0.0...v2.1.0) (2026-05-27)
+
+
+### Features
+
+* **workflows:** add reconcile-only to skip builds ([#11](https://github.com/aetherpak/actions/issues/11)) ([047c040](https://github.com/aetherpak/actions/commit/047c0408b4b87b81a51d9c55b008c84c7cc6ccf9))
+
 ## [2.0.0](https://github.com/aetherpak/actions/compare/v1.3.0...v2.0.0) (2026-05-27)
 
 
