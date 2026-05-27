@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.0](https://github.com/aetherpak/actions/compare/v1.3.0...v2.0.0) (2026-05-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* the multi-app config file is renamed from `apps.yaml` to `aetherpak.yaml`. Callers either rename the file at the repo root or pass `config: apps.yaml` to the `plan` / `publish-multi.yml` inputs.
+
+### Features
+
+* **plan:** validate field shapes in apps.yaml entries ([5e7bfe7](https://github.com/aetherpak/actions/commit/5e7bfe798ce75b2b9cc01128ee6ded2f29be3a55))
+
+
+### Code Refactoring
+
+* rename apps.yaml to aetherpak.yaml and harden action boundaries ([#10](https://github.com/aetherpak/actions/issues/10)) ([05a2d1e](https://github.com/aetherpak/actions/commit/05a2d1e1e75d2dad9f94f0a7c9a0db22a94aa45a))
+
 ## [1.3.0](https://github.com/aetherpak/actions/compare/v1.2.1...v1.3.0) (2026-05-27)
 
 
