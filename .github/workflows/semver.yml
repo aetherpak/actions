@@ -11,9 +11,12 @@ jobs:
   semver:
     name: Verify version tags & releases
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/create-github-app-token@v3
+      - name: Mint scoped GitHub App token
         id: app-token
+        uses: actions/create-github-app-token@v3
         with:
           client-id: ${{ vars.AETHERPAK_ACTION_BOT_CLIENT_ID }}
           private-key: ${{ secrets.AETHERPAK_ACTION_BOT_APP_PRIVATE_KEY }}
@@ -22,6 +25,7 @@ jobs:
           permission-contents: write
           permission-workflows: write
           permission-metadata: read
+
       - name: Wait for Marketplace to index release
         if: github.event_name == 'release'
         env:
@@ -41,7 +45,9 @@ jobs:
             sleep 10
           done
           echo "::warning::Marketplace did not surface ${TAG} within 5 min; running checker anyway"
-      - uses: jessehouwing/actions-semver-checker@v2
+
+      - name: Verify & auto-fix SemVer tags
+        uses: jessehouwing/actions-semver-checker@v2
         with:
           auto-fix: true
           token: ${{ steps.app-token.outputs.token }}
