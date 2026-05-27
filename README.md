@@ -9,7 +9,7 @@ GitHub Pages for a small registry index and a landing page.
     <img src="https://raw.githubusercontent.com/aetherpak/actions/main/docs/site/preview.png" alt="AetherPak registry landing page with one-click Flatpak install" width="480">
   </a>
   <br>
-  <em>The page AetherPak deploys. <a href="https://aetherpak.github.io/actions-demo/">Live demo</a> · <a href="https://github.com/aetherpak/actions-demo">demo repo</a></em>
+  <em>The page AetherPak deploys. Single-app: <a href="https://aetherpak.github.io/actions-demo/">live demo</a> · <a href="https://github.com/aetherpak/actions-demo">repo</a>. Multi-app: <a href="https://abn.github.io/flatpakrepo/">live demo</a> · <a href="https://github.com/abn/flatpakrepo">repo</a></em>
 </p>
 
 ## Why OCI + Pages
