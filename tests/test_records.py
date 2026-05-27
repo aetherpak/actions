@@ -80,6 +80,32 @@ def test_write_record_rejects_bad_app_id(tmp_path: Path) -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("app_id", "arch"),
+    [
+        ("../escape", "x86_64"),
+        ("a/b", "x86_64"),
+        ("a\\b", "x86_64"),
+        ("..", "x86_64"),
+        (".", "x86_64"),
+        ("good.app", "../x86_64"),
+        ("good.app", "x86/64"),
+    ],
+)
+def test_record_rejects_path_traversal(app_id: str, arch: str) -> None:
+    with pytest.raises(ValueError):
+        Record(
+            app_id=app_id,
+            arch=arch,
+            branch="stable",
+            name="o/r",
+            registry="https://ghcr.io",
+            digest="sha256:abc",
+            ref=f"app/{app_id}/{arch}/stable",
+            tag="stable-x86_64",
+        )
+
+
 def test_iter_records_empty_on_missing_root(tmp_path: Path) -> None:
     assert list(iter_records(tmp_path / "missing")) == []
 

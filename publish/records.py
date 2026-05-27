@@ -35,6 +35,12 @@ class Record:
     def __post_init__(self) -> None:
         if not self.app_id or not self.arch:
             raise ValueError("Record requires app-id and arch")
+        # Defense in depth: cell_dir builds a path from these fields, so reject
+        # separators and traversal segments even though plan.py's validate()
+        # should already have caught them upstream.
+        for name, value in (("app_id", self.app_id), ("arch", self.arch)):
+            if "/" in value or "\\" in value or value in ("..", "."):
+                raise ValueError(f"Record {name!r} must not contain path separators or traversal segments")
 
     def cell_dir(self, root: pathlib.Path) -> pathlib.Path:
         """Return the cell directory path for this record under *root*.
