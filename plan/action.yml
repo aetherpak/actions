@@ -1,0 +1,63 @@
+name: "AetherPak Plan"
+description: "Expand apps.yaml into a build matrix, narrowed to the apps changed since BASE_SHA."
+
+inputs:
+  config:
+    description: "Path to the apps.yaml file."
+    required: false
+    default: "apps.yaml"
+  force:
+    description: "'' to use change detection, '<app-id>' for a single app, 'all' for everything."
+    required: false
+    default: ""
+  base-sha:
+    description: "Commit SHA to diff against. Empty / unknown -> rebuild all."
+    required: false
+    default: ""
+  workflow-path:
+    description: "Optional caller workflow path. Touching it forces a full rebuild."
+    required: false
+    default: ""
+
+outputs:
+  apps:
+    value: ${{ steps.plan.outputs.apps }}
+    description: "JSON list of selected app ids."
+  matrix:
+    value: ${{ steps.plan.outputs.matrix }}
+    description: "Full matrix {include: [...]} of all selected (app, arch) cells."
+  matrix-manifest:
+    value: ${{ steps.plan.outputs.matrix-manifest }}
+    description: "Matrix subset for manifest-source rows."
+  matrix-bundle:
+    value: ${{ steps.plan.outputs.matrix-bundle }}
+    description: "Matrix subset for bundle-source rows."
+  count:
+    value: ${{ steps.plan.outputs.count }}
+    description: "Number of selected apps."
+  count-manifest:
+    value: ${{ steps.plan.outputs.count-manifest }}
+    description: "Number of manifest cells."
+  count-bundle:
+    value: ${{ steps.plan.outputs.count-bundle }}
+    description: "Number of bundle cells."
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.14"
+    - name: Install pyyaml
+      shell: bash
+      run: pip install "pyyaml>=6.0.1"
+    - name: Compute matrix
+      id: plan
+      shell: bash
+      env:
+        CONFIG: ${{ inputs.config }}
+        FORCE: ${{ inputs.force }}
+        BASE_SHA: ${{ inputs.base-sha }}
+        WORKFLOW_PATH: ${{ inputs.workflow-path }}
+      run: python3 "${{ github.action_path }}/plan.py"
