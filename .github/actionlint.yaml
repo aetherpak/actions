@@ -1,0 +1,9 @@
+paths:
+  .github/workflows/*.yml:
+    ignore:
+      # actionlint v1.7.12 ships stale metadata for create-github-app-token@v3:
+      # it still marks `app-id` as required and doesn't know about `client-id`.
+      # Upstream action.yml accepts both (only `private-key` is required) and
+      # deprecates `app-id`. Remove once actionlint refreshes the v3 snapshot.
+      - 'missing input "app-id" which is required by action "actions/create-github-app-token@v3"'
+      - 'input "client-id" is not defined in action "actions/create-github-app-token@v3"'
