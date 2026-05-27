@@ -1,0 +1,283 @@
+name: Build & Publish Multiple Flatpaks
+on:
+  workflow_call:
+    inputs:
+      config:
+        description: "Path to apps.yaml (relative to the caller repo root)."
+        required: false
+        type: string
+        default: "apps.yaml"
+      app:
+        description: "Rebuild only this app id (leave blank for change detection)."
+        required: false
+        type: string
+        default: ""
+      force-all:
+        description: "Rebuild every app in apps.yaml."
+        required: false
+        type: boolean
+        default: false
+      base-sha:
+        description: "Commit to diff against for change detection. Defaults to github.event.before."
+        required: false
+        type: string
+        default: ""
+      workflow-path:
+        description: "Optional caller workflow path. Touching it triggers a rebuild-all."
+        required: false
+        type: string
+        default: ""
+      registry:
+        required: false
+        type: string
+        default: "ghcr.io"
+      oci-repository:
+        description: "OCI repository path. Defaults to the GitHub repository."
+        required: false
+        type: string
+        default: ""
+      remote-name:
+        description: "Flatpak remote name and .flatpakrepo filename."
+        required: false
+        type: string
+        default: ""
+      pages-url:
+        description: "Public URL. Defaults to the project's Pages URL."
+        required: false
+        type: string
+        default: ""
+      landing-page:
+        required: false
+        type: boolean
+        default: true
+      deploy:
+        description: "Deploy to GitHub Pages. Set false to upload _site as a plain artifact."
+        required: false
+        type: boolean
+        default: true
+      artifact-name:
+        description: "Name of the uploaded site artifact when deploy is false."
+        required: false
+        type: string
+        default: "aetherpak-site"
+      signing:
+        required: false
+        type: string
+        default: "auto"
+      runtime-repo:
+        required: false
+        type: string
+        default: "https://dl.flathub.org/repo/flathub.flatpakrepo"
+      submodules:
+        description: "Submodule fetch mode for the build-manifest job's checkout."
+        required: false
+        type: string
+        default: "recursive"
+      concurrency-group:
+        required: false
+        type: string
+        default: ""
+    outputs:
+      pages-url:
+        value: ${{ jobs.plan.outputs.pages-url }}
+    secrets:
+      gpg-private-key:
+        required: false
+      gpg-private-key-passphrase:
+        required: false
+      registry-token:
+        description: "Registry auth token for skopeo login. Defaults to the GitHub token (GHCR)."
+        required: false
+
+jobs:
+  plan:
+    name: Plan build matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix:           ${{ steps.p.outputs.matrix }}
+      matrix-manifest:  ${{ steps.p.outputs.matrix-manifest }}
+      matrix-bundle:    ${{ steps.p.outputs.matrix-bundle }}
+      count:            ${{ steps.p.outputs.count }}
+      count-manifest:   ${{ steps.p.outputs.count-manifest }}
+      count-bundle:     ${{ steps.p.outputs.count-bundle }}
+      pages-url:        ${{ steps.u.outputs.pages-url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          # Gitlink bumps are tree changes; submodule contents not needed here.
+          fetch-depth: 0
+          submodules: false
+      - name: Resolve Pages URL
+        id: u
+        env:
+          PAGES_URL: ${{ inputs.pages-url }}
+          DEFAULT_PAGES_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+        run: |
+          url="$PAGES_URL"; [ -n "$url" ] || url="$DEFAULT_PAGES_URL"
+          echo "pages-url=$url" >> "$GITHUB_OUTPUT"
+      - name: Plan
+        id: p
+        uses: aetherpak/actions/plan@v1
+        with:
+          config:        ${{ inputs.config }}
+          force:         ${{ (github.event_name == 'schedule' || inputs.force-all) && 'all' || inputs.app }}
+          base-sha:      ${{ inputs.base-sha != '' && inputs.base-sha || github.event.before }}
+          workflow-path: ${{ inputs.workflow-path }}
+
+  build-manifest:
+    name: "Build ${{ matrix.app-id }} (${{ matrix.arch }})"
+    needs: plan
+    if: ${{ needs.plan.outputs.count-manifest != '0' }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix-manifest) }}
+    permissions:
+      contents: read
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:${{ matrix.runtime }}
+      options: --privileged
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: ${{ inputs.submodules }}
+      - name: Build
+        uses: aetherpak/actions/build@v1
+        with:
+          manifest-path: ${{ matrix.manifest }}
+          arch:          ${{ matrix.arch }}
+          branch:        ${{ matrix.branch }}
+          repo-path:     _repo
+          run-linter:    ${{ matrix.run-linter }}
+      - name: Upload OSTree repo
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-${{ matrix.app-id }}-${{ matrix.arch }}
+          path: _repo
+          retention-days: 1
+
+  prep-bundle:
+    name: "Fetch ${{ matrix.app-id }} (${{ matrix.arch }})"
+    needs: plan
+    if: ${{ needs.plan.outputs.count-bundle != '0' }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix-bundle) }}
+    permissions:
+      contents: read
+    steps:
+      - name: Fetch + import + re-tag
+        uses: aetherpak/actions/prep-bundle@v1
+        with:
+          url:    ${{ matrix.bundle-url }}
+          sha256: ${{ matrix.bundle-sha256 }}
+          branch: ${{ matrix.branch }}
+          repo-path: _repo
+      - name: Upload OSTree repo
+        # Uniform artifact name so publish-oci is source-agnostic.
+        uses: actions/upload-artifact@v7
+        with:
+          name: repo-${{ matrix.app-id }}-${{ matrix.arch }}
+          path: _repo
+          retention-days: 1
+
+  publish-oci:
+    name: "Publish ${{ matrix.app-id }} (${{ matrix.arch }})"
+    needs: [plan, build-manifest, prep-bundle]
+    if: ${{ !cancelled() && !failure() && needs.plan.outputs.count != '0' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Download OSTree repo
+        # Same artifact for both source kinds: build-manifest uploads its built
+        # repo, prep-bundle uploads its imported+re-tagged repo. publish-oci is
+        # source-agnostic.
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-${{ matrix.app-id }}-${{ matrix.arch }}
+          path: _repo
+      - name: Push
+        uses: aetherpak/actions/publish-oci@v1
+        with:
+          repo-path: _repo
+          app-id: ${{ matrix.app-id }}
+          arch: ${{ matrix.arch }}
+          # Both source kinds carry the matrix-declared channel: build-manifest
+          # builds at it; prep-bundle re-tags to it. Pass through unconditionally.
+          branch: ${{ matrix.branch }}
+          registry: ${{ inputs.registry }}
+          oci-repository: ${{ inputs.oci-repository }}
+          registry-token: ${{ secrets.registry-token || github.token }}
+          signing: ${{ inputs.signing }}
+          gpg-private-key: ${{ secrets.gpg-private-key }}
+          gpg-private-key-passphrase: ${{ secrets.gpg-private-key-passphrase }}
+          records-dir: _records
+      - name: Upload record
+        uses: actions/upload-artifact@v7
+        with:
+          name: aetherpak-record-${{ matrix.app-id }}-${{ matrix.arch }}
+          path: _records
+          include-hidden-files: true
+          retention-days: 1
+
+  publish-site:
+    name: Publish site & deploy
+    needs: [plan, publish-oci]
+    if: ${{ !cancelled() && !failure() && needs.plan.outputs.count != '0' }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ inputs.concurrency-group != '' && inputs.concurrency-group || format('aetherpak-publish-{0}', github.repository) }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: ${{ inputs.deploy && 'github-pages' || '' }}
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Download records
+        uses: actions/download-artifact@v8
+        with:
+          pattern: aetherpak-record-*
+          path: _records_in
+      - name: Flatten records
+        run: |
+          set -euo pipefail
+          mkdir -p _records
+          for dir in _records_in/*/; do cp -r "$dir." _records/; done
+      - name: Build site
+        uses: aetherpak/actions/publish-site@v1
+        with:
+          records-dir: _records
+          pages-url:    ${{ needs.plan.outputs.pages-url }}
+          registry:     ${{ inputs.registry }}
+          remote-name:  ${{ inputs.remote-name }}
+          landing-page: ${{ inputs.landing-page }}
+          signing:      ${{ inputs.signing }}
+          runtime-repo: ${{ inputs.runtime-repo }}
+          gpg-private-key:            ${{ secrets.gpg-private-key }}
+          gpg-private-key-passphrase: ${{ secrets.gpg-private-key-passphrase }}
+          upload-pages-artifact: ${{ inputs.deploy }}
+      - name: Deploy
+        id: deploy
+        if: ${{ inputs.deploy }}
+        uses: actions/deploy-pages@v5
+      - name: Upload site artifact
+        if: ${{ !inputs.deploy }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: _site
