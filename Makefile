@@ -9,8 +9,8 @@ setup: ## Install the pre-commit git hook
 
 ##@ Build & Quality
 
-test: ## Run the unit tests (pytest on Python 3.14 via uvx)
-	uvx --python 3.14 pytest
+test: ## Run the unit tests (pytest on Python 3.14 via uv)
+	uv run --python 3.14 pytest
 
 lint: ## Run all pre-commit checks (ruff, yaml, formatting)
 	uvx pre-commit run --all-files
