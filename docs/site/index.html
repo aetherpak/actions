@@ -175,7 +175,7 @@ permissions:
   id-token: write
 jobs:
   publish:
-    uses: aetherpak/actions/.github/workflows/publish.yml@main
+    uses: aetherpak/actions/.github/workflows/publish.yml@v2
     with:
       manifest-path: org.example.App.json
       runtime: gnome-50
@@ -221,7 +221,7 @@ permissions:
   id-token: write
 jobs:
   publish:
-    uses: aetherpak/actions/.github/workflows/publish-multi.yml@main
+    uses: aetherpak/actions/.github/workflows/publish-multi.yml@v2
     with:
       app: ${{ inputs.app }}
       force-all: ${{ inputs.force-all }}
@@ -285,7 +285,7 @@ jobs:
         <div class="panel" data-tab="registry" hidden>
           <p>Blobs go to GHCR by default. For another image path within GHCR, set <code>oci-repository</code>. To push to a different registry, use the <code>publish</code> action directly so you can supply its credentials:</p>
           <div class="code-block">
-            <pre><code>- uses: aetherpak/actions/publish@main
+            <pre><code>- uses: aetherpak/actions/publish@v2
   with:
     repo-path: _repo                              # or bundle-path: app.flatpak
     registry: registry.example.com
@@ -316,7 +316,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       # Build your app here, producing an OSTree repo (or a .flatpak bundle).
-      - uses: aetherpak/actions/publish@main
+      - uses: aetherpak/actions/publish@v2
         with:
           repo-path: _repo            # or: bundle-path: app.flatpak
           pages-url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}

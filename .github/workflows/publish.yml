@@ -145,7 +145,7 @@ jobs:
         with:
           submodules: ${{ inputs.submodules }}
       - name: Build Flatpak from manifest
-        uses: aetherpak/actions/build@v1
+        uses: aetherpak/actions/build@v2
         with:
           manifest-path: ${{ inputs.manifest-path }}
           arch: ${{ matrix.arch }}
@@ -181,7 +181,7 @@ jobs:
           name: repo-${{ matrix.arch }}
           path: _repo_${{ matrix.arch }}
       - name: Push OCI image
-        uses: aetherpak/actions/publish-oci@v1
+        uses: aetherpak/actions/publish-oci@v2
         with:
           repo-path: _repo_${{ matrix.arch }}
           arch: ${{ matrix.arch }}
@@ -234,7 +234,7 @@ jobs:
           mkdir -p _records
           for dir in _records_in/*/; do cp -r "$dir." _records/; done
       - name: Build site
-        uses: aetherpak/actions/publish-site@v1
+        uses: aetherpak/actions/publish-site@v2
         with:
           records-dir: _records
           pages-url: ${{ needs.prep.outputs.pages-url }}

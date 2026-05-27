@@ -37,7 +37,7 @@ permissions:
   id-token: write
 jobs:
   publish:
-    uses: aetherpak/actions/.github/workflows/publish.yml@v1
+    uses: aetherpak/actions/.github/workflows/publish.yml@v2
     with:
       manifest-path: org.example.App.json
       runtime: gnome-50            # flathub container tag matching your runtime
@@ -92,7 +92,7 @@ on: { push: { branches: [main], paths: ['org.example.Foo.json'] } }
 permissions: { contents: read, packages: write, pages: write, id-token: write }
 jobs:
   publish:
-    uses: aetherpak/actions/.github/workflows/publish.yml@v1
+    uses: aetherpak/actions/.github/workflows/publish.yml@v2
     with:
       manifest-path: org.example.Foo.json
       runtime: gnome-50
@@ -171,7 +171,7 @@ and clients can install with verification.
    ```yaml
    jobs:
      publish:
-       uses: aetherpak/actions/.github/workflows/publish.yml@v1
+       uses: aetherpak/actions/.github/workflows/publish.yml@v2
        with:
          manifest-path: org.example.App.json
          runtime: gnome-50
@@ -243,7 +243,7 @@ The reusable workflow pushes blobs to GHCR. To target another registry, call
 `insecure-registry: true` for a local or HTTP registry):
 
 ```yaml
-- uses: aetherpak/actions/publish@v1
+- uses: aetherpak/actions/publish@v2
   with:
     repo-path: _repo            # or bundle-path: app.flatpak
     registry: registry.example.com

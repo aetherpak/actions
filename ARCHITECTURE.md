@@ -132,18 +132,18 @@ The workflow runs in five stages:
 1. **plan** — expand `aetherpak.yaml` into a matrix; narrow it to apps touched since
    `BASE_SHA` (gitlink/manifest-dir diffs for manifest sources; per-entry diff
    of `aetherpak.yaml` for everything else).
-2. **build-manifest** (matrix) — `aetherpak/actions/build@v1` in the flathub
+2. **build-manifest** (matrix) — `aetherpak/actions/build@v2` in the flathub
    container, one job per `(app, arch)`; uploads `repo-<app-id>-<arch>`.
-3. **prep-bundle** (matrix) — `aetherpak/actions/prep-bundle@v1` per bundle
+3. **prep-bundle** (matrix) — `aetherpak/actions/prep-bundle@v2` per bundle
    cell: fetch URL, verify SHA-256, import into an OSTree repo, and **re-tag**
    the imported `app/<id>/<arch>/<bundle_branch>` ref to
    `app/<id>/<arch>/<branch>`. Uploads the same `repo-<app-id>-<arch>`
    artifact shape build-manifest does.
-4. **publish-oci** (matrix) — `aetherpak/actions/publish-oci@v1` per cell;
+4. **publish-oci** (matrix) — `aetherpak/actions/publish-oci@v2` per cell;
    source-agnostic: downloads `repo-<app-id>-<arch>` and pushes. Parallel-safe;
    writes one record artifact `aetherpak-record-<app-id>-<arch>` per cell.
 5. **publish-site** (single, concurrency-locked) — downloads every record
-   artifact, runs `aetherpak/actions/publish-site@v1` which merges them into
+   artifact, runs `aetherpak/actions/publish-site@v2` which merges them into
    `index/static`, reconciles, writes the `.flatpakrepo`, `.flatpakref` files,
    landing page, signing metadata, and Pages artifact; `deploy-pages` follows.
 
