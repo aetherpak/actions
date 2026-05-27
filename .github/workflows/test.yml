@@ -386,8 +386,8 @@ jobs:
 
       - name: Build a one-off mock bundle
         # Build a real .flatpak bundle in a throwaway repo, then discard the
-        # repo so publish has to init its own from the bundle alone — the
-        # consumer scenario the fix targets.
+        # repo so publish has to init its own from the bundle alone: the
+        # scenario where no pre-existing repo-path exists.
         run: |
           set -euo pipefail
           mkdir -p tests/bundle_src
@@ -417,7 +417,8 @@ jobs:
           oci-repository: "aetherpak/bundle-app"
           remote-name: "aetherpak-bundle-test"
           pages-url: "http://localhost:9999"
-          registry-token: "" # skip login for local registry
+          # skip login for local registry
+          registry-token: ""
           upload-pages-artifact: "false"
 
       - name: Verify the bundle round-tripped into the index
@@ -429,3 +430,77 @@ jobs:
           fi
           REF="$(jq -r '.Results[0].Images[0].Labels["org.flatpak.ref"]' _site/index/static)"
           test "$REF" = "app/org.flatpak.BundleApp/x86_64/stable"
+
+  split-integration-test:
+    name: Mock Split Integration Test (oci+site)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Install Flatpak & OSTree
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak ostree
+
+      - name: Start Local OCI Registry
+        run: |
+          docker run -d -p 5001:5000 --name registry registry:2
+          for _ in {1..10}; do curl -s http://localhost:5001/v2/ && break; sleep 1; done
+
+      - name: Mock two OSTree repos (AppA, AppB)
+        run: |
+          set -euo pipefail
+          for app in AppA AppB; do
+            mkdir -p tests/${app}_repo tests/${app}_contents
+            ostree init --mode=archive --repo=tests/${app}_repo
+            cat > tests/${app}_contents/metadata <<EOF
+          [Application]
+          name=org.flatpak.${app}
+          runtime=org.freedesktop.Platform/x86_64/23.08
+          sdk=org.freedesktop.Sdk/x86_64/23.08
+          EOF
+            ostree commit --repo=tests/${app}_repo \
+              --branch=app/org.flatpak.${app}/x86_64/stable \
+              -m "mock ${app} commit" tests/${app}_contents
+          done
+
+      - name: Push AppA via publish-oci
+        uses: ./publish-oci
+        with:
+          repo-path: tests/AppA_repo
+          registry: localhost:5001
+          insecure-registry: "true"
+          oci-repository: aetherpak/app-a
+          registry-token: ""
+          records-dir: _records
+
+      - name: Push AppB via publish-oci
+        uses: ./publish-oci
+        with:
+          repo-path: tests/AppB_repo
+          registry: localhost:5001
+          insecure-registry: "true"
+          oci-repository: aetherpak/app-b
+          registry-token: ""
+          records-dir: _records
+
+      - name: Build site from both records
+        uses: ./publish-site
+        with:
+          records-dir: _records
+          pages-url: http://localhost:9999
+          registry: localhost:5001
+          insecure-registry: "true"
+          remote-name: aetherpak-split-test
+          upload-pages-artifact: "false"
+
+      - name: Verify both apps in the merged index
+        run: |
+          set -euo pipefail
+          NAMES="$(jq -r '.Results[].Name' _site/index/static | sort | tr '\n' ' ')"
+          [ "$NAMES" = "aetherpak/app-a aetherpak/app-b " ] || { echo "names mismatch: $NAMES"; exit 1; }
+          REFS="$(jq -r '.Results[].Images[].Labels["org.flatpak.ref"]' _site/index/static | sort | tr '\n' ' ')"
+          [ "$REFS" = "app/org.flatpak.AppA/x86_64/stable app/org.flatpak.AppB/x86_64/stable " ] \
+            || { echo "refs mismatch: $REFS"; exit 1; }
+          ls _site/refs/org.flatpak.AppA-stable.flatpakref _site/refs/org.flatpak.AppB-stable.flatpakref
