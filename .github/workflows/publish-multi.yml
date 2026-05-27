@@ -17,6 +17,11 @@ on:
         required: false
         type: boolean
         default: false
+      reconcile-only:
+        description: "Skip build/prep/publish-oci; only reconcile the index against the registry and re-deploy. Use after deleting an image from GHCR."
+        required: false
+        type: boolean
+        default: false
       base-sha:
         description: "Commit to diff against for change detection. Defaults to github.event.before."
         required: false
@@ -128,7 +133,7 @@ jobs:
   build-manifest:
     name: "Build ${{ matrix.app-id }} (${{ matrix.arch }})"
     needs: plan
-    if: ${{ needs.plan.outputs.count-manifest != '0' }}
+    if: ${{ !inputs.reconcile-only && needs.plan.outputs.count-manifest != '0' }}
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -161,7 +166,7 @@ jobs:
   prep-bundle:
     name: "Fetch ${{ matrix.app-id }} (${{ matrix.arch }})"
     needs: plan
-    if: ${{ needs.plan.outputs.count-bundle != '0' }}
+    if: ${{ !inputs.reconcile-only && needs.plan.outputs.count-bundle != '0' }}
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -187,7 +192,7 @@ jobs:
   publish-oci:
     name: "Publish ${{ matrix.app-id }} (${{ matrix.arch }})"
     needs: [plan, build-manifest, prep-bundle]
-    if: ${{ !cancelled() && !failure() && needs.plan.outputs.count != '0' }}
+    if: ${{ !cancelled() && !failure() && !inputs.reconcile-only && needs.plan.outputs.count != '0' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -233,7 +238,7 @@ jobs:
   publish-site:
     name: Publish site & deploy
     needs: [plan, publish-oci]
-    if: ${{ !cancelled() && !failure() && needs.plan.outputs.count != '0' }}
+    if: ${{ !cancelled() && !failure() && (inputs.reconcile-only || needs.plan.outputs.count != '0') }}
     runs-on: ubuntu-latest
     concurrency:
       group: ${{ inputs.concurrency-group != '' && inputs.concurrency-group || format('aetherpak-publish-{0}', github.repository) }}
@@ -249,13 +254,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Download records
+        if: ${{ !inputs.reconcile-only }}
         uses: actions/download-artifact@v8
         with:
           pattern: aetherpak-record-*
           path: _records_in
       - name: Flatten records
+        # nullglob keeps reconcile-only runs (empty / missing _records_in) sound.
         run: |
           set -euo pipefail
+          shopt -s nullglob
           mkdir -p _records
           for dir in _records_in/*/; do cp -r "$dir." _records/; done
       - name: Build site

@@ -81,6 +81,11 @@ on:
         required: false
         type: string
         default: "recursive"
+      reconcile-only:
+        description: "Skip build/publish-oci; only reconcile the index against the registry and re-deploy. Use after deleting an image from GHCR."
+        required: false
+        type: boolean
+        default: false
     outputs:
       pages-url:
         description: "URL the index and .flatpakrepo are written against."
@@ -125,6 +130,7 @@ jobs:
   build:
     name: "AetherPak: Build (${{ matrix.arch }})"
     needs: prep
+    if: ${{ !inputs.reconcile-only }}
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix: ${{ fromJSON(needs.prep.outputs.matrix) }}
@@ -156,6 +162,7 @@ jobs:
   publish-oci:
     name: "AetherPak: Push (${{ matrix.arch }})"
     needs: [prep, build]
+    if: ${{ !inputs.reconcile-only }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -196,6 +203,7 @@ jobs:
   publish-site:
     name: "AetherPak: Publish Site & Deploy"
     needs: [prep, publish-oci]
+    if: ${{ !cancelled() && !failure() }}
     runs-on: ubuntu-latest
     concurrency:
       group: ${{ inputs.concurrency-group != '' && inputs.concurrency-group || format('aetherpak-publish-{0}', github.repository) }}
@@ -211,15 +219,18 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
       - name: Download records
+        if: ${{ !inputs.reconcile-only }}
         uses: actions/download-artifact@v8
         with:
           pattern: aetherpak-record-*
           path: _records_in
       - name: Flatten records
         # download-artifact gives one subdir per artifact; flatten so the cells
-        # sit side by side under one `_records/` tree.
+        # sit side by side under one `_records/` tree. nullglob keeps reconcile-
+        # only runs (empty / missing _records_in) sound.
         run: |
           set -euo pipefail
+          shopt -s nullglob
           mkdir -p _records
           for dir in _records_in/*/; do cp -r "$dir." _records/; done
       - name: Build site

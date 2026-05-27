@@ -262,6 +262,7 @@ jobs:
           <div class="opt"><code>landing-page</code><span>Write the static <code>index.html</code>. Set <code>false</code> to render your own page.</span></div>
           <div class="opt"><code>artifact-name</code><span>Site artifact name when <code>deploy: false</code>. Default <code>aetherpak-site</code>.</span></div>
           <div class="opt"><code>concurrency-group</code><span>Override the per-repository publish lock. Only for repos publishing several independent sites.</span></div>
+          <div class="opt"><code>reconcile-only</code><span>Skip build and push; only reconcile the index against the registry and re-deploy. Use after deleting an image.</span></div>
         </div>
 
         <div class="tabs" role="tablist" style="margin-top: 1.5rem;">
@@ -333,6 +334,7 @@ jobs:
           <div class="opt"><code>config</code><span>Path to <code>aetherpak.yaml</code>. Default <code>aetherpak.yaml</code>.</span></div>
           <div class="opt"><code>app</code><span>Rebuild only this app id (skip change detection). Use for one-off republishes.</span></div>
           <div class="opt"><code>force-all</code><span>Rebuild every app. Default <code>false</code>.</span></div>
+          <div class="opt"><code>reconcile-only</code><span>Skip every build and push; only reconcile the index against the registry and re-deploy. Use after deleting an image.</span></div>
           <div class="opt"><code>base-sha</code><span>Commit to diff against for change detection. Defaults to <code>github.event.before</code>.</span></div>
           <div class="opt"><code>workflow-path</code><span>Optional caller workflow path. Touching it triggers a rebuild-all.</span></div>
           <div class="opt"><code>signing</code><span>GPG-sign images: <code>auto</code> (sign when a key is set), <code>gpg</code>, or <code>off</code>. Default <code>auto</code>.</span></div>

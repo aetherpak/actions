@@ -219,6 +219,10 @@ Delete the image with whatever your registry supports:
 The index serves the latest image per channel, so reconcile only removes entries
 whose image is genuinely gone.
 
+Pass `reconcile-only: true` (workflow dispatch) to skip every build and just
+reconcile against the registry — useful when an image is deleted and you only
+need the listing to catch up.
+
 ## Standalone actions
 
 The pipeline is also available as composite actions for custom workflows:
