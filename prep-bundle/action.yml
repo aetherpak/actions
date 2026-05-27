@@ -1,0 +1,75 @@
+name: "AetherPak Prep Bundle"
+description: "Fetch a .flatpak bundle, verify SHA-256, import into an OSTree repo, and re-tag to the consumer-declared channel."
+
+inputs:
+  url:
+    description: "URL to fetch the bundle from."
+    required: true
+  sha256:
+    description: "Expected SHA-256 of the downloaded bundle."
+    required: true
+  branch:
+    description: "Target channel; the imported app/* ref is re-tagged to this branch."
+    required: false
+    default: "stable"
+  repo-path:
+    description: "OSTree repo path to write into."
+    required: false
+    default: "_repo"
+  bundle-path:
+    description: "Intermediate bundle filename."
+    required: false
+    default: "bundle.flatpak"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Ensure tooling
+      shell: bash
+      run: |
+        set -euo pipefail
+        MISSING=""
+        command -v flatpak >/dev/null 2>&1 || MISSING="$MISSING flatpak"
+        command -v ostree  >/dev/null 2>&1 || MISSING="$MISSING ostree"
+        if [ -n "$MISSING" ] && command -v apt-get >/dev/null 2>&1; then
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update && sudo apt-get install -y $MISSING
+        fi
+
+    - name: Fetch + verify
+      shell: bash
+      env:
+        URL: ${{ inputs.url }}
+        SHA: ${{ inputs.sha256 }}
+        BUNDLE: ${{ inputs.bundle-path }}
+      run: |
+        set -euo pipefail
+        curl -fL --retry 3 -o "$BUNDLE" "$URL"
+        echo "$SHA  $BUNDLE" | sha256sum -c -
+
+    - name: Import + re-tag
+      shell: bash
+      env:
+        REPO: ${{ inputs.repo-path }}
+        BUNDLE: ${{ inputs.bundle-path }}
+        TARGET_BRANCH: ${{ inputs.branch }}
+      run: |
+        set -euo pipefail
+        mkdir -p "$REPO"
+        [ -f "$REPO/config" ] || ostree --repo="$REPO" init --mode=archive-z2
+        flatpak build-import-bundle "$REPO" "$BUNDLE"
+
+        # Upstream bundles typically carry app/<id>/<arch>/master (flatpak-builder's
+        # default when the manifest omits a branch). Re-tag to the consumer's
+        # declared channel so publish sees a ref matching `branch`, and
+        # `flatpak build-bundle --oci ... <branch>` succeeds without ref-mismatch.
+        orig_ref="$(ostree --repo="$REPO" refs | grep '^app/' | head -1 || true)"
+        [ -n "$orig_ref" ] || { echo "::error::no app/* ref in imported bundle"; exit 1; }
+        IFS='/' read -r _ ref_app_id ref_arch _ref_branch <<< "$orig_ref"
+        target_ref="app/$ref_app_id/$ref_arch/$TARGET_BRANCH"
+        if [ "$orig_ref" != "$target_ref" ]; then
+          rev="$(ostree --repo="$REPO" rev-parse "$orig_ref")"
+          ostree --repo="$REPO" refs --create="$target_ref" "$rev"
+          ostree --repo="$REPO" refs --delete "$orig_ref"
+          echo "Re-tagged $orig_ref -> $target_ref"
+        fi
