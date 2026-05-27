@@ -86,23 +86,30 @@ runs:
     - name: Import bundle (if provided)
       if: ${{ inputs.bundle-path != '' }}
       shell: bash
+      env:
+        REPO_PATH: ${{ inputs.repo-path }}
+        BUNDLE_PATH: ${{ inputs.bundle-path }}
       run: |
         set -euo pipefail
-        mkdir -p "${{ inputs.repo-path }}"
-        if [ ! -f "${{ inputs.repo-path }}/config" ]; then
-          ostree --repo="${{ inputs.repo-path }}" init --mode=archive-z2
+        mkdir -p "${REPO_PATH}"
+        if [ ! -f "${REPO_PATH}/config" ]; then
+          ostree --repo="${REPO_PATH}" init --mode=archive-z2
         fi
-        echo "Importing bundle ${{ inputs.bundle-path }} into ${{ inputs.repo-path }}..."
-        flatpak build-import-bundle "${{ inputs.repo-path }}" "${{ inputs.bundle-path }}"
+        echo "Importing bundle ${BUNDLE_PATH} into ${REPO_PATH}..."
+        flatpak build-import-bundle "${REPO_PATH}" "${BUNDLE_PATH}"
 
     - name: Resolve app info
       id: vars
       shell: bash
       env:
         DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        REPO_PATH: ${{ inputs.repo-path }}
+        INPUT_APP_ID: ${{ inputs.app-id }}
+        INPUT_ARCH: ${{ inputs.arch }}
+        INPUT_BRANCH: ${{ inputs.branch }}
       run: |
         set -euo pipefail
-        REPO="${{ inputs.repo-path }}"
+        REPO="${REPO_PATH}"
         mkdir -p "$REPO/refs/heads" "$REPO/refs/mirrors" "$REPO/refs/remotes"
         REF="$(ostree refs --repo="$REPO" | grep "^app/" | head -n 1 || true)"
         ref_app_id=""; ref_arch=""; ref_branch=""
@@ -110,9 +117,9 @@ runs:
           IFS='/' read -r _ ref_app_id ref_arch ref_branch <<< "$REF"
         fi
         default_channel="$(bash "${{ github.action_path }}/../shared/resolve-channel.sh")"
-        app_id="${{ inputs.app-id }}"; [ -n "$app_id" ] || app_id="$ref_app_id"
-        arch="${{ inputs.arch }}";     [ -n "$arch" ]   || arch="$ref_arch"
-        branch="${{ inputs.branch }}"; [ -n "$branch" ] || branch="${ref_branch:-$default_channel}"
+        app_id="${INPUT_APP_ID}"; [ -n "$app_id" ] || app_id="$ref_app_id"
+        arch="${INPUT_ARCH}";     [ -n "$arch" ]   || arch="$ref_arch"
+        branch="${INPUT_BRANCH}"; [ -n "$branch" ] || branch="${ref_branch:-$default_channel}"
         if [ -z "$app_id" ]; then echo "::error::Could not resolve app-id"; exit 1; fi
         if [ -z "$arch" ]; then echo "::error::Could not resolve arch"; exit 1; fi
         echo "app-id=$app_id" >> "$GITHUB_OUTPUT"
@@ -121,25 +128,34 @@ runs:
 
     - name: Export app from OSTree repo to OCI image
       shell: bash
+      env:
+        VARS_ARCH: ${{ steps.vars.outputs.arch }}
+        REPO_PATH: ${{ inputs.repo-path }}
+        VARS_APP_ID: ${{ steps.vars.outputs.app-id }}
+        VARS_BRANCH: ${{ steps.vars.outputs.branch }}
       run: |
         set -euo pipefail
         rm -rf _oci-image
-        flatpak build-bundle --oci --arch="${{ steps.vars.outputs.arch }}" \
-          "${{ inputs.repo-path }}" _oci-image \
-          "${{ steps.vars.outputs.app-id }}" "${{ steps.vars.outputs.branch }}"
+        flatpak build-bundle --oci --arch="${VARS_ARCH}" \
+          "${REPO_PATH}" _oci-image \
+          "${VARS_APP_ID}" "${VARS_BRANCH}"
 
     - name: Resolve target and authenticate
       id: target
       shell: bash
+      env:
+        OCI_REPOSITORY: ${{ inputs.oci-repository }}
+        REGISTRY: ${{ inputs.registry }}
+        REGISTRY_TOKEN: ${{ inputs.registry-token }}
       run: |
         set -euo pipefail
-        REPO="${{ inputs.oci-repository }}"
+        REPO="${OCI_REPOSITORY}"
         [ -n "${REPO}" ] || REPO="${GITHUB_REPOSITORY}"
         REPO="$(echo "${REPO}" | tr '[:upper:]' '[:lower:]')"
         echo "repo=${REPO}" >> "$GITHUB_OUTPUT"
-        echo "image=${{ inputs.registry }}/${REPO}" >> "$GITHUB_OUTPUT"
-        if [ -n "${{ inputs.registry-token }}" ]; then
-          echo "${{ inputs.registry-token }}" | skopeo login "${{ inputs.registry }}" \
+        echo "image=${REGISTRY}/${REPO}" >> "$GITHUB_OUTPUT"
+        if [ -n "${REGISTRY_TOKEN}" ]; then
+          echo "${REGISTRY_TOKEN}" | skopeo login "${REGISTRY}" \
             --username "${{ github.actor }}" --password-stdin
         fi
 
@@ -148,9 +164,14 @@ runs:
       shell: bash
       env:
         GPG_PRIVATE_KEY: ${{ inputs.gpg-private-key }}
+        SIGNING_MODE: ${{ inputs.signing }}
+        RECORDS_DIR: ${{ inputs.records-dir }}
+        VARS_APP_ID: ${{ steps.vars.outputs.app-id }}
+        VARS_ARCH: ${{ steps.vars.outputs.arch }}
+        REGISTRY: ${{ inputs.registry }}
       run: |
         set -euo pipefail
-        MODE="${{ inputs.signing }}"
+        MODE="${SIGNING_MODE}"
         SIGN="false"
         case "$MODE" in
           off) SIGN="false" ;;
@@ -174,13 +195,13 @@ runs:
 
         # Stage sigs inside the cell dir so publish-site picks them up
         # when it walks records.
-        CELL="${{ inputs.records-dir }}/${{ steps.vars.outputs.app-id }}-${{ steps.vars.outputs.arch }}"
+        CELL="${RECORDS_DIR}/${VARS_APP_ID}-${VARS_ARCH}"
         mkdir -p "$CELL/sigs"
         CELL_SIGS_ABS="$(cd "$CELL/sigs" && pwd)"
 
         REGD="$(mktemp -d)"
         python3 "${{ github.action_path }}/../publish/signing.py" registries-d \
-          --registry "${{ inputs.registry }}" --lookaside "$CELL_SIGS_ABS" \
+          --registry "${REGISTRY}" --lookaside "$CELL_SIGS_ABS" \
           > "$REGD/aetherpak.yaml"
 
         echo "fingerprint=$FPR" >> "$GITHUB_OUTPUT"
@@ -191,34 +212,49 @@ runs:
       shell: bash
       env:
         GPG_PASSPHRASE: ${{ inputs.gpg-private-key-passphrase }}
+        INSECURE_REGISTRY: ${{ inputs.insecure-registry }}
+        SIGN: ${{ steps.signing.outputs.sign }}
+        GNUPGHOME_DIR: ${{ steps.signing.outputs.gnupghome }}
+        REGISTRIES_D: ${{ steps.signing.outputs.registries-d }}
+        FINGERPRINT: ${{ steps.signing.outputs.fingerprint }}
+        VARS_APP_ID: ${{ steps.vars.outputs.app-id }}
+        VARS_BRANCH: ${{ steps.vars.outputs.branch }}
+        VARS_ARCH: ${{ steps.vars.outputs.arch }}
+        TARGET_IMAGE: ${{ steps.target.outputs.image }}
       run: |
         set -euo pipefail
         TLS_FLAGS=""
-        [ "${{ inputs.insecure-registry }}" = "true" ] && TLS_FLAGS="--src-tls-verify=false --dest-tls-verify=false"
+        [ "${INSECURE_REGISTRY}" = "true" ] && TLS_FLAGS="--src-tls-verify=false --dest-tls-verify=false"
         REGD_FLAG=""; SIGN_FLAGS=""
-        if [ "${{ steps.signing.outputs.sign }}" = "true" ]; then
-          export GNUPGHOME="${{ steps.signing.outputs.gnupghome }}"
-          REGD_FLAG="--registries.d ${{ steps.signing.outputs.registries-d }}"
-          SIGN_FLAGS="--sign-by ${{ steps.signing.outputs.fingerprint }}"
+        if [ "${SIGN}" = "true" ]; then
+          export GNUPGHOME="${GNUPGHOME_DIR}"
+          REGD_FLAG="--registries.d ${REGISTRIES_D}"
+          SIGN_FLAGS="--sign-by ${FINGERPRINT}"
           if [ -n "$GPG_PASSPHRASE" ]; then
             PASSFILE="$(mktemp)"; trap 'rm -f "$PASSFILE"' EXIT
             printf '%s' "$GPG_PASSPHRASE" > "$PASSFILE"
             SIGN_FLAGS="$SIGN_FLAGS --sign-passphrase-file $PASSFILE"
           fi
         fi
-        TAG="${{ steps.vars.outputs.app-id }}-${{ steps.vars.outputs.branch }}-${{ steps.vars.outputs.arch }}"
+        TAG="${VARS_APP_ID}-${VARS_BRANCH}-${VARS_ARCH}"
         skopeo $REGD_FLAG copy $TLS_FLAGS $SIGN_FLAGS --all \
           oci:_oci-image \
-          "docker://${{ steps.target.outputs.image }}:$TAG"
+          "docker://${TARGET_IMAGE}:$TAG"
 
     - name: Inspect pushed image
       id: inspect
       shell: bash
+      env:
+        INSECURE_REGISTRY: ${{ inputs.insecure-registry }}
+        VARS_APP_ID: ${{ steps.vars.outputs.app-id }}
+        VARS_BRANCH: ${{ steps.vars.outputs.branch }}
+        VARS_ARCH: ${{ steps.vars.outputs.arch }}
+        TARGET_IMAGE: ${{ steps.target.outputs.image }}
       run: |
         set -euo pipefail
-        TLS_FLAGS=""; [ "${{ inputs.insecure-registry }}" = "true" ] && TLS_FLAGS="--tls-verify=false"
-        TAG="${{ steps.vars.outputs.app-id }}-${{ steps.vars.outputs.branch }}-${{ steps.vars.outputs.arch }}"
-        OUT="$(skopeo inspect $TLS_FLAGS docker://${{ steps.target.outputs.image }}:$TAG)"
+        TLS_FLAGS=""; [ "${INSECURE_REGISTRY}" = "true" ] && TLS_FLAGS="--tls-verify=false"
+        TAG="${VARS_APP_ID}-${VARS_BRANCH}-${VARS_ARCH}"
+        OUT="$(skopeo inspect $TLS_FLAGS docker://${TARGET_IMAGE}:$TAG)"
         DIGEST="$(echo "$OUT" | jq -r '.Digest')"
         LABELS_FILE="${RUNNER_TEMP}/aetherpak-oci-labels.json"
         echo "$OUT" | jq '.Labels // {}' > "$LABELS_FILE"
