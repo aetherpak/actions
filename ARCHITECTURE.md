@@ -79,8 +79,10 @@ A JSON document Flatpak reads directly:
   accumulate into one index.
 - Flatpak resolves an app from the labels and pulls the manifest by `Digest`. The
   GHCR tag is not used for resolution; it only keeps the digest referenced. Images
-  are tagged `<app-id>-<branch>-<arch>` so several apps in the same meta-repo can
-  share one OCI image path without overwriting each other's tags.
+  are tagged `<app-id>-<branch>-<arch>`, with `.` in the app-id encoded as `_`
+  (forced by Flatpak's signature tag-strip; see "Signing"), so several apps in
+  the same meta-repo can share one OCI image path without overwriting each
+  other's tags.
 - The landing page hides entries without `org.flatpak.metadata` (ones a client
   could not install).
 
@@ -105,6 +107,14 @@ references but did not just write, fetching it from the deployed site. Rotation
 therefore only fully takes effect once every still-listed image has been
 re-signed. `mode` is `auto` (sign iff a key is set), `gpg` (require a key, fail
 otherwise), or `off`.
+
+**Tag constraint.** Flatpak's OCI verifier builds the expected identity as the
+bare `<registry>/<repo>` and strips the tag from the signature's embedded
+`docker-reference` with a `[0-9A-Za-z_-]`-only regex before comparing. A tag
+containing characters outside that class (notably `.`) fails the strip, leaves
+the identity tagged, and rejects every otherwise-good signature. The publish
+action therefore encodes `.` in the app-id portion of the OCI tag as `_`; the
+canonical app-id stays in `org.flatpak.ref`.
 
 ## Multiple apps and serialized publishing
 
