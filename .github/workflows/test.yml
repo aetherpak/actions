@@ -286,7 +286,7 @@ jobs:
           test "${{ steps.signed_publish.outputs.signing-path }}" = "gpg" \
             || { echo "auto mode with a key should report signing-path=gpg"; exit 1; }
 
-          REF="localhost:5001/aetherpak/mock-app:stable-x86_64"
+          REF="localhost:5001/aetherpak/mock-app:org.flatpak.MockApp-stable-x86_64"
           DIGEST="$(jq -r '.Results[0].Images[0].Digest' _site/index/static)"
           SIG="_site/sigs/aetherpak/mock-app@${DIGEST/:/=}/signature-1"
 
