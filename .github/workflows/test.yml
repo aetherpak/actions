@@ -27,7 +27,7 @@ jobs:
       - name: Run Tests
         env:
           UV_PYTHON_DOWNLOADS: never
-        run: uvx --python "$(command -v python3)" pytest
+        run: uv run --python "$(command -v python3)" pytest
 
   lint:
     name: Lint (pre-commit)

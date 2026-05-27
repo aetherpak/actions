@@ -2,6 +2,7 @@
 name = "aetherpak-actions"
 version = "0.0.0"
 requires-python = ">=3.14"
+dependencies = ["pyyaml>=6.0.1"]
 
 [dependency-groups]
 dev = ["pre-commit", "pytest", "ty"]
