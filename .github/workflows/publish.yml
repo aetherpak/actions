@@ -153,21 +153,55 @@ jobs:
           name: repo-${{ matrix.arch }}
           path: _repo_${{ matrix.arch }}
 
-  # Publish and deploy are one job: index/static is a read-modify-write seeded from
-  # the deployed copy, so a later run must not start before this run's deploy is
-  # live. Keep deploy here, not a separate job. Serialized per repo (below).
-  publish:
-    name: "AetherPak: Publish & Deploy"
+  publish-oci:
+    name: "AetherPak: Push (${{ matrix.arch }})"
     needs: [prep, build]
     runs-on: ubuntu-latest
-    # One run in-flight + one pending; 3+ at once keep only the newest pending, so
-    # re-push any skipped app.
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prep.outputs.matrix) }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          submodules: ${{ inputs.submodules }}
+      - name: Download OSTree repository
+        uses: actions/download-artifact@v8
+        with:
+          name: repo-${{ matrix.arch }}
+          path: _repo_${{ matrix.arch }}
+      - name: Push OCI image
+        uses: aetherpak/actions/publish-oci@v1
+        with:
+          repo-path: _repo_${{ matrix.arch }}
+          arch: ${{ matrix.arch }}
+          branch: ${{ inputs.branch }}
+          registry: ${{ inputs.registry }}
+          oci-repository: ${{ inputs.oci-repository }}
+          signing: ${{ inputs.signing }}
+          gpg-private-key: ${{ secrets.gpg-private-key }}
+          gpg-private-key-passphrase: ${{ secrets.gpg-private-key-passphrase }}
+          records-dir: _records
+      - name: Upload record
+        uses: actions/upload-artifact@v7
+        with:
+          name: aetherpak-record-${{ matrix.arch }}
+          path: _records
+          include-hidden-files: true
+          retention-days: 1
+
+  publish-site:
+    name: "AetherPak: Publish Site & Deploy"
+    needs: [prep, publish-oci]
+    runs-on: ubuntu-latest
     concurrency:
       group: ${{ inputs.concurrency-group != '' && inputs.concurrency-group || format('aetherpak-publish-{0}', github.repository) }}
       cancel-in-progress: false
     permissions:
       contents: read
-      packages: write
       pages: write
       id-token: write
     environment:
@@ -176,57 +210,31 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
-        with:
-          submodules: ${{ inputs.submodules }}
-      - name: Download x86_64 OSTree repository
-        if: ${{ contains(inputs.arches, 'x86_64') }}
+      - name: Download records
         uses: actions/download-artifact@v8
         with:
-          name: repo-x86_64
-          path: repos/repo-x86_64
-      - name: Download aarch64 OSTree repository
-        if: ${{ contains(inputs.arches, 'aarch64') }}
-        uses: actions/download-artifact@v8
+          pattern: aetherpak-record-*
+          path: _records_in
+      - name: Flatten records
+        # download-artifact gives one subdir per artifact; flatten so the cells
+        # sit side by side under one `_records/` tree.
+        run: |
+          set -euo pipefail
+          mkdir -p _records
+          for dir in _records_in/*/; do cp -r "$dir." _records/; done
+      - name: Build site
+        uses: aetherpak/actions/publish-site@v1
         with:
-          name: repo-aarch64
-          path: repos/repo-aarch64
-      - name: Publish x86_64
-        if: ${{ contains(inputs.arches, 'x86_64') }}
-        uses: aetherpak/actions/publish@v1
-        with:
-          repo-path: repos/repo-x86_64
-          branch: ${{ inputs.branch }}
-          registry: ${{ inputs.registry }}
-          oci-repository: ${{ inputs.oci-repository }}
-          remote-name: ${{ inputs.remote-name }}
+          records-dir: _records
           pages-url: ${{ needs.prep.outputs.pages-url }}
-          upload-pages-artifact: "false"
+          registry: ${{ inputs.registry }}
+          remote-name: ${{ inputs.remote-name }}
           landing-page: ${{ inputs.landing-page }}
           signing: ${{ inputs.signing }}
           runtime-repo: ${{ inputs.runtime-repo }}
           gpg-private-key: ${{ secrets.gpg-private-key }}
           gpg-private-key-passphrase: ${{ secrets.gpg-private-key-passphrase }}
-      - name: Publish aarch64
-        if: ${{ contains(inputs.arches, 'aarch64') }}
-        uses: aetherpak/actions/publish@v1
-        with:
-          repo-path: repos/repo-aarch64
-          branch: ${{ inputs.branch }}
-          registry: ${{ inputs.registry }}
-          oci-repository: ${{ inputs.oci-repository }}
-          remote-name: ${{ inputs.remote-name }}
-          pages-url: ${{ needs.prep.outputs.pages-url }}
-          upload-pages-artifact: "false"
-          landing-page: ${{ inputs.landing-page }}
-          signing: ${{ inputs.signing }}
-          runtime-repo: ${{ inputs.runtime-repo }}
-          gpg-private-key: ${{ secrets.gpg-private-key }}
-          gpg-private-key-passphrase: ${{ secrets.gpg-private-key-passphrase }}
-      - name: Upload Pages artifact
-        if: ${{ inputs.deploy }}
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: _site
+          upload-pages-artifact: ${{ inputs.deploy }}
       - name: Deploy to GitHub Pages
         id: deploy
         if: ${{ inputs.deploy }}
