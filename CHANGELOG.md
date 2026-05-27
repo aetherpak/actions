@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.1](https://github.com/aetherpak/actions/compare/v2.1.0...v2.1.1) (2026-05-27)
+
+
+### Bug Fixes
+
+* **publish-oci:** normalize OCI tag so flatpak verifies sigs ([#14](https://github.com/aetherpak/actions/issues/14)) ([c746c11](https://github.com/aetherpak/actions/commit/c746c1166f9e0ed5ec503629b8169beff5969212))
+
 ## [2.1.0](https://github.com/aetherpak/actions/compare/v2.0.0...v2.1.0) (2026-05-27)
 
 
