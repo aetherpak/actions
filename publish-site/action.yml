@@ -288,19 +288,11 @@ runs:
         SITE="${SITE_DIR}"
         PAGES="${PAGES_URL}"; PAGES="${PAGES%/}"
         [ -n "$PAGES" ] || exit 0
-        python3 "${{ github.action_path }}/../publish/signing.py" sigpaths \
-          --index-path "$SITE/index/static" --sig-dir "${SIG_DIR}" \
-        | while IFS= read -r rel; do
-            [ -z "$rel" ] && continue
-            [ -f "$SITE/$rel" ] && continue
-            mkdir -p "$SITE/$(dirname "$rel")"
-            if curl -fsSL "$PAGES/$rel" -o "$SITE/$rel"; then
-              echo "Backfilled signature: $rel"
-            else
-              rm -f "$SITE/$rel"
-              echo "::warning::No deployed signature for $rel"
-            fi
-          done
+        python3 "${{ github.action_path }}/../publish/signing.py" backfill \
+          --index-path "$SITE/index/static" \
+          --sig-dir "${SIG_DIR}" \
+          --site-dir "$SITE" \
+          --pages-url "$PAGES"
 
     - name: Upload Pages artifact
       if: ${{ inputs.upload-pages-artifact == 'true' }}
