@@ -83,6 +83,9 @@ def write_record(
     }
     (cell / "record.json").write_text(json.dumps(payload, indent=2) + "\n")
     (cell / "labels.json").write_text(json.dumps(labels, indent=2) + "\n")
+    # Pin upload-artifact's least-common-ancestor at the records root so a
+    # single cell still ships under its <app-id>-<arch>/ prefix.
+    (root / ".aetherpak-cells").touch()
     return cell
 
 

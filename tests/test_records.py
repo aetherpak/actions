@@ -23,6 +23,7 @@ def test_write_record_round_trips(tmp_path: Path) -> None:
     assert cell == tmp_path / "org.example.App-x86_64"
     assert json.loads((cell / "record.json").read_text())["digest"] == "sha256:abc"
     assert json.loads((cell / "labels.json").read_text())["org.flatpak.commit"] == "deadbeef"
+    assert (tmp_path / ".aetherpak-cells").exists()
 
 
 def test_iter_records_yields_each_cell(tmp_path: Path) -> None:
@@ -127,3 +128,26 @@ def test_iter_records_skips_incomplete_cells(tmp_path: Path) -> None:
 
     apps = [rec.app_id for rec, _ in iter_records(tmp_path)]
     assert apps == ["good.app"]
+
+
+def test_iter_records_ignores_sentinel(tmp_path: Path) -> None:
+    # The sentinel file written by write_record() must not be mistaken for a
+    # cell: iter_records still yields exactly the cells written.
+    write_record(
+        tmp_path,
+        Record(
+            app_id="solo.app",
+            arch="x86_64",
+            branch="stable",
+            name="o/r",
+            registry="https://ghcr.io",
+            digest="sha256:1",
+            ref="app/solo.app/x86_64/stable",
+            tag="stable-x86_64",
+        ),
+        labels={"org.flatpak.ref": "app/solo.app/x86_64/stable"},
+    )
+    assert (tmp_path / ".aetherpak-cells").exists()
+    rows = list(iter_records(tmp_path))
+    assert len(rows) == 1
+    assert rows[0][0].app_id == "solo.app"
