@@ -7,9 +7,13 @@ YAML) and ``manifest`` (write ``signing.json`` for the landing page).
 """
 
 import argparse
+import concurrent.futures
 import json
 import os
+import pathlib
 import sys
+import urllib.error
+import urllib.request
 from typing import Any
 
 #: An OCI registry index document (the ``index/static`` JSON).
@@ -96,8 +100,83 @@ def signing_manifest(
     }
 
 
+def backfill_signatures(
+    index_path: str,
+    sig_dir: str,
+    site_dir: str,
+    pages_url: str,
+) -> None:
+    """Download missing signatures referenced by the index from pages_url.
+
+    :param index_path: path to the index/static file.
+    :param sig_dir: lookaside root directory.
+    :param site_dir: output directory for site files.
+    :param pages_url: public URL where the signatures are hosted.
+    """
+    if not os.path.exists(index_path):
+        return
+
+    with open(index_path, encoding="utf-8") as fh:
+        index_data = json.load(fh)
+
+    paths = index_signature_relpaths(index_data, sig_dir)
+    site_path = pathlib.Path(site_dir)
+    site_path.mkdir(parents=True, exist_ok=True)
+    resolved_site = site_path.resolve()
+    pages_url = pages_url.rstrip("/")
+    if not pages_url:
+        return
+
+    def clean_empty_parents(start_dir: pathlib.Path) -> None:
+        curr = start_dir
+        while curr != resolved_site and curr.is_dir():
+            try:
+                if not any(curr.iterdir()):
+                    curr.rmdir()
+                    curr = curr.parent
+                else:
+                    break
+            except OSError:
+                break
+
+    def download_one(rel: str) -> None:
+        try:
+            local_file = (resolved_site / rel).resolve()
+            local_file.relative_to(resolved_site)
+        except (ValueError, RuntimeError):
+            sys.stderr.write(f"::warning::Skipping invalid or unsafe path: {rel}\n")
+            return
+
+        if local_file.is_file():
+            return
+
+        local_file.parent.mkdir(parents=True, exist_ok=True)
+        url = f"{pages_url}/{rel}"
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "AetherPak-Signing-Backfill"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                local_file.write_bytes(resp.read())
+            sys.stdout.write(f"Backfilled signature: {rel}\n")
+        except urllib.error.HTTPError as e:
+            if local_file.exists():
+                local_file.unlink()
+            clean_empty_parents(local_file.parent)
+            sys.stderr.write(f"::warning::No deployed signature for {rel} (HTTP {e.code})\n")
+        except Exception as e:
+            if local_file.exists():
+                local_file.unlink()
+            clean_empty_parents(local_file.parent)
+            sys.stderr.write(f"::warning::Failed to backfill signature {rel}: {e}\n")
+
+    if paths:
+        max_workers = min(10, len(paths))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            list(executor.map(download_one, paths))
+
+
 def main(argv: list[str] | None = None) -> int:
-    """CLI entry point for the ``registries-d``, ``manifest`` and ``sigpaths`` subcommands.
+    """CLI entry point for the ``registries-d``, ``manifest``, ``sigpaths`` and
+    ``backfill`` subcommands.
 
     :param argv: argument vector; defaults to :data:`sys.argv` when ``None``.
     :returns: process exit code (always ``0``; errors raise).
@@ -120,6 +199,12 @@ def main(argv: list[str] | None = None) -> int:
     p_paths.add_argument("--index-path", required=True)
     p_paths.add_argument("--sig-dir", default="sigs")
 
+    p_bf = sub.add_parser("backfill", help="download missing signatures from pages-url")
+    p_bf.add_argument("--index-path", required=True)
+    p_bf.add_argument("--sig-dir", default="sigs")
+    p_bf.add_argument("--site-dir", required=True)
+    p_bf.add_argument("--pages-url", required=True)
+
     args = ap.parse_args(argv)
     if args.cmd == "registries-d":
         sys.stdout.write(registries_d_yaml(args.registry, args.lookaside))
@@ -136,6 +221,8 @@ def main(argv: list[str] | None = None) -> int:
             index_data = json.load(fh)
         for rel in index_signature_relpaths(index_data, args.sig_dir):
             sys.stdout.write(rel + "\n")
+    elif args.cmd == "backfill":
+        backfill_signatures(args.index_path, args.sig_dir, args.site_dir, args.pages_url)
     return 0
 
 
