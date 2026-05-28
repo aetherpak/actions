@@ -453,19 +453,23 @@ secrets:
     </div>
     <p>Create a passphrase-less 4096-bit RSA key and store the armored private key as your repository's <code>AETHERPAK_GPG_KEY</code> secret with the <a href="https://cli.github.com/" target="_blank" rel="noopener">GitHub CLI</a>. Run it once from a clone of the repo, with <code>gh auth login</code> done:</p>
     <div class="code-block">
-      <pre><code># Generate a passphrase-less signing key
-gpg --batch --gen-key &lt;&lt;'EOF'
+      <pre><code>NAME="Example Releases"
+EMAIL="releases@example.org"
+EXPIRE="0"  # 0 = never; or 1y, 2y, 18m, 2026-12-31
+
+# Generate a signing key
+gpg --batch --gen-key &lt;&lt;EOF
 %no-protection
 Key-Type: RSA
 Key-Length: 4096
-Name-Real: Example Releases
-Name-Email: releases@example.org
-Expire-Date: 0
+Name-Real: $NAME
+Name-Email: $EMAIL
+Expire-Date: $EXPIRE
 %commit
 EOF
 
 # Store the private key as the repo secret the workflow reads
-gpg --armor --export-secret-keys releases@example.org \
+gpg --armor --export-secret-keys "$EMAIL" \
   | gh secret set AETHERPAK_GPG_KEY</code></pre>
       <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
     </div>
