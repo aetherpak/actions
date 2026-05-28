@@ -4,6 +4,7 @@
 import argparse
 import json
 import logging
+import os
 import subprocess
 from collections.abc import Iterable
 from typing import Any
@@ -96,6 +97,12 @@ def main() -> None:
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+    # A missing index is a valid no-op: first publish before any cell has merged,
+    # or reconcile-only against a fresh repo with no deployed index yet.
+    if not os.path.exists(args.index_path):
+        log.info("no index at %s — nothing to reconcile", args.index_path)
+        return
 
     with open(args.index_path, encoding="utf-8") as f:
         index = json.load(f)
