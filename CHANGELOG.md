@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.1.4](https://github.com/aetherpak/actions/compare/v2.1.3...v2.1.4) (2026-05-28)
+
+
+### Bug Fixes
+
+* **publish-oci:** pin records-dir LCA via sentinel ([10d0963](https://github.com/aetherpak/actions/commit/10d0963642233b9d3927052e5a6893dae06d03e7))
+* **publish-site:** no-op reconcile when index is absent ([5e47f11](https://github.com/aetherpak/actions/commit/5e47f111937f0adb2b38b1fa637d64736b72d09c))
+
 ## [2.1.3](https://github.com/aetherpak/actions/compare/v2.1.2...v2.1.3) (2026-05-27)
 
 
