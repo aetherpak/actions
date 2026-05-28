@@ -55,12 +55,11 @@ see [ARCHITECTURE.md](ARCHITECTURE.md); for the dev workflow, see
 - `.github/workflows/site.yml`: deploys this project's own marketing landing page
   (`docs/site/`) to Pages on push to `main` — unrelated to a published app's
   generated `index.html`.
+- `docs/specs/`: contains architectural design and RFC specifications. Specifications are named with a CalVer sequence prefix format `YYYY-MM-NN` (e.g., `2026-05-01-integration-test-harness.md`) and are treated as living documents that must reflect the implementation status quo.
 - `.github/workflows/test.yml`: CI (unit tests, pre-commit incl. ty, mock build/
   publish/reconcile integration, and signing auto-activation + gate tests).
-- `tests/`: pytest unit tests, one file per script (`merge_index`, `reconcile`,
-  `signing`, `gen_flatpakrefs`, and the channel resolver), with shared fixtures in
-  `tests/conftest.py`. Run with `make test` (pytest on Python 3.14 via `uvx`).
-  The publish action pins Python 3.14 (`setup-python`), so tests match runtime.
+- `tests/`: pytest unit and integration tests. Unit tests reside in `tests/test_*.py` (excluding `test_harness.py`), with shared fixtures in `tests/conftest.py`.
+- `tests/test_harness.py`: end-to-end integration test harness verifying OCI/index format compatibility with the real `flatpak` client.
 
 ## Invariants
 
@@ -94,6 +93,7 @@ Keep these intact when changing the code:
 - `make test`: unit tests.
 - `make lint`: pre-commit via `uvx` — ruff lint+format, ty type check
   (`uv run ty check`), and the YAML/whitespace file checks.
-- `make check`: both.
+- `make check`: both (unit tests and linting).
+- `make integration-test`: runs the E2E client-format compatibility integration tests (`tests/test_harness.py`).
 
 End-to-end coverage and the CI jobs are described in CONTRIBUTING.md.

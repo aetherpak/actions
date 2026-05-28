@@ -121,9 +121,23 @@ jobs:
         run: |
           url="$PAGES_URL"; [ -n "$url" ] || url="$DEFAULT_PAGES_URL"
           echo "pages-url=$url" >> "$GITHUB_OUTPUT"
+      - name: Resolve actions ref
+        id: aref
+        env:
+          JWR: ${{ github.job_workflow_ref }}
+        run: |
+          set -euo pipefail
+          ref="${JWR##*@}"
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+      - name: Check out actions repo
+        uses: actions/checkout@v6
+        with:
+          repository: aetherpak/actions
+          ref: ${{ steps.aref.outputs.ref }}
+          path: .github/actions/aetherpak
       - name: Plan
         id: p
-        uses: aetherpak/actions/plan@v2
+        uses: ./.github/actions/aetherpak/plan
         with:
           config:        ${{ inputs.config }}
           force:         ${{ (github.event_name == 'schedule' || inputs.force-all) && 'all' || inputs.app }}
@@ -148,8 +162,22 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: ${{ inputs.submodules }}
+      - name: Resolve actions ref
+        id: aref
+        env:
+          JWR: ${{ github.job_workflow_ref }}
+        run: |
+          set -euo pipefail
+          ref="${JWR##*@}"
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+      - name: Check out actions repo
+        uses: actions/checkout@v6
+        with:
+          repository: aetherpak/actions
+          ref: ${{ steps.aref.outputs.ref }}
+          path: .github/actions/aetherpak
       - name: Build
-        uses: aetherpak/actions/build@v2
+        uses: ./.github/actions/aetherpak/build
         with:
           manifest-path: ${{ matrix.manifest }}
           arch:          ${{ matrix.arch }}
@@ -174,8 +202,22 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Resolve actions ref
+        id: aref
+        env:
+          JWR: ${{ github.job_workflow_ref }}
+        run: |
+          set -euo pipefail
+          ref="${JWR##*@}"
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+      - name: Check out actions repo
+        uses: actions/checkout@v6
+        with:
+          repository: aetherpak/actions
+          ref: ${{ steps.aref.outputs.ref }}
+          path: .github/actions/aetherpak
       - name: Fetch + import + rebind
-        uses: aetherpak/actions/prep-bundle@v2
+        uses: ./.github/actions/aetherpak/prep-bundle
         with:
           url:    ${{ matrix.bundle-url }}
           sha256: ${{ matrix.bundle-sha256 }}
@@ -203,6 +245,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Resolve actions ref
+        id: aref
+        env:
+          JWR: ${{ github.job_workflow_ref }}
+        run: |
+          set -euo pipefail
+          ref="${JWR##*@}"
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+      - name: Check out actions repo
+        uses: actions/checkout@v6
+        with:
+          repository: aetherpak/actions
+          ref: ${{ steps.aref.outputs.ref }}
+          path: .github/actions/aetherpak
       - name: Download OSTree repo
         # Same artifact for both source kinds: build-manifest uploads its built
         # repo, prep-bundle uploads its imported+rebound repo. publish-oci is
@@ -212,7 +268,7 @@ jobs:
           name: repo-${{ matrix.app-id }}-${{ matrix.arch }}
           path: _repo
       - name: Push
-        uses: aetherpak/actions/publish-oci@v2
+        uses: ./.github/actions/aetherpak/publish-oci
         with:
           repo-path: _repo
           app-id: ${{ matrix.app-id }}
@@ -253,6 +309,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Resolve actions ref
+        id: aref
+        env:
+          JWR: ${{ github.job_workflow_ref }}
+        run: |
+          set -euo pipefail
+          ref="${JWR##*@}"
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+      - name: Check out actions repo
+        uses: actions/checkout@v6
+        with:
+          repository: aetherpak/actions
+          ref: ${{ steps.aref.outputs.ref }}
+          path: .github/actions/aetherpak
       - name: Download records
         if: ${{ !inputs.reconcile-only }}
         uses: actions/download-artifact@v8
@@ -267,7 +337,7 @@ jobs:
           mkdir -p _records
           for dir in _records_in/*/; do cp -r "$dir." _records/; done
       - name: Build site
-        uses: aetherpak/actions/publish-site@v2
+        uses: ./.github/actions/aetherpak/publish-site
         with:
           records-dir: _records
           pages-url:    ${{ needs.plan.outputs.pages-url }}

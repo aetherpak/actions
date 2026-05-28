@@ -199,10 +199,14 @@ runs:
       run: |
         set -euo pipefail
         EXTRA=""
-        [ "${INSECURE_REGISTRY}" = "true" ] && EXTRA="--insecure"
+        SCHEME="https"
+        if [ "${INSECURE_REGISTRY}" = "true" ]; then
+          EXTRA="--insecure"
+          SCHEME="http"
+        fi
         python3 "${{ github.action_path }}/../publish/reconcile.py" \
           --index-path "${SITE_DIR}/index/static" \
-          --registry "https://${REGISTRY}" $EXTRA
+          --registry "${SCHEME}://${REGISTRY}" $EXTRA
 
     - name: Write signing metadata
       id: signmeta

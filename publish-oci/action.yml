@@ -301,6 +301,7 @@ runs:
         TAG: ${{ steps.inspect.outputs.tag }}
         LABELS_FILE: ${{ steps.inspect.outputs.labels-file }}
         RECORDS_DIR: ${{ inputs.records-dir }}
+        INSECURE_REGISTRY: ${{ inputs.insecure-registry }}
       run: |
         set -euo pipefail
         python3 - <<'PY'
@@ -308,12 +309,13 @@ runs:
         sys.path.insert(0, os.path.join(os.environ["GITHUB_ACTION_PATH"], ".."))
         from publish.records import Record, write_record
         labels = json.loads(pathlib.Path(os.environ["LABELS_FILE"]).read_text())
+        scheme = "http" if os.environ.get("INSECURE_REGISTRY") == "true" else "https"
         rec = Record(
             app_id=os.environ["APP_ID"],
             arch=os.environ["ARCH"],
             branch=os.environ["BRANCH"],
             name=os.environ["NAME"],
-            registry=f"https://{os.environ['REGISTRY']}",
+            registry=f"{scheme}://{os.environ['REGISTRY']}",
             digest=os.environ["DIGEST"],
             ref=os.environ["REFLABEL"],
             tag=os.environ["TAG"],
