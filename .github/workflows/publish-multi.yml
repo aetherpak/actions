@@ -106,6 +106,7 @@ jobs:
       count-manifest:   ${{ steps.p.outputs.count-manifest }}
       count-bundle:     ${{ steps.p.outputs.count-bundle }}
       pages-url:        ${{ steps.u.outputs.pages-url }}
+      actions-ref:      ${{ steps.aref.outputs.ref }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -162,19 +163,11 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: ${{ inputs.submodules }}
-      - name: Resolve actions ref
-        id: aref
-        env:
-          JWR: ${{ github.job_workflow_ref }}
-        run: |
-          set -euo pipefail
-          ref="${JWR##*@}"
-          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
       - name: Check out actions repo
         uses: actions/checkout@v6
         with:
           repository: aetherpak/actions
-          ref: ${{ steps.aref.outputs.ref }}
+          ref: ${{ needs.plan.outputs.actions-ref }}
           path: .github/actions/aetherpak
       - name: Build
         uses: ./.github/actions/aetherpak/build
@@ -202,19 +195,11 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Resolve actions ref
-        id: aref
-        env:
-          JWR: ${{ github.job_workflow_ref }}
-        run: |
-          set -euo pipefail
-          ref="${JWR##*@}"
-          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
       - name: Check out actions repo
         uses: actions/checkout@v6
         with:
           repository: aetherpak/actions
-          ref: ${{ steps.aref.outputs.ref }}
+          ref: ${{ needs.plan.outputs.actions-ref }}
           path: .github/actions/aetherpak
       - name: Fetch + import + rebind
         uses: ./.github/actions/aetherpak/prep-bundle
@@ -245,19 +230,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Resolve actions ref
-        id: aref
-        env:
-          JWR: ${{ github.job_workflow_ref }}
-        run: |
-          set -euo pipefail
-          ref="${JWR##*@}"
-          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
       - name: Check out actions repo
         uses: actions/checkout@v6
         with:
           repository: aetherpak/actions
-          ref: ${{ steps.aref.outputs.ref }}
+          ref: ${{ needs.plan.outputs.actions-ref }}
           path: .github/actions/aetherpak
       - name: Download OSTree repo
         # Same artifact for both source kinds: build-manifest uploads its built
@@ -309,19 +286,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-      - name: Resolve actions ref
-        id: aref
-        env:
-          JWR: ${{ github.job_workflow_ref }}
-        run: |
-          set -euo pipefail
-          ref="${JWR##*@}"
-          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
       - name: Check out actions repo
         uses: actions/checkout@v6
         with:
           repository: aetherpak/actions
-          ref: ${{ steps.aref.outputs.ref }}
+          ref: ${{ needs.plan.outputs.actions-ref }}
           path: .github/actions/aetherpak
       - name: Download records
         if: ${{ !inputs.reconcile-only }}
