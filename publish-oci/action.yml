@@ -323,3 +323,15 @@ runs:
             fh.write(f"cell-dir={cell}\n")
         print(f"wrote {cell}")
         PY
+
+    - name: Cleanup temporary files
+      if: always()
+      shell: bash
+      run: |
+        rm -rf _oci-image
+        if [ -n "${{ steps.signing.outputs.gnupghome }}" ] && [ -d "${{ steps.signing.outputs.gnupghome }}" ]; then
+          rm -rf "${{ steps.signing.outputs.gnupghome }}"
+        fi
+        if [ -n "${{ steps.signing.outputs.registries-d }}" ] && [ -d "${{ steps.signing.outputs.registries-d }}" ]; then
+          rm -rf "${{ steps.signing.outputs.registries-d }}"
+        fi

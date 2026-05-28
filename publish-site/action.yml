@@ -264,7 +264,7 @@ runs:
         EXTRA=()
         if [ "${SIGN}" = "true" ]; then
           export GNUPGHOME="${GNUPGHOME_DIR}"
-          KEY_B64_FILE="$(mktemp)"
+          KEY_B64_FILE="$(mktemp)"; trap 'rm -f "$KEY_B64_FILE"' EXIT
           gpg --export "${FINGERPRINT}" | base64 -w0 > "$KEY_B64_FILE"
           EXTRA+=(--gpg-key-base64-file "$KEY_B64_FILE" --signature-lookaside "$PAGES/${SIG_DIR}")
         fi
@@ -300,3 +300,11 @@ runs:
       with:
         path: ${{ inputs.site-dir }}
         name: ${{ inputs.pages-artifact-name }}
+
+    - name: Cleanup temporary files
+      if: always()
+      shell: bash
+      run: |
+        if [ -n "${{ steps.signing.outputs.gnupghome }}" ] && [ -d "${{ steps.signing.outputs.gnupghome }}" ]; then
+          rm -rf "${{ steps.signing.outputs.gnupghome }}"
+        fi
