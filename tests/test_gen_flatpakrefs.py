@@ -1,7 +1,9 @@
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 
+from publish import gen_flatpakrefs
 from publish.gen_flatpakrefs import app_title, flatpakref_files, ref_filename
 
 URL = "oci+https://owner.github.io/repo"
@@ -199,3 +201,27 @@ def test_multiple_channels(make_image: Callable[..., dict]) -> None:
     }
     files = flatpakref_files(index, url=URL, remote_name="aetherpak", runtime_repo="")
     assert sorted(files) == ["org.example.App-beta.flatpakref", "org.example.App-stable.flatpakref"]
+
+
+def test_main_missing_index_is_noop(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    missing = tmp_path / "index" / "static"
+    out_dir = tmp_path / "refs"
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "gen_flatpakrefs.py",
+            "--index-path",
+            str(missing),
+            "--out-dir",
+            str(out_dir),
+            "--url",
+            "oci+https://example.invalid/repo",
+            "--remote-name",
+            "example",
+        ],
+    )
+
+    gen_flatpakrefs.main()
+
+    assert not missing.exists()
+    assert not out_dir.exists()

@@ -8,6 +8,7 @@ YAML) and ``manifest`` (write ``signing.json`` for the landing page).
 
 import argparse
 import json
+import os
 import sys
 from typing import Any
 
@@ -128,6 +129,9 @@ def main(argv: list[str] | None = None) -> int:
             json.dump(data, fh, indent=2)
             fh.write("\n")
     elif args.cmd == "sigpaths":
+        # No index means no signatures to backfill: stay silent rather than crash.
+        if not os.path.exists(args.index_path):
+            return 0
         with open(args.index_path, encoding="utf-8") as fh:
             index_data = json.load(fh)
         for rel in index_signature_relpaths(index_data, args.sig_dir):

@@ -220,19 +220,14 @@ jobs:
         uses: actions/checkout@v6
       - name: Download records
         if: ${{ !inputs.reconcile-only }}
+        # merge-multiple lands all cells under one `_records/` regardless of how
+        # many arches matched — download-artifact@v8 otherwise drops the
+        # artifact-name subdir when only one artifact matches the pattern.
         uses: actions/download-artifact@v8
         with:
           pattern: aetherpak-record-*
-          path: _records_in
-      - name: Flatten records
-        # download-artifact gives one subdir per artifact; flatten so the cells
-        # sit side by side under one `_records/` tree. nullglob keeps reconcile-
-        # only runs (empty / missing _records_in) sound.
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          mkdir -p _records
-          for dir in _records_in/*/; do cp -r "$dir." _records/; done
+          path: _records
+          merge-multiple: true
       - name: Build site
         uses: aetherpak/actions/publish-site@v2
         with:
