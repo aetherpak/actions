@@ -144,8 +144,22 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: ${{ inputs.submodules }}
+      - name: Resolve actions ref
+        id: aref
+        env:
+          JWR: ${{ github.job_workflow_ref }}
+        run: |
+          set -euo pipefail
+          ref="${JWR##*@}"
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+      - name: Check out actions repo
+        uses: actions/checkout@v6
+        with:
+          repository: aetherpak/actions
+          ref: ${{ steps.aref.outputs.ref }}
+          path: .github/actions/aetherpak
       - name: Build Flatpak from manifest
-        uses: aetherpak/actions/build@v2
+        uses: ./.github/actions/aetherpak/build
         with:
           manifest-path: ${{ inputs.manifest-path }}
           arch: ${{ matrix.arch }}
@@ -175,13 +189,27 @@ jobs:
         uses: actions/checkout@v6
         with:
           submodules: ${{ inputs.submodules }}
+      - name: Resolve actions ref
+        id: aref
+        env:
+          JWR: ${{ github.job_workflow_ref }}
+        run: |
+          set -euo pipefail
+          ref="${JWR##*@}"
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+      - name: Check out actions repo
+        uses: actions/checkout@v6
+        with:
+          repository: aetherpak/actions
+          ref: ${{ steps.aref.outputs.ref }}
+          path: .github/actions/aetherpak
       - name: Download OSTree repository
         uses: actions/download-artifact@v8
         with:
           name: repo-${{ matrix.arch }}
           path: _repo_${{ matrix.arch }}
       - name: Push OCI image
-        uses: aetherpak/actions/publish-oci@v2
+        uses: ./.github/actions/aetherpak/publish-oci
         with:
           repo-path: _repo_${{ matrix.arch }}
           arch: ${{ matrix.arch }}
@@ -218,6 +246,20 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+      - name: Resolve actions ref
+        id: aref
+        env:
+          JWR: ${{ github.job_workflow_ref }}
+        run: |
+          set -euo pipefail
+          ref="${JWR##*@}"
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+      - name: Check out actions repo
+        uses: actions/checkout@v6
+        with:
+          repository: aetherpak/actions
+          ref: ${{ steps.aref.outputs.ref }}
+          path: .github/actions/aetherpak
       - name: Download records
         if: ${{ !inputs.reconcile-only }}
         # merge-multiple lands all cells under one `_records/` regardless of how
@@ -229,7 +271,7 @@ jobs:
           path: _records
           merge-multiple: true
       - name: Build site
-        uses: aetherpak/actions/publish-site@v2
+        uses: ./.github/actions/aetherpak/publish-site
         with:
           records-dir: _records
           pages-url: ${{ needs.prep.outputs.pages-url }}

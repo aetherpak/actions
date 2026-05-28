@@ -7,3 +7,4 @@ paths:
       # deprecates `app-id`. Remove once actionlint refreshes the v3 snapshot.
       - 'missing input "app-id" which is required by action "actions/create-github-app-token@v3"'
       - 'input "client-id" is not defined in action "actions/create-github-app-token@v3"'
+      - 'property "job_workflow_ref" is not defined in object type'

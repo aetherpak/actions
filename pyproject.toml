@@ -13,6 +13,9 @@ package = false
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+markers = [
+    "integration: end-to-end integration tests requiring flatpak and container runtimes"
+]
 
 [tool.ruff]
 target-version = "py310"

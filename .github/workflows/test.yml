@@ -27,7 +27,7 @@ jobs:
       - name: Run Tests
         env:
           UV_PYTHON_DOWNLOADS: never
-        run: uv run --python "$(command -v python3)" pytest
+        run: uv run --python "$(command -v python3)" pytest -m "not integration"
 
   lint:
     name: Lint (pre-commit)
@@ -139,7 +139,7 @@ jobs:
 
           # Check index contents (Registry must be a plain URL, not oci+ prefixed)
           REGISTRY_URL="$(jq -r '.Registry' _site/index/static)"
-          if [ "$REGISTRY_URL" != "https://localhost:5001" ]; then
+          if [ "$REGISTRY_URL" != "http://localhost:5001" ]; then
             echo "Error: Registry URL in index is wrong: $REGISTRY_URL"
             exit 1
           fi
@@ -504,3 +504,27 @@ jobs:
           [ "$REFS" = "app/org.flatpak.AppA/x86_64/stable app/org.flatpak.AppB/x86_64/stable " ] \
             || { echo "refs mismatch: $REFS"; exit 1; }
           ls _site/refs/org.flatpak.AppA-stable.flatpakref _site/refs/org.flatpak.AppB-stable.flatpakref
+
+  integration-tests:
+    name: Run E2E Integration Tests (Pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Install Flatpak & OSTree
+        run: |
+          sudo add-apt-repository -y ppa:flatpak/stable
+          sudo apt-get update
+          sudo apt-get install -y flatpak ostree
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Run E2E Integration Tests
+        run: make integration-test
