@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.2.0](https://github.com/aetherpak/actions/compare/v2.1.4...v2.2.0) (2026-05-28)
+
+
+### Features
+
+* **seo:** add og:image and align section indentation ([8233f95](https://github.com/aetherpak/actions/commit/8233f95f7e0e70504fc4f29cc55fcfdf7321677b))
+* **seo:** add OpenGraph metadata and wrap sections in main tags ([8cba15f](https://github.com/aetherpak/actions/commit/8cba15f775625e8b4fa23a4c3c3e2cb937c80d6f))
+
+
+### Bug Fixes
+
+* **publish-site:** single-arch publishes land records ([5a1f84f](https://github.com/aetherpak/actions/commit/5a1f84ff4785e1c74c1e86e49699008451823e62))
+
 ## [2.1.4](https://github.com/aetherpak/actions/compare/v2.1.3...v2.1.4) (2026-05-28)
 
 
