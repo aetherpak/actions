@@ -15,6 +15,7 @@ import http.server
 import json
 import os
 import pathlib
+import re
 import shutil
 import socket
 import subprocess
@@ -31,12 +32,36 @@ _REQUIRED_BINARIES = ["ostree", "flatpak", "skopeo"]
 _MISSING_BINARIES = [b for b in _REQUIRED_BINARIES if not shutil.which(b)]
 _HAS_CONTAINER = bool(shutil.which("podman") or shutil.which("docker"))
 
-if _MISSING_BINARIES or not _HAS_CONTAINER:
+_FLATPAK_VERSION = None
+if not _MISSING_BINARIES:
+    try:
+        res = subprocess.run(["flatpak", "--version"], capture_output=True, text=True, check=True)
+        # Expected output: "Flatpak 1.17.7"
+        parts = res.stdout.strip().split()
+        if len(parts) >= 2:
+            match = re.search(r"(\d+(?:\.\d+)+)", parts[1])
+            if match:
+                _FLATPAK_VERSION = tuple(int(x) for x in match.group(1).split("."))
+    except Exception:
+        pass
+
+_IS_FLATPAK_VERSION_SUPPORTED = _FLATPAK_VERSION is not None and _FLATPAK_VERSION >= (1, 17, 0)
+
+if _MISSING_BINARIES or not _HAS_CONTAINER or not _IS_FLATPAK_VERSION_SUPPORTED:
     _reasons = []
     if _MISSING_BINARIES:
         _reasons.append(f"missing command(s): {', '.join(_MISSING_BINARIES)}")
     if not _HAS_CONTAINER:
         _reasons.append("no container manager (podman/docker) found")
+    if not _IS_FLATPAK_VERSION_SUPPORTED:
+        if _FLATPAK_VERSION:
+            ver_str = ".".join(map(str, _FLATPAK_VERSION))
+            _reasons.append(
+                f"flatpak version {ver_str} < 1.17.0 "
+                "(lookaside signatures require flatpak >= 1.17.x)"
+            )
+        else:
+            _reasons.append("unable to determine flatpak version or flatpak not installed")
     pytestmark = pytest.mark.skip(reason=f"Missing E2E environment: {'; '.join(_reasons)}")
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -59,26 +84,6 @@ def run_command_with_log(cmd: list[str], **kwargs) -> subprocess.CompletedProces
         print(f"Stdout:\n{e.stdout}")
         print(f"Stderr:\n{e.stderr}")
         raise
-
-
-def set_remote_signature_lookaside(
-    flatpak_user_dir: pathlib.Path, remote_name: str, url: str
-) -> None:
-    """Manually set signature lookaside in flatpak repo config to support older flatpak versions."""
-    import configparser
-
-    config_path = flatpak_user_dir / "repo" / "config"
-    if not config_path.exists():
-        raise FileNotFoundError(f"Flatpak repo config not found at {config_path}")
-
-    config = configparser.RawConfigParser()
-    config.read(config_path)
-    section = f'remote "{remote_name}"'
-    if not config.has_section(section):
-        config.add_section(section)
-    config.set(section, "xa.signature-lookaside", url)
-    with open(config_path, "w") as f:
-        config.write(f)
 
 
 def get_container_manager() -> str:
@@ -731,12 +736,10 @@ def test_scenario3_gpg_signing_enforcement(
             "remote-add",
             "--user",
             f"--gpg-import={sigs_dir / 'key.asc'}",
+            f"--signature-lookaside=http://localhost:{web_server}/sigs",
             remote_name,
             f"oci+http://localhost:{web_server}",
         ]
-    )
-    set_remote_signature_lookaside(
-        flatpak_user_dir, remote_name, f"http://localhost:{web_server}/sigs"
     )
 
     # Install should pass verification
@@ -767,12 +770,10 @@ def test_scenario3_gpg_signing_enforcement(
             "remote-add",
             "--user",
             f"--gpg-import={sigs_dir / 'key.asc'}",
+            f"--signature-lookaside=http://localhost:{web_server}/sigs",
             remote_name,
             f"oci+http://localhost:{web_server}",
         ]
-    )
-    set_remote_signature_lookaside(
-        flatpak_user_dir, remote_name, f"http://localhost:{web_server}/sigs"
     )
 
     # Install MUST fail now due to tampered signature

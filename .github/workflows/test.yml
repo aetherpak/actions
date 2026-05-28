@@ -57,6 +57,7 @@ jobs:
 
       - name: Install Flatpak & OSTree
         run: |
+          sudo add-apt-repository -y ppa:flatpak/development
           sudo apt-get update
           sudo apt-get install -y flatpak ostree
 
@@ -219,6 +220,7 @@ jobs:
 
       - name: Install Flatpak & OSTree
         run: |
+          sudo add-apt-repository -y ppa:flatpak/development
           sudo apt-get update
           sudo apt-get install -y flatpak ostree
 
@@ -376,6 +378,7 @@ jobs:
 
       - name: Install Flatpak & OSTree
         run: |
+          sudo add-apt-repository -y ppa:flatpak/development
           sudo apt-get update
           sudo apt-get install -y flatpak ostree
 
@@ -440,6 +443,7 @@ jobs:
 
       - name: Install Flatpak & OSTree
         run: |
+          sudo add-apt-repository -y ppa:flatpak/development
           sudo apt-get update
           sudo apt-get install -y flatpak ostree
 
@@ -514,7 +518,7 @@ jobs:
 
       - name: Install Flatpak & OSTree
         run: |
-          sudo add-apt-repository -y ppa:flatpak/stable
+          sudo add-apt-repository -y ppa:flatpak/development
           sudo apt-get update
           sudo apt-get install -y flatpak ostree
 
