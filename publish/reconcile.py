@@ -2,6 +2,7 @@
 """Drop index entries whose OCI image no longer exists in the registry."""
 
 import argparse
+import concurrent.futures
 import json
 import logging
 import os
@@ -108,14 +109,29 @@ def main() -> None:
         index = json.load(f)
 
     host = registry_host(args.registry)
-    gone = []
+    to_check = []
     for result in index.get("Results", []):
         name = result.get("Name")
         for img in result.get("Images", []):
             digest = img.get("Digest")
-            if name and digest and not image_present(host, name, digest, args.insecure):
-                log.info("dropping %s@%s (not found in registry)", name, digest)
-                gone.append(digest)
+            if name and digest:
+                to_check.append((name, digest))
+
+    gone = []
+    if to_check:
+
+        def check_one(item: tuple[str, str]) -> tuple[str, str, bool]:
+            img_name, img_digest = item
+            present = image_present(host, img_name, img_digest, args.insecure)
+            return img_name, img_digest, present
+
+        max_workers = min(10, len(to_check))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            results = executor.map(check_one, to_check)
+            for img_name, img_digest, present in results:
+                if not present:
+                    log.info("dropping %s@%s (not found in registry)", img_name, img_digest)
+                    gone.append(img_digest)
 
     removed = remove_digests(index, gone)
 
