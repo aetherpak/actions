@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AetherPak Actions: Flatpak repositories on GitHub</title>
   <meta name="description" content="GitHub Actions that build Flatpak apps and host them as a Flatpak repository on GHCR and GitHub Pages.">
+  <meta property="og:title" content="AetherPak Actions: Flatpak repositories on GitHub">
+  <meta property="og:description" content="GitHub Actions that build Flatpak apps and host them as a Flatpak repository on GHCR and GitHub Pages.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://aetherpak.org/">
   <style>
     :root {
       --bg: #09090b; --card: #18181b; --border: #27272a;
@@ -118,7 +122,8 @@
       <p class="tagline">GitHub Actions that build Flatpak apps and host them as a Flatpak repository, using GHCR for blobs and GitHub Pages for the index.</p>
     </header>
 
-    <section>
+    <main>
+      <section>
       <h2>What it is</h2>
       <p class="lead">A static-HTTP OSTree repository serves an app as many small objects, so clients make hundreds of requests. That is slow, and it trips GitHub Pages rate limits. AetherPak uses Flatpak's native OCI support instead:</p>
       <ul class="points">
@@ -430,6 +435,8 @@ secrets:
         <a class="link-card" href="https://github.com/abn/flatpakrepo"><div class="t">Multi-app demo repo</div><div class="d">Manifest and bundle entries side by side</div></a>
       </div>
     </section>
+
+    </main>
 
     <footer>
       <p>AetherPak · MIT licensed · Served via GitHub Pages &amp; GHCR</p>
