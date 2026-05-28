@@ -187,12 +187,11 @@
           </div>`;
       }
 
-      fetch('sigs/signing.json')
-        .then(r => r.ok ? r.json() : null)
-        .catch(() => null)
-        .then(signing => {
-          const setup = buildSetup(signing);
-          return fetch('index/static').then(r => { if (!r.ok) throw new Error('load'); return r.json(); }).then(data => {
+      Promise.all([
+        fetch('sigs/signing.json').then(r => r.ok ? r.json() : null).catch(() => null),
+        fetch('index/static').then(r => { if (!r.ok) throw new Error('load'); return r.json(); })
+      ]).then(([signing, data]) => {
+        const setup = buildSetup(signing);
         const apps = {};
         (data.Results || []).forEach(res => (res.Images || []).forEach(img => {
           const L = img.Labels || {}; const ref = L['org.flatpak.ref'];
@@ -242,7 +241,6 @@
         render(setup + cards);
       }).catch(() => {
         el.innerHTML = `<div class="empty-state" style="border-color:#ef4444;color:#f87171;"><h2>Failed to load repository</h2><p>Serve this page over HTTP and ensure index/static exists.</p></div>`;
-      });
       });
     });
   </script>
