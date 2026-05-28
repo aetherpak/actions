@@ -1,5 +1,8 @@
+from pathlib import Path
+
 import pytest
 
+from publish import reconcile
 from publish.reconcile import registry_host, remove_digests
 
 
@@ -91,3 +94,26 @@ def test_removes_from_one_result_only() -> None:
 )
 def test_registry_host_strips_scheme(registry: str, host: str) -> None:
     assert registry_host(registry) == host
+
+
+def test_main_missing_index_is_noop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    missing = tmp_path / "index" / "static"
+    monkeypatch.setattr(
+        "sys.argv",
+        ["reconcile.py", "--index-path", str(missing), "--registry", "https://ghcr.io"],
+    )
+
+    # Safeguard: if the early-return path breaks, the test must fail loudly rather
+    # than silently shelling out to skopeo.
+    def _fail(*_args, **_kwargs):
+        raise AssertionError("subprocess.run should not be called when index is absent")
+
+    monkeypatch.setattr("publish.reconcile.subprocess.run", _fail)
+
+    with caplog.at_level("INFO"):
+        reconcile.main()
+
+    assert not missing.exists()
+    assert any("nothing to reconcile" in r.message for r in caplog.records)
