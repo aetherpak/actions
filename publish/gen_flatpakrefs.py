@@ -186,6 +186,11 @@ def main(argv: list[str] | None = None) -> None:
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
+    # No index means no apps to install: emit nothing rather than crash.
+    if not os.path.exists(args.index_path):
+        log.info("no index at %s — nothing to generate", args.index_path)
+        return
+
     with open(args.index_path, encoding="utf-8") as f:
         index_data = json.load(f)
 

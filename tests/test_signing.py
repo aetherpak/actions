@@ -1,7 +1,9 @@
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 
+from publish import signing
 from publish.signing import (
     index_signature_relpaths,
     registries_d_yaml,
@@ -96,3 +98,18 @@ def test_index_signature_relpaths_skips_noninstallable_stub() -> None:
         ]
     }
     assert index_signature_relpaths(index, "sigs") == ["sigs/owner/a@sha256=real/signature-1"]
+
+
+def test_sigpaths_missing_index_is_noop(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    missing = tmp_path / "index" / "static"
+    monkeypatch.setattr(
+        "sys.argv",
+        ["signing.py", "sigpaths", "--index-path", str(missing), "--sig-dir", "sigs"],
+    )
+
+    assert signing.main() == 0
+    assert capsys.readouterr().out == ""
