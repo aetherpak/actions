@@ -87,10 +87,10 @@ on:
         type: boolean
         default: false
       cli-version:
-        description: "aetherpak CLI release tag to install (e.g. v0.2.1), or 'latest'."
+        description: "aetherpak CLI release tag to install (e.g. v0.3.0), or 'latest'."
         required: false
         type: string
-        default: "v0.2.1"
+        default: "v0.3.0"
     outputs:
       pages-url:
         description: "URL the index and .flatpakrepo are written against."
