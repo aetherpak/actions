@@ -55,11 +55,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
 
-      - name: Install Flatpak & OSTree
+      - name: Install Flatpak, OSTree & Skopeo
         run: |
           sudo add-apt-repository -y ppa:flatpak/development
           sudo apt-get update
-          sudo apt-get install -y flatpak ostree
+          sudo apt-get install -y flatpak ostree skopeo
 
       - name: Start Local OCI Registry
         run: |
@@ -218,11 +218,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
 
-      - name: Install Flatpak & OSTree
+      - name: Install Flatpak, OSTree & Skopeo
         run: |
           sudo add-apt-repository -y ppa:flatpak/development
           sudo apt-get update
-          sudo apt-get install -y flatpak ostree
+          sudo apt-get install -y flatpak ostree skopeo
 
       - name: Start Local OCI Registry
         run: |
@@ -322,10 +322,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
 
-      - name: Install Flatpak & OSTree
+      - name: Install Flatpak, OSTree & Skopeo
         run: |
           sudo apt-get update
-          sudo apt-get install -y flatpak ostree
+          sudo apt-get install -y flatpak ostree skopeo
 
       - name: Create Mock OSTree Repository
         run: |
@@ -376,11 +376,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
 
-      - name: Install Flatpak & OSTree
+      - name: Install Flatpak, OSTree & Skopeo
         run: |
           sudo add-apt-repository -y ppa:flatpak/development
           sudo apt-get update
-          sudo apt-get install -y flatpak ostree
+          sudo apt-get install -y flatpak ostree skopeo
 
       - name: Start Local OCI Registry
         run: |
@@ -441,11 +441,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
 
-      - name: Install Flatpak & OSTree
+      - name: Install Flatpak, OSTree & Skopeo
         run: |
           sudo add-apt-repository -y ppa:flatpak/development
           sudo apt-get update
-          sudo apt-get install -y flatpak ostree
+          sudo apt-get install -y flatpak ostree skopeo
 
       - name: Start Local OCI Registry
         run: |
@@ -516,11 +516,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
 
-      - name: Install Flatpak & OSTree
+      - name: Install Flatpak, OSTree & Skopeo
         run: |
           sudo add-apt-repository -y ppa:flatpak/development
           sudo apt-get update
-          sudo apt-get install -y flatpak ostree
+          sudo apt-get install -y flatpak ostree skopeo
 
       - name: Set up Python
         uses: actions/setup-python@v6
