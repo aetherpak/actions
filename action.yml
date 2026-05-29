@@ -42,6 +42,10 @@ inputs:
     description: "The OSTree repository path."
     required: false
     default: "_repo"
+  builder-args:
+    description: "Extra flatpak-builder flags for manifest builds, one per line (e.g. --install-deps-from=flathub). Ignored for bundle/repo imports."
+    required: false
+    default: ""
 
   registry:
     description: "OCI registry host (e.g. ghcr.io)."
@@ -142,6 +146,7 @@ runs:
         run-linter: ${{ inputs.run-linter }}
         cache: ${{ inputs.cache }}
         repo-path: ${{ inputs.repo-path }}
+        builder-args: ${{ inputs.builder-args }}
 
     - name: Publish OCI to GHCR & Register Index to Pages
       id: publish

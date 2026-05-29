@@ -784,6 +784,9 @@ jobs:
           branch: stable
           repo-path: _repo_smoke
           run-linter: "false"
+          # Mirrors the publish workflows' default; deps already present in the
+          # container, so this exercises the passthrough without a real fetch.
+          builder-args: "--install-deps-from=flathub"
 
       - name: Verify the build produced the app ref
         run: |

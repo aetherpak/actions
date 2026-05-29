@@ -87,6 +87,11 @@ on:
         required: false
         type: string
         default: "v0.3.0"
+      builder-args:
+        description: "Extra flatpak-builder flags applied to every manifest build, one per line. Defaults to installing manifest deps from flathub."
+        required: false
+        type: string
+        default: "--install-deps-from=flathub"
     outputs:
       pages-url:
         value: ${{ jobs.plan.outputs.pages-url }}
@@ -192,6 +197,7 @@ jobs:
           branch:        ${{ matrix.branch }}
           repo-path:     _repo
           run-linter:    ${{ matrix.run-linter }}
+          builder-args:  ${{ inputs.builder-args }}
       - name: Upload OSTree repo
         uses: actions/upload-artifact@v7
         with:
