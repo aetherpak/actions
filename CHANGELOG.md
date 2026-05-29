@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.3.0](https://github.com/aetherpak/actions/compare/v2.2.0...v2.3.0) (2026-05-29)
+
+
+### Features
+
+* **build:** pass builder-args through to flatpak-builder ([3b0fb2f](https://github.com/aetherpak/actions/commit/3b0fb2f54f678399bc592e0d0d84895eaa386dfe))
+* delegate the GitHub Actions to the aetherpak CLI ([cb48456](https://github.com/aetherpak/actions/commit/cb48456c0fbff74b0ee26b7b5e075ab64192dffe))
+* implement E2E integration test harness and client compatibility checks ([3b3690a](https://github.com/aetherpak/actions/commit/3b3690a31df85267c3bcf2a655e74a0302fed70a))
+
+
+### Bug Fixes
+
+* pin aetherpak CLI to v0.3.0 ([a5d9936](https://github.com/aetherpak/actions/commit/a5d9936e63f08e8f040ad5ea5cbf764f8db213bb))
+* pin aetherpak CLI to v0.4.0 ([2754b15](https://github.com/aetherpak/actions/commit/2754b15a19f659d0ec8499bafd626f396176dcf7))
+* pin aetherpak CLI to v0.5.0 ([bac0eb3](https://github.com/aetherpak/actions/commit/bac0eb3f92760dd8abca5524535fe3802310fb75))
+* **publish-oci:** restore ostree repo dirs dropped by artifact upload ([3a3c40f](https://github.com/aetherpak/actions/commit/3a3c40fe6045aca29eedae512f597edf8a4f3f47))
+
 ## [2.2.0](https://github.com/aetherpak/actions/compare/v2.1.4...v2.2.0) (2026-05-28)
 
 
