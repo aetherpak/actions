@@ -1,5 +1,5 @@
 name: "AetherPak Build/Import"
-description: "Compile a Flatpak app from a manifest (via flatpak-builder@v6), or import a pre-built bundle or OSTree repository."
+description: "Compile a Flatpak app from a manifest, or import a pre-built bundle or OSTree repository."
 
 inputs:
   manifest-path:
@@ -38,6 +38,10 @@ inputs:
     description: "Target path to export or store the OSTree repository."
     required: false
     default: "_repo"
+  builder-args:
+    description: "Extra flatpak-builder flags for manifest builds, one per line (e.g. --install-deps-from=flathub). Ignored for bundle/repo imports."
+    required: false
+    default: ""
 
 outputs:
   repo-path:
@@ -114,11 +118,15 @@ runs:
         BRANCH: ${{ steps.channel.outputs.name }}
         REPO: ${{ inputs.repo-path }}
         RUN_LINTER: ${{ inputs.run-linter }}
+        BUILDER_ARGS: ${{ inputs.builder-args }}
       run: |
         set -euo pipefail
         ARGS=(--manifest "$MANIFEST" --arch "$ARCH" --branch "$BRANCH" --repo-path "$REPO")
         [ -n "$APP_ID" ] && ARGS+=(--app "$APP_ID")
         [ "$RUN_LINTER" = "true" ] && ARGS+=(--run-linter)
+        while IFS= read -r arg; do
+          [ -n "$arg" ] && ARGS+=(--builder-arg "$arg")
+        done <<< "$BUILDER_ARGS"
         aetherpak build "${ARGS[@]}"
 
     - name: Import pre-built bundle
