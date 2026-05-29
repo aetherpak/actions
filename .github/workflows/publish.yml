@@ -87,10 +87,10 @@ on:
         type: boolean
         default: false
       cli-version:
-        description: "aetherpak CLI release tag to install (e.g. v0.5.0), or 'latest'."
+        description: "aetherpak CLI release tag to install (e.g. v0.6.0), or 'latest'."
         required: false
         type: string
-        default: "v0.5.0"
+        default: "v0.6.0"
       builder-args:
         description: "Extra flatpak-builder flags for the manifest build, one per line. Defaults to installing manifest deps from flathub."
         required: false
