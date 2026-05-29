@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.1](https://github.com/aetherpak/actions/compare/v2.3.0...v2.3.1) (2026-05-29)
+
+
+### Bug Fixes
+
+* pin aetherpak CLI to v0.6.0 ([eaa781b](https://github.com/aetherpak/actions/commit/eaa781b965da3b5d50320edf3ccfdbe685191863))
+
 ## [2.3.0](https://github.com/aetherpak/actions/compare/v2.2.0...v2.3.0) (2026-05-29)
 
 
