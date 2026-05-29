@@ -73,114 +73,95 @@ runs:
           exit 1
         fi
 
+    - name: Require aetherpak CLI
+      shell: bash
+      run: command -v aetherpak >/dev/null || { echo "::error::aetherpak CLI not on PATH"; exit 1; }
+
     - name: Resolve channel
       id: channel
       shell: bash
       env:
         INPUT_BRANCH: ${{ inputs.branch }}
+        GITHUB_REF_TYPE: ${{ github.ref_type }}
+        GITHUB_REF_NAME: ${{ github.ref_name }}
         DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       run: |
         set -euo pipefail
         if [ -n "$INPUT_BRANCH" ]; then
           name="$INPUT_BRANCH"
         else
-          name="$(bash "${{ github.action_path }}/../shared/resolve-channel.sh")"
+          name="$(aetherpak resolve-channel)"
         fi
-        echo "Resolved channel: ${name}"
         echo "name=${name}" >> "$GITHUB_OUTPUT"
 
-    # Prebuilt imports need flatpak/ostree; manifest builds get them from the container.
-    - name: Ensure Flatpak tooling
-      if: ${{ inputs.manifest-path == '' }}
+    - name: Cache build state
+      if: ${{ inputs.manifest-path != '' && inputs.cache == 'true' }}
+      uses: actions/cache@v4
+      with:
+        path: |
+          .state
+          .ccache
+        key: aetherpak-flatpak-${{ inputs.arch }}-${{ hashFiles(inputs.manifest-path) }}
+        restore-keys: aetherpak-flatpak-${{ inputs.arch }}-
+
+    - name: Build from manifest
+      if: ${{ inputs.manifest-path != '' }}
       shell: bash
+      env:
+        APP_ID: ${{ inputs.app-id }}
+        MANIFEST: ${{ inputs.manifest-path }}
+        ARCH: ${{ inputs.arch }}
+        BRANCH: ${{ steps.channel.outputs.name }}
+        REPO: ${{ inputs.repo-path }}
+        RUN_LINTER: ${{ inputs.run-linter }}
       run: |
         set -euo pipefail
-        MISSING=""
-        command -v flatpak >/dev/null 2>&1 || MISSING="$MISSING flatpak"
-        command -v ostree  >/dev/null 2>&1 || MISSING="$MISSING ostree"
-        if [ -n "$MISSING" ] && command -v apt-get >/dev/null 2>&1; then
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update && sudo apt-get install -y $MISSING
-        fi
+        ARGS=(--manifest "$MANIFEST" --arch "$ARCH" --branch "$BRANCH" --repo-path "$REPO")
+        [ -n "$APP_ID" ] && ARGS+=(--app "$APP_ID")
+        [ "$RUN_LINTER" = "true" ] && ARGS+=(--run-linter)
+        aetherpak build "${ARGS[@]}"
 
-    - name: Build Flatpak App
-      if: ${{ inputs.manifest-path != '' }}
-      uses: flatpak/flatpak-github-actions/flatpak-builder@v6
-      with:
-        manifest-path: ${{ inputs.manifest-path }}
-        arch: ${{ inputs.arch }}
-        branch: ${{ steps.channel.outputs.name }}
-        repo-dir: ${{ inputs.repo-path }}
-        cache: ${{ inputs.cache }}
-        cache-key: aetherpak-flatpak-${{ inputs.arch }}-${{ hashFiles(inputs.manifest-path) }}
-        build-bundle: false
-        mirror-screenshots-url: https://dl.flathub.org/media
-        upload-artifact: false
-
-    - name: Import Pre-built Bundle
+    - name: Import pre-built bundle
       if: ${{ inputs.prebuilt-bundle-path != '' }}
       shell: bash
+      env:
+        BUNDLE: ${{ inputs.prebuilt-bundle-path }}
+        ARCH: ${{ inputs.arch }}
+        BRANCH: ${{ steps.channel.outputs.name }}
+        REPO: ${{ inputs.repo-path }}
       run: |
         set -euo pipefail
-        echo "Importing Flatpak bundle: ${{ inputs.prebuilt-bundle-path }}..."
-        flatpak build-import-bundle "${{ inputs.repo-path }}" "${{ inputs.prebuilt-bundle-path }}"
+        aetherpak import --bundle-path "$BUNDLE" --arch "$ARCH" --branch "$BRANCH" --repo-path "$REPO"
 
-    - name: Copy Pre-built OSTree Repository
+    - name: Copy pre-built OSTree repository
       if: ${{ inputs.prebuilt-repo-path != '' }}
       shell: bash
+      env:
+        SRC: ${{ inputs.prebuilt-repo-path }}
+        DST: ${{ inputs.repo-path }}
       run: |
         set -euo pipefail
-        SRC="${{ inputs.prebuilt-repo-path }}"
-        DST="${{ inputs.repo-path }}"
         if [ "$SRC" != "$DST" ]; then
-          echo "Copying OSTree repo from $SRC to $DST..."
           mkdir -p "$DST"
-          # Use hardlinks copy (-l) to save space and time
           cp -al "$SRC"/. "$DST"/
         fi
 
-    - name: Resolve App Info from Repository
+    - name: Resolve app info
       id: resolve
       shell: bash
+      env:
+        REPO: ${{ inputs.repo-path }}
       run: |
         set -euo pipefail
-        REPO="${{ inputs.repo-path }}"
+        aetherpak inspect-repo --repo-path "$REPO" --output-file "$GITHUB_OUTPUT"
 
-        REF="$(ostree refs --repo="${REPO}" | grep "^app/" | head -n 1 || true)"
-
-        if [ -n "$REF" ]; then
-          echo "Found ref in repository: $REF"
-          # Parse ref structure: app/app-id/arch/branch
-          IFS='/' read -r reftype app_id arch branch <<< "$REF"
-        else
-          echo "::warning::No application ref (app/*) found in repository. Falling back to inputs."
-          app_id="${{ inputs.app-id }}"
-          branch="${{ steps.channel.outputs.name }}"
-          arch="${{ inputs.arch }}"
-        fi
-
-        if [ -z "$app_id" ]; then
-          echo "::error::Could not resolve Application ID (app-id). Please provide it or ensure the repository/manifest contains it."
-          exit 1
-        fi
-
-        echo "Resolved App ID: ${app_id}"
-        echo "Resolved Branch: ${branch}"
-        echo "Resolved Arch: ${arch}"
-
-        echo "repo-path=${REPO}" >> "$GITHUB_OUTPUT"
-        echo "app-id=${app_id}" >> "$GITHUB_OUTPUT"
-        echo "branch=${branch}" >> "$GITHUB_OUTPUT"
-        echo "arch=${arch}" >> "$GITHUB_OUTPUT"
-
-    - name: Run Flatpak Linter
-      if: ${{ inputs.run-linter == 'true' }}
+    # Manifest builds lint via `aetherpak build --run-linter`; other sources have
+    # no manifest, so lint the resulting repo here when requested.
+    - name: Lint imported repository
+      if: ${{ inputs.run-linter == 'true' && inputs.manifest-path == '' }}
       shell: bash
+      env:
+        REPO: ${{ inputs.repo-path }}
       run: |
         set -euo pipefail
-        if [ -n "${{ inputs.manifest-path }}" ]; then
-          echo "Linting manifest..."
-          flatpak-builder-lint manifest "${{ inputs.manifest-path }}"
-        fi
-        echo "Linting repository..."
-        flatpak-builder-lint repo "${{ inputs.repo-path }}"
+        flatpak-builder-lint repo "$REPO"

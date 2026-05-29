@@ -225,7 +225,10 @@ need the listing to catch up.
 
 ## Standalone actions
 
-The pipeline is also available as composite actions for custom workflows:
+The pipeline is also available as composite actions for custom workflows. These
+delegate to the [`aetherpak` CLI](https://github.com/aetherpak/cli), so a custom
+workflow must put it on `PATH` first with `aetherpak/setup-cli` (the reusable
+workflows above do this for you):
 
 - `aetherpak/actions`: the root composite that chains `build` then `publish` in a
   single step. Best for prebuilt inputs (a `.flatpak` bundle or OSTree repo) on a
@@ -243,6 +246,7 @@ The reusable workflow pushes blobs to GHCR. To target another registry, call
 `insecure-registry: true` for a local or HTTP registry):
 
 ```yaml
+- uses: aetherpak/setup-cli@v1   # installs the aetherpak CLI on PATH
 - uses: aetherpak/actions/publish@v2
   with:
     repo-path: _repo            # or bundle-path: app.flatpak

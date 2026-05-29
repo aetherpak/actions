@@ -86,6 +86,11 @@ on:
         required: false
         type: boolean
         default: false
+      cli-version:
+        description: "aetherpak CLI release tag to install (e.g. v0.2.1), or 'latest'."
+        required: false
+        type: string
+        default: "v0.2.1"
     outputs:
       pages-url:
         description: "URL the index and .flatpakrepo are written against."
@@ -159,6 +164,10 @@ jobs:
           repository: aetherpak/actions
           ref: ${{ needs.prep.outputs.actions-ref }}
           path: .github/actions/aetherpak
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: ${{ inputs.cli-version }}
       - name: Build Flatpak from manifest
         uses: ./.github/actions/aetherpak/build
         with:
@@ -196,6 +205,10 @@ jobs:
           repository: aetherpak/actions
           ref: ${{ needs.prep.outputs.actions-ref }}
           path: .github/actions/aetherpak
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: ${{ inputs.cli-version }}
       - name: Download OSTree repository
         uses: actions/download-artifact@v8
         with:
@@ -245,6 +258,10 @@ jobs:
           repository: aetherpak/actions
           ref: ${{ needs.prep.outputs.actions-ref }}
           path: .github/actions/aetherpak
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: ${{ inputs.cli-version }}
       - name: Download records
         if: ${{ !inputs.reconcile-only }}
         # merge-multiple lands all cells under one `_records/` regardless of how
@@ -260,7 +277,6 @@ jobs:
         with:
           records-dir: _records
           pages-url: ${{ needs.prep.outputs.pages-url }}
-          registry: ${{ inputs.registry }}
           remote-name: ${{ inputs.remote-name }}
           landing-page: ${{ inputs.landing-page }}
           signing: ${{ inputs.signing }}

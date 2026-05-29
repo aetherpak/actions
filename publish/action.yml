@@ -19,9 +19,7 @@ inputs:
   signing: { required: false, default: "auto" }
   gpg-private-key: { required: false, default: "" }
   gpg-private-key-passphrase: { required: false, default: "" }
-  sig-dir: { required: false, default: "sigs" }
   runtime-repo: { required: false, default: "https://dl.flathub.org/repo/flathub.flatpakrepo" }
-  refs-dir: { required: false, default: "refs" }
   remote-name: { required: false, default: "" }
 
 outputs:
@@ -63,15 +61,12 @@ runs:
         records-dir: _records
         pages-url: ${{ inputs.pages-url }}
         site-dir: ${{ inputs.site-dir }}
-        registry: ${{ inputs.registry }}
         insecure-registry: ${{ inputs.insecure-registry }}
         remote-name: ${{ inputs.remote-name }}
         landing-page: ${{ inputs.landing-page }}
-        refs-dir: ${{ inputs.refs-dir }}
         runtime-repo: ${{ inputs.runtime-repo }}
         signing: ${{ inputs.signing }}
         gpg-private-key: ${{ inputs.gpg-private-key }}
         gpg-private-key-passphrase: ${{ inputs.gpg-private-key-passphrase }}
-        sig-dir: ${{ inputs.sig-dir }}
         upload-pages-artifact: ${{ inputs.upload-pages-artifact }}
         pages-artifact-name: ${{ inputs.pages-artifact-name }}

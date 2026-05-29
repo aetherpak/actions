@@ -4,62 +4,54 @@ Notes for agents and developers working in this repo. For how the system works,
 see [ARCHITECTURE.md](ARCHITECTURE.md); for the dev workflow, see
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Layout
+Every action is a thin wrapper over the [`aetherpak` CLI](https://github.com/aetherpak/cli):
+it validates inputs, invokes one `aetherpak` command, and surfaces its outputs.
+The CLI owns all the real logic (build, import, OCI push, signing, index merge,
+reconcile, `.flatpakref`/`.flatpakrepo` generation, channel resolution). It must
+be on `PATH`; the reusable workflows install it with `aetherpak/setup-cli`.
 
 - `action.yml`: root composite action; chains `build` then `publish`. Suited to
   prebuilt inputs on a standard runner.
-- `build/action.yml`: builds a manifest via
-  `flatpak/flatpak-github-actions/flatpak-builder@v6` (inside the flathub
-  container), or imports a `.flatpak` bundle or OSTree repo. Resolves
-  `app-id`/`arch`/`branch` from the built repo.
+- `build/action.yml`: resolves the channel (`aetherpak resolve-channel`), then by
+  source: a manifest builds via `aetherpak build` (inside the flathub container),
+  a `.flatpak` bundle imports via `aetherpak import`, an OSTree repo is copied;
+  coordinates are resolved with `aetherpak inspect-repo`.
 - `publish/action.yml`: thin one-shot wrapper around `publish-oci` then
   `publish-site` (one cell, one site, in one job). Suited to single-cell
   consumers with their own runner.
-- `publish-oci/action.yml`: parallel-safe push half — OSTree -> OCI image, sign,
-  push, inspect, emit a per-cell record under `<records-dir>/<app-id>-<arch>/`.
-- `publish-site/action.yml`: single-instance aggregator — reads a records tree,
-  seeds `index/static` from the deployed Pages copy, merges every cell,
-  reconciles, writes `<remote>.flatpakrepo`, per-app `.flatpakref` files,
-  signing metadata, and the landing page; backfills signatures.
-- `publish/records.py`: tiny library shared between publish-oci (writer) and
-  publish-site (reader); defines the `Record` shape and the `<records-dir>/
-  <app-id>-<arch>/{record.json,labels.json,sigs/...}` layout.
-- `prep-bundle/action.yml`: fetch a `.flatpak` URL, verify SHA-256, import into
-  an OSTree repo, and rebind the imported `app/<id>/<arch>/<bundle_branch>` ref
-  to the consumer-declared `branch` (via `flatpak build-commit-from`, which
-  rewrites the commit's `xa.ref` binding — a bare ref rename would leave
-  flatpak install warning about a deployed-ref mismatch).
-- `plan/action.yml` + `plan/plan.py`: expand `aetherpak.yaml` into a build matrix,
-  narrowed by `git diff` since `BASE_SHA`. Consumed by `publish-multi.yml`.
+- `publish-oci/action.yml`: parallel-safe push half. A thin signing-mode gate
+  decides whether to pass a key, then `aetherpak push-oci` exports OSTree -> OCI,
+  signs, pushes, and writes a per-cell record under `<records-dir>/<app-id>-<arch>/`.
+- `publish-site/action.yml`: single-instance aggregator. `aetherpak build-site`
+  seeds `index/static` from the deployed Pages copy, merges every cell record,
+  reconciles against the registry, writes `<remote>.flatpakrepo`, per-app
+  `.flatpakref` files, `sigs/signing.json`, and the landing page, and backfills
+  signatures. The record contract is `<records-dir>/<app-id>-<arch>/{record.json,labels.json,sigs/...}`.
+- `prep-bundle/action.yml`: `aetherpak import` fetches a `.flatpak` URL, verifies
+  SHA-256, imports it, and rebinds the `app/<id>/<arch>/<bundle_branch>` ref to
+  the consumer-declared `branch` (rewriting the commit's `xa.ref` binding, so
+  flatpak does not warn about a deployed-ref mismatch).
+- `plan/action.yml`: `aetherpak plan` expands `aetherpak.yaml` into a build
+  matrix, narrowed by `git diff` since `base-sha`. Consumed by `publish-multi.yml`.
+- `.github/workflows/publish.yml`: single-app reusable `workflow_call` workflow
+  (prep, build matrix in the container, then one serialized publish+deploy job).
+  Each job installs the CLI via `aetherpak/setup-cli`. The `cli-version` input
+  pins the CLI release.
 - `.github/workflows/publish-multi.yml`: multi-app reusable workflow. Calls
   `plan` once, runs `build-manifest` / `prep-bundle` matrix jobs in parallel
-  (both producing a uniform `repo-<app-id>-<arch>` artifact), then
-  `publish-oci` (parallel push) feeding `publish-site` (single,
-  concurrency-locked) and one Pages deploy.
-- `publish/merge_index.py`: merges one image into `index/static` (one entry per
-  ref+arch), carrying the full `org.flatpak.*` label set.
-- `publish/reconcile.py`: drops index entries whose image is gone from the
-  registry (definitive not-found only; transient/auth errors keep the entry).
-- `publish/signing.py`: GPG signing helpers — registries.d YAML, `signing.json`,
-  and the signature lookaside paths used to backfill prior runs' signatures.
-- `publish/gen_flatpakrefs.py`: generates one one-click `.flatpakref` per
-  installable `(app, channel)`, carrying the GPG key + lookaside when signed.
-- `shared/resolve-channel.sh`: maps the git ref to the default channel (tag ->
-  stable, default branch -> beta, else ref name). Shared by `build` and `publish`
-  via `${{ github.action_path }}/../shared/resolve-channel.sh` (the whole repo is
-  checked out for either action).
-- `publish/index.html`: static landing page; reads `index/static` at runtime.
-- `.github/workflows/publish.yml`: reusable `workflow_call` workflow (prep, build
-  matrix in the container, then one serialized publish+deploy job). Single-app;
-  host many apps via one path-filtered caller workflow each.
+  (both producing a uniform `repo-<app-id>-<arch>` artifact), then `publish-oci`
+  (parallel push) feeding `publish-site` (single, concurrency-locked) and one
+  Pages deploy. The plan's matrix arrays are wrapped via `matrix.include`.
 - `.github/workflows/site.yml`: deploys this project's own marketing landing page
-  (`docs/site/`) to Pages on push to `main` — unrelated to a published app's
-  generated `index.html`.
-- `docs/specs/`: contains architectural design and RFC specifications. Specifications are named with a CalVer sequence prefix format `YYYY-MM-NN` (e.g., `2026-05-01-integration-test-harness.md`) and are treated as living documents that must reflect the implementation status quo.
-- `.github/workflows/test.yml`: CI (unit tests, pre-commit incl. ty, mock build/
-  publish/reconcile integration, and signing auto-activation + gate tests).
-- `tests/`: pytest unit and integration tests. Unit tests reside in `tests/test_*.py` (excluding `test_harness.py`), with shared fixtures in `tests/conftest.py`.
-- `tests/test_harness.py`: end-to-end integration test harness verifying OCI/index format compatibility with the real `flatpak` client.
+  (`docs/site/`) to Pages on push to `main`, unrelated to a published app's index.
+- `.github/workflows/test.yml`: CI. A `lint` job (pre-commit: actionlint + file
+  checks) plus end-to-end jobs that install the released CLI and drive the
+  actions against a local OCI registry: build/publish integration, reconcile,
+  signing auto-activation, the `gpg`-without-key gate, bundle source, multi-cell
+  split, and per-action glue (source validation, plan matrix, prep-bundle,
+  signing off + remote-name sanitization).
+- `docs/specs/`: architectural design and RFC specifications, named with a CalVer
+  sequence prefix `YYYY-MM-NN`. Living documents that should reflect the status quo.
 
 ## Invariants
 
@@ -70,9 +62,9 @@ Keep these intact when changing the code:
 2. `build`/`publish` resolve `app-id`/`arch`/`branch` from the repo's OSTree ref;
    inputs are only a fallback. With no `branch` input, the channel defaults to
    `stable` on tag pushes, `beta` on the default branch, otherwise the git ref
-   name (see `shared/resolve-channel.sh`).
+   name (via `aetherpak resolve-channel`).
 3. Never overwrite `index/static` directly; always merge through
-   `merge_index.py`, so matrix runs (arch/branch/app) accumulate.
+   `aetherpak build-site`, so matrix runs (arch/branch/app) accumulate.
 4. Index entries carry the full `org.flatpak.*` label set (commit, metadata,
    sizes), not only `org.flatpak.ref`. Flatpak needs them to install.
 5. The index `Registry` is a plain URL (`https://ghcr.io`), never `oci+https://`.
@@ -80,20 +72,21 @@ Keep these intact when changing the code:
 7. In the reusable workflow, publish and deploy stay in one `concurrency`-locked
    job. The index is a read-modify-write seeded from the deployed copy, so
    splitting deploy out or dropping the lock reopens the cross-run merge race.
-8. `publish-oci` and `publish-site` share their record shape via
-   `publish/records.py`. Any field added to a record is added once, used in both
-   places, and covered by a `tests/test_records.py` case.
+8. `publish-oci` and `publish-site` share the record contract
+   `<records-dir>/<app-id>-<arch>/{record.json,labels.json,sigs/...}`, owned by
+   the CLI. The actions only pass `--records-dir`; they never read or write the
+   record shape themselves.
 9. `aetherpak.yaml`'s `branch` field is load-bearing for both source kinds:
    manifest entries build at it; bundle entries are rebound to it by
-   `prep-bundle`. plan.py's default of `'stable'` is the consumer-facing
+   `prep-bundle`. The CLI's default of `'stable'` is the consumer-facing
    fallback when `branch` is omitted.
 
 ## Testing
 
-- `make test`: unit tests.
-- `make lint`: pre-commit via `uvx` — ruff lint+format, ty type check
-  (`uv run ty check`), and the YAML/whitespace file checks.
-- `make check`: both (unit tests and linting).
-- `make integration-test`: runs the E2E client-format compatibility integration tests (`tests/test_harness.py`).
+- `make lint`: pre-commit (actionlint + YAML/whitespace file checks).
+- End-to-end coverage runs in `.github/workflows/test.yml`, which installs the
+  released CLI via `aetherpak/setup-cli` and exercises the actions against a
+  local OCI registry. The CLI's own logic is unit- and integration-tested in the
+  `aetherpak/cli` repo.
 
 End-to-end coverage and the CI jobs are described in CONTRIBUTING.md.

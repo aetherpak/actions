@@ -1,5 +1,13 @@
 # Integration Test Harness Specification for AetherPak Actions
 
+> **Superseded.** This spec describes the Python (`pytest`/`test_harness.py`)
+> harness from when the actions bundled their own implementation. The actions are
+> now thin wrappers over the `aetherpak` CLI: the deep client-format verification
+> (a real `flatpak install` + GPG tamper check) now lives in the `aetherpak/cli`
+> integration tests, and action-level coverage runs in
+> `.github/workflows/test.yml` against a local OCI registry. Kept for historical
+> context; it no longer reflects the implementation.
+
 This document specifies the design and implementation of the local and CI-compatible end-to-end (E2E) integration test harness for aetherpak/actions.
 
 The goal of this harness is to verify the entire pipeline—from manifest building or bundle importing, through registry pushing and static site indexing, up to a real `flatpak` client installation and verification—without polluting the developer's system or external servers.
