@@ -28,7 +28,7 @@ from collections.abc import Generator
 import pytest
 
 # Skip all tests in this module if required command line tools are missing
-_REQUIRED_BINARIES = ["ostree", "flatpak", "skopeo"]
+_REQUIRED_BINARIES = ["ostree", "flatpak", "skopeo", "gpg"]
 _MISSING_BINARIES = [b for b in _REQUIRED_BINARIES if not shutil.which(b)]
 _HAS_CONTAINER = bool(shutil.which("podman") or shutil.which("docker"))
 
@@ -147,17 +147,24 @@ def registry_server(container_manager: str) -> Generator[int, None, None]:
 
 
 @pytest.fixture
-def test_dir() -> Generator[pathlib.Path, None, None]:
-    """Provide a clean workspace directory."""
-    if TMP_ROOT.exists():
-        shutil.rmtree(TMP_ROOT)
-    TMP_ROOT.mkdir(parents=True, exist_ok=True)
-    yield TMP_ROOT
-    if TMP_ROOT.exists():
+def test_dir(request) -> Generator[pathlib.Path, None, None]:
+    """Provide a clean, isolated workspace directory for this test."""
+    test_name = request.node.name
+    worker_id = getattr(request.config, "workerinput", {}).get("worker", "master")
+    path = TMP_ROOT / f"{test_name}_{worker_id}"
+
+    if path.exists():
         try:
-            shutil.rmtree(TMP_ROOT)
+            shutil.rmtree(path)
         except PermissionError:
-            # Sometime flatpak leaves locks or mounts, ignore on cleanup
+            pass
+    path.mkdir(parents=True, exist_ok=True)
+    yield path
+    if path.exists():
+        try:
+            shutil.rmtree(path)
+        except PermissionError:
+            # Sometimes flatpak leaves locks or mounts, ignore on cleanup
             pass
 
 

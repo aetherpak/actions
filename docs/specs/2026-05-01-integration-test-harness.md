@@ -193,6 +193,6 @@ The test harness is implemented in:
 The integration suite is run via:
 ```makefile
 integration-test: ## Run the end-to-end flatpak client integration tests
-	uv run --python 3.14 pytest tests/test_harness.py -v
+	uv run --python 3.14 pytest -m integration
 ```
 This target is executed in the GHA CI workflow [.github/workflows/test.yml](../../.github/workflows/test.yml) after setting up Flatpak and OSTree on the runner.
