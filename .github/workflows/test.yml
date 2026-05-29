@@ -433,6 +433,8 @@ jobs:
               --branch=app/org.flatpak.${app}/x86_64/stable \
               -m "mock ${app} commit" tests/${app}_contents
           done
+          # Drop the empty dirs an artifact round-trip loses, exercising publish-oci's heal.
+          rm -rf tests/AppA_repo/refs/mirrors tests/AppA_repo/refs/remotes
 
       - name: Push AppA via publish-oci
         uses: ./publish-oci
