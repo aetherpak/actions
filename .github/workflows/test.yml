@@ -7,44 +7,12 @@ on:
     branches: [ main ]
 
 jobs:
-  unit-tests:
-    name: Run Python Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v6
-
-      # Match the publish action, which pins Python 3.14 via setup-python, so
-      # the suite runs on the same interpreter the scripts use in production.
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.14"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: Run Tests
-        env:
-          UV_PYTHON_DOWNLOADS: never
-        run: uv run --python "$(command -v python3)" pytest -m "not integration"
-
   lint:
     name: Lint (pre-commit)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.10'
-
-      # The ty pre-commit hook runs `uv run ty check`, so uv must be on PATH.
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
-
       - name: Run pre-commit
         uses: pre-commit/action@v3.0.1
 
@@ -55,16 +23,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
 
-      - name: Install Flatpak, OSTree & Skopeo
-        run: |
-          sudo add-apt-repository -y ppa:flatpak/development
-          sudo apt-get update
-          sudo apt-get install -y flatpak ostree skopeo
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.2.1
 
       - name: Start Local OCI Registry
         run: |
           docker run -d -p 5001:5000 --name registry registry:2
-          # Wait for registry to start
           for _ in {1..10}; do
             curl -s http://localhost:5001/v2/ && break
             sleep 1
@@ -168,10 +134,16 @@ jobs:
 
           echo "All checks passed! Integration test successful!"
 
-          # Regression: the default (no-key) path is byte-for-byte today's behavior
-          # — no signature dir, and the action reports the off path.
-          if [ -d "_site/sigs" ]; then
-            echo "Error: unsigned publish unexpectedly produced _site/sigs"; exit 1
+          # Unsigned default: signing.json marks signing disabled, with no
+          # exported key or signatures, and the action reports the off path.
+          if [ "$(jq -r '.enabled' _site/sigs/signing.json)" != "false" ]; then
+            echo "Error: unsigned signing.json should report enabled=false"; exit 1
+          fi
+          if [ -f "_site/sigs/key.asc" ]; then
+            echo "Error: unsigned publish unexpectedly exported a public key"; exit 1
+          fi
+          if find _site/sigs -type f -name 'signature-*' | grep -q .; then
+            echo "Error: unsigned publish unexpectedly produced signatures"; exit 1
           fi
           if [ "${{ steps.publish_step.outputs.signing-path }}" != "off" ]; then
             echo "Error: unsigned publish should report signing-path=off"; exit 1
@@ -180,36 +152,25 @@ jobs:
       - name: Reconcile drops missing entries, keeps present
         run: |
           set -euo pipefail
-          # MockApp was pushed to the mock registry, so its digest probes present.
-          # Add a ghost entry whose digest does not exist; reconcile must drop it.
-          python3 - <<'PY'
-          import json
-          p = "_site/index/static"
-          idx = json.load(open(p))
-          idx["Results"].append({
-              "Name": "aetherpak/ghost",
-              "Images": [{
-                  "Digest": "sha256:" + "0" * 64,
-                  "Architecture": "amd64",
-                  "Labels": {"org.flatpak.ref": "app/org.flatpak.Ghost/x86_64/stable"},
-                  "Tags": ["stable"],
-              }],
-          })
-          json.dump(idx, open(p, "w"), indent=2)
-          PY
+          # Inject a ghost whose image is absent from the registry, serve the
+          # index over the pages URL, then rebuild: reconcile must drop the
+          # ghost and keep the real app.
+          ghost="sha256:$(printf '0%.0s' $(seq 64))"
+          jq --arg d "$ghost" '.Results += [{"Name":"aetherpak/ghost","Images":[{"Digest":$d,"Architecture":"amd64","Labels":{"org.flatpak.ref":"app/org.flatpak.Ghost/x86_64/stable"},"Tags":["stable"]}]}]' \
+            _site/index/static > _site/index/static.new
+          mv _site/index/static.new _site/index/static
 
-          python3 publish/reconcile.py \
-            --index-path _site/index/static \
-            --registry "https://localhost:5001" --insecure
+          python3 -m http.server 9999 --directory _site & srv=$!
+          sleep 1
+          aetherpak build-site --records-dir _records --site-dir _site_rec \
+            --pages-url http://localhost:9999 --insecure --reconcile \
+            --remote-name aetherpak-test
+          kill "$srv" || true
 
-          python3 - <<'PY'
-          import json
-          idx = json.load(open("_site/index/static"))
-          names = [r["Name"] for r in idx["Results"]]
-          assert "aetherpak/ghost" not in names, f"ghost should be reconciled away: {names}"
-          assert "aetherpak/mock-app" in names, f"mock-app should remain: {names}"
-          print("reconcile integration ok")
-          PY
+          names="$(jq -r '.Results[].Name' _site_rec/index/static)"
+          echo "$names" | grep -qx 'aetherpak/mock-app' || { echo "mock-app should remain: $names"; exit 1; }
+          if echo "$names" | grep -qx 'aetherpak/ghost'; then echo "ghost should be reconciled away: $names"; exit 1; fi
+          echo "reconcile integration ok"
 
   signing-integration-test:
     name: Mock Signing Integration Test (auto activation)
@@ -218,11 +179,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
 
-      - name: Install Flatpak, OSTree & Skopeo
-        run: |
-          sudo add-apt-repository -y ppa:flatpak/development
-          sudo apt-get update
-          sudo apt-get install -y flatpak ostree skopeo
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.2.1
 
       - name: Start Local OCI Registry
         run: |
@@ -281,6 +241,11 @@ jobs:
           # NOTE: no `signing:` here — default is `auto`, so the key alone enables it.
           gpg-private-key: ${{ env.AEP_GPG_KEY }}
 
+      # setup-cli installs flatpak/ostree/gpg but not skopeo, which this job
+      # uses to verify the detached signature.
+      - name: Install skopeo
+        run: sudo apt-get update && sudo apt-get install -y skopeo
+
       - name: Verify auto-activation, signature, key, and metadata
         run: |
           set -euo pipefail
@@ -308,8 +273,10 @@ jobs:
           gpg --dearmor < _site/sigs/key.asc > /tmp/keyasc.gpg
           cmp -s /tmp/embedded.gpg /tmp/keyasc.gpg || { echo "embedded GPGKey != key.asc"; exit 1; }
 
-          # The signed subject is the pushed manifest; verify against the key.asc.
-          skopeo inspect --raw --tls-verify=false "docker://$REF" > manifest.json
+          # Verify the signed image manifest, addressed by digest: the tag
+          # resolves to the OCI index, whose digest differs from the signed one.
+          skopeo inspect --raw --tls-verify=false \
+            "docker://localhost:5001/aetherpak/mock-app@$DIGEST" > manifest.json
           skopeo standalone-verify manifest.json "$REF" any "$SIG" \
             --public-key-file _site/sigs/key.asc
 
@@ -322,10 +289,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
 
-      - name: Install Flatpak, OSTree & Skopeo
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y flatpak ostree skopeo
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.2.1
 
       - name: Create Mock OSTree Repository
         run: |
@@ -376,11 +343,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
 
-      - name: Install Flatpak, OSTree & Skopeo
-        run: |
-          sudo add-apt-repository -y ppa:flatpak/development
-          sudo apt-get update
-          sudo apt-get install -y flatpak ostree skopeo
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.2.1
 
       - name: Start Local OCI Registry
         run: |
@@ -441,11 +407,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v6
 
-      - name: Install Flatpak, OSTree & Skopeo
-        run: |
-          sudo add-apt-repository -y ppa:flatpak/development
-          sudo apt-get update
-          sudo apt-get install -y flatpak ostree skopeo
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.2.1
 
       - name: Start Local OCI Registry
         run: |
@@ -494,7 +459,6 @@ jobs:
         with:
           records-dir: _records
           pages-url: http://localhost:9999
-          registry: localhost:5001
           insecure-registry: "true"
           remote-name: aetherpak-split-test
           upload-pages-artifact: "false"
@@ -509,26 +473,262 @@ jobs:
             || { echo "refs mismatch: $REFS"; exit 1; }
           ls _site/refs/org.flatpak.AppA-stable.flatpakref _site/refs/org.flatpak.AppB-stable.flatpakref
 
-  integration-tests:
-    name: Run E2E Integration Tests (Pytest)
+  build-glue-test:
+    name: Build action glue (validation + bundle source)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
 
-      - name: Install Flatpak, OSTree & Skopeo
-        run: |
-          sudo add-apt-repository -y ppa:flatpak/development
-          sudo apt-get update
-          sudo apt-get install -y flatpak ostree skopeo
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
         with:
-          python-version: "3.14"
+          version: v0.2.1
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+      - name: No source must fail
+        id: nosrc
+        continue-on-error: true
+        uses: ./build
+        with:
+          repo-path: _r_nosrc
+          run-linter: "false"
 
-      - name: Run E2E Integration Tests
-        run: make integration-test
+      - name: Conflicting sources must fail
+        id: twosrc
+        continue-on-error: true
+        uses: ./build
+        with:
+          manifest-path: apps/m.json
+          prebuilt-repo-path: tests/mock_repo
+          repo-path: _r_two
+          run-linter: "false"
+
+      - name: Assert source validation rejected both
+        run: |
+          set -euo pipefail
+          [ "${{ steps.nosrc.outcome }}" = "failure" ] || { echo "no-source should fail"; exit 1; }
+          [ "${{ steps.twosrc.outcome }}" = "failure" ] || { echo "two-source should fail"; exit 1; }
+
+      - name: Build a mock bundle on branch beta
+        run: |
+          set -euo pipefail
+          ostree init --mode=archive --repo=bsrc
+          mkdir -p bcontents
+          cat > bcontents/metadata <<EOF
+          [Application]
+          name=org.flatpak.BundleApp
+          runtime=org.freedesktop.Platform/x86_64/23.08
+          sdk=org.freedesktop.Sdk/x86_64/23.08
+          EOF
+          ostree commit --repo=bsrc --branch=app/org.flatpak.BundleApp/x86_64/beta -m c bcontents
+          flatpak build-bundle bsrc app.flatpak org.flatpak.BundleApp beta
+
+      - name: Build from prebuilt bundle (rebind to stable)
+        id: b
+        uses: ./build
+        with:
+          prebuilt-bundle-path: app.flatpak
+          branch: stable
+          arch: x86_64
+          repo-path: _r_bundle
+          run-linter: "false"
+
+      - name: Assert bundle-source resolved outputs and rebind
+        run: |
+          set -euo pipefail
+          test "${{ steps.b.outputs.app-id }}" = "org.flatpak.BundleApp" || { echo "app-id: ${{ steps.b.outputs.app-id }}"; exit 1; }
+          test "${{ steps.b.outputs.arch }}" = "x86_64" || { echo "arch: ${{ steps.b.outputs.arch }}"; exit 1; }
+          test "${{ steps.b.outputs.branch }}" = "stable" || { echo "branch (rebind beta->stable): ${{ steps.b.outputs.branch }}"; exit 1; }
+
+  plan-glue-test:
+    name: Plan action glue (force selection + matrix shape)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.2.1
+          install-dependencies: "false"
+
+      - name: Write a mock aetherpak.yaml (manifest + bundle apps)
+        run: |
+          set -euo pipefail
+          mkdir -p apps
+          echo '{}' > apps/manifest.json
+          cat > aetherpak.yaml <<'EOF'
+          registry: ghcr.io
+          apps:
+            - id: org.example.ManifestApp
+              manifest: apps/manifest.json
+              runtime: gnome-50
+              arches: [x86_64]
+            - id: org.example.BundleApp
+              branch: stable
+              bundles:
+                x86_64:
+                  url: https://example.com/a.flatpak
+                  sha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          EOF
+
+      - name: Plan force=all
+        id: all
+        uses: ./plan
+        with:
+          config: aetherpak.yaml
+          force: all
+
+      - name: Assert all apps expand with correct source split
+        run: |
+          set -euo pipefail
+          test "${{ steps.all.outputs.count }}" = "2" || { echo "count: ${{ steps.all.outputs.count }}"; exit 1; }
+          test "${{ steps.all.outputs.count-manifest }}" = "1" || { echo "count-manifest: ${{ steps.all.outputs.count-manifest }}"; exit 1; }
+          test "${{ steps.all.outputs.count-bundle }}" = "1" || { echo "count-bundle: ${{ steps.all.outputs.count-bundle }}"; exit 1; }
+          echo '${{ steps.all.outputs.matrix }}' | jq -e 'length == 2' >/dev/null || { echo "matrix length != 2"; exit 1; }
+
+      - name: Plan force=single app
+        id: one
+        uses: ./plan
+        with:
+          config: aetherpak.yaml
+          force: org.example.BundleApp
+
+      - name: Assert only the named app is selected
+        run: |
+          set -euo pipefail
+          test "${{ steps.one.outputs.count }}" = "1" || { echo "count: ${{ steps.one.outputs.count }}"; exit 1; }
+          test "${{ steps.one.outputs.count-bundle }}" = "1" || { echo "count-bundle: ${{ steps.one.outputs.count-bundle }}"; exit 1; }
+          test "${{ steps.one.outputs.count-manifest }}" = "0" || { echo "count-manifest should be 0: ${{ steps.one.outputs.count-manifest }}"; exit 1; }
+
+  prep-bundle-glue-test:
+    name: Prep-bundle action glue (fetch + verify + rebind)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.2.1
+
+      - name: Build and serve a bundle on branch beta
+        run: |
+          set -euo pipefail
+          ostree init --mode=archive --repo=psrc
+          mkdir -p pcontents
+          cat > pcontents/metadata <<EOF
+          [Application]
+          name=org.flatpak.PrepApp
+          runtime=org.freedesktop.Platform/x86_64/23.08
+          sdk=org.freedesktop.Sdk/x86_64/23.08
+          EOF
+          ostree commit --repo=psrc --branch=app/org.flatpak.PrepApp/x86_64/beta -m c pcontents
+          mkdir -p srv
+          flatpak build-bundle psrc srv/app.flatpak org.flatpak.PrepApp beta
+          sha="$(sha256sum srv/app.flatpak | cut -d' ' -f1)"
+          echo "BUNDLE_SHA=$sha" >> "$GITHUB_ENV"
+          python3 -m http.server 9998 --directory srv & echo "HTTP_PID=$!" >> "$GITHUB_ENV"
+          sleep 1
+
+      - name: Prep bundle (rebind beta -> stable)
+        uses: ./prep-bundle
+        with:
+          url: http://localhost:9998/app.flatpak
+          sha256: ${{ env.BUNDLE_SHA }}
+          branch: stable
+          repo-path: _repo_prep
+
+      - name: Verify the imported ref was rebound to stable
+        run: |
+          set -euo pipefail
+          ref="$(ostree refs --repo=_repo_prep | grep '^app/' | head -1)"
+          test "$ref" = "app/org.flatpak.PrepApp/x86_64/stable" || { echo "ref: $ref"; exit 1; }
+
+      - name: Stop bundle server
+        if: always()
+        run: kill "${HTTP_PID:-}" 2>/dev/null || true
+
+  signing-off-and-sanitize-test:
+    name: Signing off + remote-name sanitization
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.2.1
+
+      - name: Start Local OCI Registry
+        run: |
+          docker run -d -p 5001:5000 --name registry registry:2
+          for _ in {1..10}; do curl -s http://localhost:5001/v2/ && break; sleep 1; done
+
+      - name: Create Mock OSTree Repository
+        run: |
+          mkdir -p tests/mock_repo
+          ostree init --mode=archive --repo=tests/mock_repo
+          mkdir -p tests/mock_contents
+          cat > tests/mock_contents/metadata <<EOF
+          [Application]
+          name=org.flatpak.MockApp
+          runtime=org.freedesktop.Platform/x86_64/23.08
+          sdk=org.freedesktop.Sdk/x86_64/23.08
+          EOF
+          ostree commit --repo=tests/mock_repo --branch=app/org.flatpak.MockApp/x86_64/stable -m "mock app commit" tests/mock_contents
+
+      - name: Generate ephemeral signing key
+        run: |
+          set -euo pipefail
+          GNUPGHOME="$(mktemp -d)"; export GNUPGHOME
+          cat > "$GNUPGHOME/params" <<EOF
+          %no-protection
+          Key-Type: RSA
+          Key-Length: 2048
+          Name-Real: AetherPak CI
+          Name-Email: ci@aetherpak.local
+          Expire-Date: 0
+          %commit
+          EOF
+          gpg --batch --gen-key "$GNUPGHOME/params"
+          { echo "AEP_GPG_KEY<<EOF"; gpg --armor --export-secret-keys; echo "EOF"; } >> "$GITHUB_ENV"
+
+      - name: Run Build Action
+        id: build_step
+        uses: ./build
+        with:
+          prebuilt-repo-path: tests/mock_repo
+          repo-path: _repo_test
+          run-linter: "false"
+
+      - name: Publish with signing=off despite a key, and a messy remote-name
+        uses: ./publish
+        with:
+          repo-path: ${{ steps.build_step.outputs.repo-path }}
+          registry: "localhost:5001"
+          insecure-registry: "true"
+          oci-repository: "aetherpak/mock-app"
+          remote-name: "My Org/Repo"
+          pages-url: "http://localhost:9999"
+          registry-token: ""
+          upload-pages-artifact: "false"
+          signing: "off"
+          gpg-private-key: ${{ env.AEP_GPG_KEY }}
+
+      - name: Assert off path and sanitized remote-name
+        run: |
+          set -euo pipefail
+          # signing=off must win even when a key is present: signing disabled,
+          # no exported key, no signatures.
+          if [ "$(jq -r '.enabled' _site/sigs/signing.json)" != "false" ]; then
+            echo "signing=off must report enabled=false"; exit 1
+          fi
+          if [ -f _site/sigs/key.asc ]; then echo "signing=off must not export a key"; exit 1; fi
+          if find _site/sigs -type f -name 'signature-*' | grep -q .; then echo "signing=off must not produce signatures"; exit 1; fi
+          # "My Org/Repo" sanitizes to my-org-repo for the remote/.flatpakrepo name.
+          test -f _site/my-org-repo.flatpakrepo || { echo "sanitized .flatpakrepo missing: $(ls _site/*.flatpakrepo 2>/dev/null)"; exit 1; }
+          if grep -q '^GPGKey=' _site/my-org-repo.flatpakrepo; then echo "off .flatpakrepo must not embed GPGKey"; exit 1; fi

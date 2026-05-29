@@ -1,30 +1,21 @@
 .DEFAULT_GOAL := help
 
-.PHONY: setup test lint check clean help
+.PHONY: setup lint clean help
 
 ##@ Bootstrap
 
 setup: ## Install the pre-commit git hook
 	uvx pre-commit install
 
-##@ Build & Quality
+##@ Quality
 
-test: ## Run the unit tests (pytest on Python 3.14 via uv)
-	uv run --python 3.14 pytest -m "not integration"
-
-integration-test: ## Run the end-to-end integration tests (pytest on Python 3.14 via uv)
-	uv run --python 3.14 pytest -m integration
-
-lint: ## Run all pre-commit checks (ruff, yaml, formatting)
+lint: ## Run all pre-commit checks (actionlint, yaml, formatting)
 	uvx pre-commit run --all-files
-
-check: test lint ## Run tests and lint (mirrors CI)
 
 clean: ## Remove generated build, repo, and site artifacts
 	rm -rf .flatpak-builder _build _repo _oci-image _site \
 	  _repo_test _repo_test_oci _site_test \
-	  tests/mock_repo tests/mock_contents tests/tmp_integration
-	find . -type d -name __pycache__ -exec rm -rf {} +
+	  tests/mock_repo tests/mock_contents
 
 ##@ Utilities
 

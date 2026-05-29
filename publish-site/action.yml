@@ -13,10 +13,6 @@ inputs:
     description: "Output directory for the website files."
     required: false
     default: "_site"
-  registry:
-    description: "Registry host (must match what publish-oci pushed to)."
-    required: false
-    default: "ghcr.io"
   insecure-registry:
     description: "Pass --insecure to reconcile (use only for local test registries)."
     required: false
@@ -29,14 +25,18 @@ inputs:
     description: "Write the static landing page (index.html)."
     required: false
     default: "true"
-  refs-dir:
-    description: "Site-relative directory for the generated per-app .flatpakref files."
-    required: false
-    default: "refs"
   runtime-repo:
     description: "RuntimeRepo URL written into each .flatpakref."
     required: false
     default: "https://dl.flathub.org/repo/flathub.flatpakrepo"
+  repo-title:
+    description: "Title for the .flatpakrepo. Empty defers to aetherpak.yaml's repo_title, then the CLI default."
+    required: false
+    default: ""
+  repo-homepage:
+    description: "Homepage for the .flatpakrepo. Empty defers to aetherpak.yaml's repo_homepage, then the pages URL."
+    required: false
+    default: ""
   signing:
     description: "Signing mode: auto (export key iff present), gpg (require), off."
     required: false
@@ -49,10 +49,6 @@ inputs:
     description: "Passphrase, if protected."
     required: false
     default: ""
-  sig-dir:
-    description: "Site-relative directory for signatures, the public key, and signing.json."
-    required: false
-    default: "sigs"
   upload-pages-artifact:
     description: "Whether to upload the generated files as a GitHub Pages artifact."
     required: false
@@ -65,238 +61,78 @@ inputs:
 outputs:
   signing-path:
     description: "'gpg' when keys were exported, else 'off'."
-    value: ${{ steps.signing.outputs.sign == 'true' && 'gpg' || 'off' }}
+    value: ${{ steps.target.outputs.sign == 'true' && 'gpg' || 'off' }}
   public-key-url:
     description: "Public URL of the exported public key, or empty."
-    value: ${{ steps.signmeta.outputs.public-key-url }}
+    value: ${{ steps.target.outputs.public-key-url }}
   signature-lookaside-url:
     description: "Public URL of the signature lookaside directory, or empty."
-    value: ${{ steps.signmeta.outputs.signature-lookaside-url }}
+    value: ${{ steps.target.outputs.signature-lookaside-url }}
 
 runs:
   using: "composite"
   steps:
-    - name: Set up Python
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.14"
+    - name: Require aetherpak CLI
+      shell: bash
+      run: command -v aetherpak >/dev/null || { echo "::error::aetherpak CLI not on PATH"; exit 1; }
 
-    - name: Resolve target
+    - name: Resolve target and signing gate
       id: target
       shell: bash
       env:
         INPUT_REMOTE_NAME: ${{ inputs.remote-name }}
+        MODE: ${{ inputs.signing }}
+        KEY: ${{ inputs.gpg-private-key }}
+        PAGES_URL: ${{ inputs.pages-url }}
       run: |
         set -euo pipefail
-        REPO="$(echo "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
-        echo "repo=${REPO}" >> "$GITHUB_OUTPUT"
-        RNAME="${INPUT_REMOTE_NAME}"
-        [ -n "$RNAME" ] || RNAME="${GITHUB_REPOSITORY}"
+        RNAME="${INPUT_REMOTE_NAME:-$GITHUB_REPOSITORY}"
         RNAME="$(printf '%s' "$RNAME" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_-]#-#g')"
         echo "remote-name=$RNAME" >> "$GITHUB_OUTPUT"
-
-    - name: Prepare signing (public key only)
-      id: signing
-      shell: bash
-      env:
-        GPG_PRIVATE_KEY: ${{ inputs.gpg-private-key }}
-        SIGNING_MODE: ${{ inputs.signing }}
-        SITE_DIR: ${{ inputs.site-dir }}
-        SIG_DIR: ${{ inputs.sig-dir }}
-      run: |
-        set -euo pipefail
-        MODE="${SIGNING_MODE}"
-        SIGN="false"
         case "$MODE" in
-          off) SIGN="false" ;;
-          gpg) [ -n "$GPG_PRIVATE_KEY" ] || { echo "::error::signing=gpg requires gpg-private-key"; exit 1; }; SIGN="true" ;;
-          auto) [ -n "$GPG_PRIVATE_KEY" ] && SIGN="true" || SIGN="false" ;;
+          off) SIGN=false ;;
+          gpg) [ -n "$KEY" ] || { echo "::error::signing=gpg requires gpg-private-key"; exit 1; }; SIGN=true ;;
+          auto) [ -n "$KEY" ] && SIGN=true || SIGN=false ;;
           *) echo "::error::signing must be auto|gpg|off"; exit 1 ;;
         esac
         echo "sign=$SIGN" >> "$GITHUB_OUTPUT"
-        [ "$SIGN" = "true" ] || { echo "Signing disabled."; exit 0; }
-
-        SITE="${SITE_DIR}"
-        GNUPGHOME="$(mktemp -d)"; chmod 700 "$GNUPGHOME"; export GNUPGHOME
-        printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import 2>&1 | sed 's/^/gpg: /'
-        FPR="$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/{print $10; exit}')"
-        [ -n "$FPR" ] || { echo "::error::no secret key after import"; exit 1; }
-        mkdir -p "$SITE/${SIG_DIR}"
-        gpg --armor --export "$FPR" > "$SITE/${SIG_DIR}/key.asc"
-        echo "fingerprint=$FPR" >> "$GITHUB_OUTPUT"
-        echo "gnupghome=$GNUPGHOME" >> "$GITHUB_OUTPUT"
-
-    - name: Seed index from deployed site
-      shell: bash
-      env:
-        SITE_DIR: ${{ inputs.site-dir }}
-        PAGES_URL: ${{ inputs.pages-url }}
-      run: |
-        set -euo pipefail
-        mkdir -p "${SITE_DIR}/index"
-        PAGES="${PAGES_URL}"; PAGES="${PAGES%/}"
-        if [ -n "$PAGES" ] && [ ! -f "${SITE_DIR}/index/static" ]; then
-          if curl -sfL "$PAGES/index/static" -o "${SITE_DIR}/index/static"; then
-            echo "Seeded index from $PAGES/index/static"
-          else
-            echo "No deployed index at $PAGES/index/static — starting fresh."
-          fi
+        # build-site writes signatures under a fixed "sigs/" directory.
+        if [ "$SIGN" = "true" ]; then
+          PAGES="${PAGES_URL%/}"
+          echo "public-key-url=${PAGES}/sigs/key.asc" >> "$GITHUB_OUTPUT"
+          echo "signature-lookaside-url=${PAGES}/sigs" >> "$GITHUB_OUTPUT"
         fi
 
-    - name: Merge records into index and copy per-cell signatures
+    - name: Build site
       shell: bash
       env:
         RECORDS_DIR: ${{ inputs.records-dir }}
-        SITE_DIR: ${{ inputs.site-dir }}
-        SIG_DIR: ${{ inputs.sig-dir }}
-        ACTION_PATH: ${{ github.action_path }}
-      run: |
-        set -euo pipefail
-        python3 - <<'PY'
-        import os, pathlib, shutil, subprocess, sys
-        sys.path.insert(0, os.path.join(os.environ["ACTION_PATH"], ".."))
-        from publish.records import iter_records
-        records_dir = pathlib.Path(os.environ["RECORDS_DIR"])
-        site_dir   = pathlib.Path(os.environ["SITE_DIR"])
-        sig_dir    = os.environ["SIG_DIR"]
-        index_path = site_dir / "index" / "static"
-        merge = os.path.join(os.environ["ACTION_PATH"], "..", "publish", "merge_index.py")
-        n = 0
-        for rec, _ in iter_records(records_dir):
-            labels_file = rec.cell_dir(records_dir) / "labels.json"
-            subprocess.run([
-                "python3", merge,
-                "--index-path", str(index_path),
-                "--registry",   rec.registry,
-                "--name",       rec.name,
-                "--digest",     rec.digest,
-                "--ref",        rec.ref,
-                "--labels-file", str(labels_file),
-                "--tag",        rec.tag,
-                "--arch",       rec.arch,
-            ], check=True)
-            cell_sigs = records_dir / f"{rec.app_id}-{rec.arch}" / "sigs"
-            if cell_sigs.is_dir():
-                site_sigs = site_dir / sig_dir
-                site_sigs.mkdir(parents=True, exist_ok=True)
-                # Each cell's sig path is content-addressed by digest, so direct
-                # cp is collision-free across cells.
-                for src in cell_sigs.rglob("*"):
-                    if src.is_file():
-                        dst = site_sigs / src.relative_to(cell_sigs)
-                        dst.parent.mkdir(parents=True, exist_ok=True)
-                        shutil.copy2(src, dst)
-            n += 1
-        print(f"merged {n} record(s)")
-        PY
-
-    - name: Reconcile index against registry
-      shell: bash
-      env:
-        INSECURE_REGISTRY: ${{ inputs.insecure-registry }}
-        SITE_DIR: ${{ inputs.site-dir }}
-        REGISTRY: ${{ inputs.registry }}
-      run: |
-        set -euo pipefail
-        EXTRA=""
-        SCHEME="https"
-        if [ "${INSECURE_REGISTRY}" = "true" ]; then
-          EXTRA="--insecure"
-          SCHEME="http"
-        fi
-        python3 "${{ github.action_path }}/../publish/reconcile.py" \
-          --index-path "${SITE_DIR}/index/static" \
-          --registry "${SCHEME}://${REGISTRY}" $EXTRA
-
-    - name: Write signing metadata
-      id: signmeta
-      if: ${{ steps.signing.outputs.sign == 'true' }}
-      shell: bash
-      env:
-        SITE_DIR: ${{ inputs.site-dir }}
-        SIG_DIR: ${{ inputs.sig-dir }}
-        FINGERPRINT: ${{ steps.signing.outputs.fingerprint }}
-        TARGET_REMOTE_NAME: ${{ steps.target.outputs.remote-name }}
         PAGES_URL: ${{ inputs.pages-url }}
-      run: |
-        set -euo pipefail
-        SITE="${SITE_DIR}"
-        python3 "${{ github.action_path }}/../publish/signing.py" manifest \
-          --out "$SITE/${SIG_DIR}/signing.json" \
-          --sig-dir "${SIG_DIR}" \
-          --fingerprint "${FINGERPRINT}" \
-          --remote-name "${TARGET_REMOTE_NAME}"
-        PAGES="${PAGES_URL}"; PAGES="${PAGES%/}"
-        echo "public-key-url=${PAGES}/${SIG_DIR}/key.asc" >> "$GITHUB_OUTPUT"
-        echo "signature-lookaside-url=${PAGES}/${SIG_DIR}" >> "$GITHUB_OUTPUT"
-
-    - name: Write .flatpakrepo, landing page, .flatpakref
-      shell: bash
-      env:
         SITE_DIR: ${{ inputs.site-dir }}
-        PAGES_URL: ${{ inputs.pages-url }}
-        TARGET_REMOTE_NAME: ${{ steps.target.outputs.remote-name }}
-        TARGET_REPO: ${{ steps.target.outputs.repo }}
-        SIGN: ${{ steps.signing.outputs.sign }}
-        GNUPGHOME_DIR: ${{ steps.signing.outputs.gnupghome }}
-        FINGERPRINT: ${{ steps.signing.outputs.fingerprint }}
-        LANDING_PAGE: ${{ inputs.landing-page }}
-        SIG_DIR: ${{ inputs.sig-dir }}
-        REFS_DIR: ${{ inputs.refs-dir }}
+        INSECURE: ${{ inputs.insecure-registry }}
+        REMOTE_NAME: ${{ steps.target.outputs.remote-name }}
+        REPO_TITLE: ${{ inputs.repo-title }}
+        REPO_HOMEPAGE: ${{ inputs.repo-homepage }}
         RUNTIME_REPO: ${{ inputs.runtime-repo }}
+        LANDING: ${{ inputs.landing-page }}
+        SIGN: ${{ steps.target.outputs.sign }}
+        GPG_KEY: ${{ inputs.gpg-private-key }}
       run: |
         set -euo pipefail
-        SITE="${SITE_DIR}"
-        PAGES="${PAGES_URL}"; PAGES="${PAGES%/}"
-        REMOTE="${TARGET_REMOTE_NAME}"
-        REPO_FILE="$SITE/$REMOTE.flatpakrepo"
-        cat > "$REPO_FILE" <<EOF
-        [Flatpak Repo]
-        Title=AetherPak (${TARGET_REPO})
-        Url=oci+${PAGES}
-        Homepage=${PAGES}
-        Comment=Flatpak repository powered by AetherPak (Pages index + OCI registry blobs)
-        EOF
-        if [ "${SIGN}" = "true" ]; then
-          export GNUPGHOME="${GNUPGHOME_DIR}"
-          printf 'GPGKey=%s\n' "$(gpg --export "${FINGERPRINT}" | base64 -w0)" >> "$REPO_FILE"
+        ARGS=(--records-dir "$RECORDS_DIR" --pages-url "$PAGES_URL" --site-dir "$SITE_DIR"
+          --remote-name "$REMOTE_NAME" --runtime-repo "$RUNTIME_REPO" --reconcile)
+        [ -n "$REPO_TITLE" ] && ARGS+=(--repo-title "$REPO_TITLE")
+        [ -n "$REPO_HOMEPAGE" ] && ARGS+=(--repo-homepage "$REPO_HOMEPAGE")
+        [ "$INSECURE" = "true" ] && ARGS+=(--insecure)
+        [ "$LANDING" = "true" ] && ARGS+=(--landing-page)
+        if [ "$SIGN" = "true" ]; then
+          keyfile="$(mktemp)"
+          chmod 600 "$keyfile"
+          trap 'rm -f "$keyfile"' EXIT
+          printf '%s' "$GPG_KEY" > "$keyfile"
+          ARGS+=(--gpg-key "$keyfile")
         fi
-        if [ "${LANDING_PAGE}" = "true" ]; then
-          sed "s/__AETHERPAK_REMOTE_NAME__/$REMOTE/g" \
-            "${{ github.action_path }}/../publish/index.html" > "$SITE/index.html"
-        fi
-        EXTRA=()
-        if [ "${SIGN}" = "true" ]; then
-          export GNUPGHOME="${GNUPGHOME_DIR}"
-          KEY_B64_FILE="$(mktemp)"; trap 'rm -f "$KEY_B64_FILE"' EXIT
-          gpg --export "${FINGERPRINT}" | base64 -w0 > "$KEY_B64_FILE"
-          EXTRA+=(--gpg-key-base64-file "$KEY_B64_FILE" --signature-lookaside "$PAGES/${SIG_DIR}")
-        fi
-        python3 "${{ github.action_path }}/../publish/gen_flatpakrefs.py" \
-          --index-path "$SITE/index/static" \
-          --out-dir "$SITE/${REFS_DIR}" \
-          --url "oci+$PAGES" \
-          --remote-name "$REMOTE" \
-          --runtime-repo "${RUNTIME_REPO}" \
-          "${EXTRA[@]}"
-
-    - name: Backfill signatures from deployed site
-      if: ${{ steps.signing.outputs.sign == 'true' }}
-      shell: bash
-      env:
-        SITE_DIR: ${{ inputs.site-dir }}
-        SIG_DIR: ${{ inputs.sig-dir }}
-        PAGES_URL: ${{ inputs.pages-url }}
-      run: |
-        set -euo pipefail
-        SITE="${SITE_DIR}"
-        PAGES="${PAGES_URL}"; PAGES="${PAGES%/}"
-        [ -n "$PAGES" ] || exit 0
-        python3 "${{ github.action_path }}/../publish/signing.py" backfill \
-          --index-path "$SITE/index/static" \
-          --sig-dir "${SIG_DIR}" \
-          --site-dir "$SITE" \
-          --pages-url "$PAGES"
+        aetherpak build-site "${ARGS[@]}"
 
     - name: Upload Pages artifact
       if: ${{ inputs.upload-pages-artifact == 'true' }}
@@ -304,11 +140,3 @@ runs:
       with:
         path: ${{ inputs.site-dir }}
         name: ${{ inputs.pages-artifact-name }}
-
-    - name: Cleanup temporary files
-      if: always()
-      shell: bash
-      run: |
-        if [ -n "${{ steps.signing.outputs.gnupghome }}" ] && [ -d "${{ steps.signing.outputs.gnupghome }}" ]; then
-          rm -rf "${{ steps.signing.outputs.gnupghome }}"
-        fi

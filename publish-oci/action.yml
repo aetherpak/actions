@@ -58,7 +58,7 @@ inputs:
 outputs:
   cell-dir:
     description: "Path to this cell's record subdir (<records-dir>/<app-id>-<arch>)."
-    value: ${{ steps.record.outputs.cell-dir }}
+    value: ${{ steps.push.outputs.cell-dir }}
   signing-path:
     description: "'gpg' when signed, else 'off'."
     value: ${{ steps.signing.outputs.sign == 'true' && 'gpg' || 'off' }}
@@ -66,274 +66,96 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Set up Python
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.14"
-
-    - name: Ensure tooling
+    - name: Require aetherpak CLI
       shell: bash
-      run: |
-        set -euo pipefail
-        MISSING=""
-        command -v flatpak >/dev/null 2>&1 || MISSING="$MISSING flatpak"
-        command -v ostree  >/dev/null 2>&1 || MISSING="$MISSING ostree"
-        if [ -n "$MISSING" ] && command -v apt-get >/dev/null 2>&1; then
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update && sudo apt-get install -y $MISSING
-        fi
+      run: command -v aetherpak >/dev/null || { echo "::error::aetherpak CLI not on PATH"; exit 1; }
 
-    - name: Import bundle and resolve app info
-      id: vars
-      shell: bash
-      env:
-        DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-        REPO_PATH: ${{ inputs.repo-path }}
-        BUNDLE_PATH: ${{ inputs.bundle-path }}
-        INPUT_APP_ID: ${{ inputs.app-id }}
-        INPUT_ARCH: ${{ inputs.arch }}
-        INPUT_BRANCH: ${{ inputs.branch }}
-      run: |
-        set -euo pipefail
-        default_channel="$(bash "${{ github.action_path }}/../shared/resolve-channel.sh")"
-
-        src_app_id=""; src_arch=""; src_branch=""; SRC_REF=""; SCRATCH=""
-        if [ -n "${BUNDLE_PATH}" ]; then
-          SCRATCH="$(mktemp -d)"
-          trap 'rm -rf "$SCRATCH"' EXIT
-          ostree --repo="$SCRATCH" init --mode=archive-z2
-          echo "Importing bundle ${BUNDLE_PATH} into scratch repo..."
-          flatpak build-import-bundle "$SCRATCH" "${BUNDLE_PATH}"
-          SRC_REF="$(ostree refs --repo="$SCRATCH" | grep '^app/' | head -n 1 || true)"
-          [ -n "$SRC_REF" ] || { echo "::error::No app/* ref found in bundle"; exit 1; }
-          IFS='/' read -r _ src_app_id src_arch src_branch <<< "$SRC_REF"
-        else
-          mkdir -p "${REPO_PATH}/refs/heads" "${REPO_PATH}/refs/mirrors" "${REPO_PATH}/refs/remotes"
-          REF="$(ostree refs --repo="${REPO_PATH}" | grep '^app/' | head -n 1 || true)"
-          if [ -n "$REF" ]; then
-            IFS='/' read -r _ src_app_id src_arch src_branch <<< "$REF"
-          fi
-        fi
-
-        app_id="${INPUT_APP_ID}"; [ -n "$app_id" ] || app_id="$src_app_id"
-        arch="${INPUT_ARCH}";     [ -n "$arch" ]   || arch="$src_arch"
-        branch="${INPUT_BRANCH}"; [ -n "$branch" ] || branch="${src_branch:-$default_channel}"
-        [ -n "$app_id" ] || { echo "::error::Could not resolve app-id"; exit 1; }
-        [ -n "$arch" ]   || { echo "::error::Could not resolve arch"; exit 1; }
-
-        # build-commit-from rewrites the commit's xa.ref binding to the
-        # published branch (idempotent when src and target already agree).
-        if [ -n "${BUNDLE_PATH}" ]; then
-          mkdir -p "${REPO_PATH}"
-          if [ ! -f "${REPO_PATH}/config" ]; then
-            ostree --repo="${REPO_PATH}" init --mode=archive-z2
-          fi
-          if [ "$src_branch" != "$branch" ]; then
-            echo "::notice::Rebinding bundle branch '$src_branch' -> '$branch'"
-          fi
-          flatpak build-commit-from \
-            --src-repo="$SCRATCH" \
-            --src-ref="$SRC_REF" \
-            --update-appstream \
-            --no-update-summary \
-            "${REPO_PATH}" "app/$app_id/$arch/$branch"
-        fi
-
-        echo "app-id=$app_id" >> "$GITHUB_OUTPUT"
-        echo "arch=$arch" >> "$GITHUB_OUTPUT"
-        echo "branch=$branch" >> "$GITHUB_OUTPUT"
-
-    - name: Export app from OSTree repo to OCI image
-      shell: bash
-      env:
-        VARS_ARCH: ${{ steps.vars.outputs.arch }}
-        REPO_PATH: ${{ inputs.repo-path }}
-        VARS_APP_ID: ${{ steps.vars.outputs.app-id }}
-        VARS_BRANCH: ${{ steps.vars.outputs.branch }}
-      run: |
-        set -euo pipefail
-        rm -rf _oci-image
-        flatpak build-bundle --oci --arch="${VARS_ARCH}" \
-          "${REPO_PATH}" _oci-image \
-          "${VARS_APP_ID}" "${VARS_BRANCH}"
-
-    - name: Resolve target and authenticate
-      id: target
-      shell: bash
-      env:
-        OCI_REPOSITORY: ${{ inputs.oci-repository }}
-        REGISTRY: ${{ inputs.registry }}
-        REGISTRY_TOKEN: ${{ inputs.registry-token }}
-      run: |
-        set -euo pipefail
-        REPO="${OCI_REPOSITORY}"
-        [ -n "${REPO}" ] || REPO="${GITHUB_REPOSITORY}"
-        REPO="$(echo "${REPO}" | tr '[:upper:]' '[:lower:]')"
-        echo "repo=${REPO}" >> "$GITHUB_OUTPUT"
-        echo "image=${REGISTRY}/${REPO}" >> "$GITHUB_OUTPUT"
-        if [ -n "${REGISTRY_TOKEN}" ]; then
-          echo "${REGISTRY_TOKEN}" | skopeo login "${REGISTRY}" \
-            --username "${{ github.actor }}" --password-stdin
-        fi
-
-    - name: Prepare signing
+    - name: Signing gate
       id: signing
       shell: bash
       env:
-        GPG_PRIVATE_KEY: ${{ inputs.gpg-private-key }}
-        SIGNING_MODE: ${{ inputs.signing }}
-        RECORDS_DIR: ${{ inputs.records-dir }}
-        VARS_APP_ID: ${{ steps.vars.outputs.app-id }}
-        VARS_ARCH: ${{ steps.vars.outputs.arch }}
-        REGISTRY: ${{ inputs.registry }}
+        MODE: ${{ inputs.signing }}
+        KEY: ${{ inputs.gpg-private-key }}
       run: |
         set -euo pipefail
-        MODE="${SIGNING_MODE}"
-        SIGN="false"
         case "$MODE" in
-          off) SIGN="false" ;;
-          gpg)
-            [ -n "$GPG_PRIVATE_KEY" ] || { echo "::error::signing=gpg but gpg-private-key is empty"; exit 1; }
-            SIGN="true" ;;
-          auto)
-            [ -n "$GPG_PRIVATE_KEY" ] && SIGN="true" || SIGN="false" ;;
-          *) echo "::error::signing must be auto|gpg|off, got '$MODE'"; exit 1 ;;
+          off) SIGN=false ;;
+          gpg) [ -n "$KEY" ] || { echo "::error::signing=gpg but gpg-private-key is empty"; exit 1; }; SIGN=true ;;
+          auto) [ -n "$KEY" ] && SIGN=true || SIGN=false ;;
+          *) echo "::error::signing must be auto|gpg|off"; exit 1 ;;
         esac
         echo "sign=$SIGN" >> "$GITHUB_OUTPUT"
-        [ "$SIGN" = "true" ] || { echo "Signing disabled."; exit 0; }
 
-        GNUPGHOME="$(mktemp -d)"; chmod 700 "$GNUPGHOME"; export GNUPGHOME
-        printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import 2>&1 | sed 's/^/gpg: /'
-        FPR="$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/{print $10; exit}')"
-        [ -n "$FPR" ] || { echo "::error::no secret key after import"; exit 1; }
-        echo "allow-loopback-pinentry" > "$GNUPGHOME/gpg-agent.conf"
-        echo "pinentry-mode loopback"  > "$GNUPGHOME/gpg.conf"
-        gpgconf --kill gpg-agent >/dev/null 2>&1 || true
-
-        # Stage sigs inside the cell dir so publish-site picks them up
-        # when it walks records.
-        CELL="${RECORDS_DIR}/${VARS_APP_ID}-${VARS_ARCH}"
-        mkdir -p "$CELL/sigs"
-        CELL_SIGS_ABS="$(cd "$CELL/sigs" && pwd)"
-
-        REGD="$(mktemp -d)"
-        python3 "${{ github.action_path }}/../publish/signing.py" registries-d \
-          --registry "${REGISTRY}" --lookaside "$CELL_SIGS_ABS" \
-          > "$REGD/aetherpak.yaml"
-
-        echo "fingerprint=$FPR" >> "$GITHUB_OUTPUT"
-        echo "gnupghome=$GNUPGHOME" >> "$GITHUB_OUTPUT"
-        echo "registries-d=$REGD" >> "$GITHUB_OUTPUT"
-
-    - name: Push OCI image to registry
+    - name: Import bundle
+      if: ${{ inputs.bundle-path != '' }}
       shell: bash
       env:
-        GPG_PASSPHRASE: ${{ inputs.gpg-private-key-passphrase }}
-        INSECURE_REGISTRY: ${{ inputs.insecure-registry }}
-        SIGN: ${{ steps.signing.outputs.sign }}
-        GNUPGHOME_DIR: ${{ steps.signing.outputs.gnupghome }}
-        REGISTRIES_D: ${{ steps.signing.outputs.registries-d }}
-        FINGERPRINT: ${{ steps.signing.outputs.fingerprint }}
-        VARS_APP_ID: ${{ steps.vars.outputs.app-id }}
-        VARS_BRANCH: ${{ steps.vars.outputs.branch }}
-        VARS_ARCH: ${{ steps.vars.outputs.arch }}
-        TARGET_IMAGE: ${{ steps.target.outputs.image }}
+        BUNDLE: ${{ inputs.bundle-path }}
+        REPO: ${{ inputs.repo-path }}
+        BRANCH: ${{ inputs.branch }}
+        ARCH: ${{ inputs.arch }}
       run: |
         set -euo pipefail
-        TLS_FLAGS=""
-        [ "${INSECURE_REGISTRY}" = "true" ] && TLS_FLAGS="--src-tls-verify=false --dest-tls-verify=false"
-        REGD_FLAG=""; SIGN_FLAGS=""
-        if [ "${SIGN}" = "true" ]; then
-          export GNUPGHOME="${GNUPGHOME_DIR}"
-          REGD_FLAG="--registries.d ${REGISTRIES_D}"
-          SIGN_FLAGS="--sign-by ${FINGERPRINT}"
-          if [ -n "$GPG_PASSPHRASE" ]; then
-            PASSFILE="$(mktemp)"; trap 'rm -f "$PASSFILE"' EXIT
-            printf '%s' "$GPG_PASSPHRASE" > "$PASSFILE"
-            SIGN_FLAGS="$SIGN_FLAGS --sign-passphrase-file $PASSFILE"
-          fi
+        ARGS=(--bundle-path "$BUNDLE" --repo-path "$REPO")
+        [ -n "$BRANCH" ] && ARGS+=(--branch "$BRANCH")
+        [ -n "$ARCH" ] && ARGS+=(--arch "$ARCH")
+        aetherpak import "${ARGS[@]}"
+
+    - name: Resolve coordinates
+      id: vars
+      shell: bash
+      env:
+        REPO: ${{ inputs.repo-path }}
+        IN_APP: ${{ inputs.app-id }}
+        IN_ARCH: ${{ inputs.arch }}
+        IN_BRANCH: ${{ inputs.branch }}
+      run: |
+        set -euo pipefail
+        APP="$IN_APP"; ARCH="$IN_ARCH"; BRANCH="$IN_BRANCH"
+        if [ -z "$APP" ] || [ -z "$ARCH" ] || [ -z "$BRANCH" ]; then
+          tmp="$(mktemp)"
+          aetherpak inspect-repo --repo-path "$REPO" --output-file "$tmp"
+          [ -n "$APP" ] || APP="$(sed -n 's/^app-id=//p' "$tmp")"
+          [ -n "$ARCH" ] || ARCH="$(sed -n 's/^arch=//p' "$tmp")"
+          [ -n "$BRANCH" ] || BRANCH="$(sed -n 's/^branch=//p' "$tmp")"
         fi
-        # flatpak strips the tag with a regex that disallows dots
-        # ([0-9A-Za-z_-] only), so an app-id like com.example.App leaves
-        # the embedded sig identity tagged and verification fails. Encode
-        # dots as underscores; canonical app-id stays in org.flatpak.ref.
-        TAG="${VARS_APP_ID//./_}-${VARS_BRANCH}-${VARS_ARCH}"
-        skopeo $REGD_FLAG copy $TLS_FLAGS $SIGN_FLAGS --all \
-          oci:_oci-image \
-          "docker://${TARGET_IMAGE}:$TAG"
+        {
+          echo "app-id=$APP"
+          echo "arch=$ARCH"
+          echo "branch=$BRANCH"
+        } >> "$GITHUB_OUTPUT"
 
-    - name: Inspect pushed image
-      id: inspect
+    - name: Push OCI image
+      id: push
       shell: bash
       env:
-        INSECURE_REGISTRY: ${{ inputs.insecure-registry }}
-        VARS_APP_ID: ${{ steps.vars.outputs.app-id }}
-        VARS_BRANCH: ${{ steps.vars.outputs.branch }}
-        VARS_ARCH: ${{ steps.vars.outputs.arch }}
-        TARGET_IMAGE: ${{ steps.target.outputs.image }}
-      run: |
-        set -euo pipefail
-        TLS_FLAGS=""; [ "${INSECURE_REGISTRY}" = "true" ] && TLS_FLAGS="--tls-verify=false"
-        TAG="${VARS_APP_ID//./_}-${VARS_BRANCH}-${VARS_ARCH}"
-        OUT="$(skopeo inspect $TLS_FLAGS docker://${TARGET_IMAGE}:$TAG)"
-        DIGEST="$(echo "$OUT" | jq -r '.Digest')"
-        LABELS_FILE="${RUNNER_TEMP}/aetherpak-oci-labels.json"
-        echo "$OUT" | jq '.Labels // {}' > "$LABELS_FILE"
-        REFLABEL="$(jq -r '.["org.flatpak.ref"] // empty' "$LABELS_FILE")"
-        [ -n "$DIGEST" ] && [ "$DIGEST" != "null" ] || { echo "::error::no digest"; exit 1; }
-        [ -n "$REFLABEL" ] || { echo "::error::org.flatpak.ref label missing"; exit 1; }
-        echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
-        echo "reflabel=$REFLABEL" >> "$GITHUB_OUTPUT"
-        echo "labels-file=$LABELS_FILE" >> "$GITHUB_OUTPUT"
-        echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-
-    - name: Write per-cell record
-      id: record
-      shell: bash
-      env:
-        REGISTRY: ${{ inputs.registry }}
-        NAME: ${{ steps.target.outputs.repo }}
-        APP_ID: ${{ steps.vars.outputs.app-id }}
+        APP: ${{ steps.vars.outputs.app-id }}
         ARCH: ${{ steps.vars.outputs.arch }}
         BRANCH: ${{ steps.vars.outputs.branch }}
-        DIGEST: ${{ steps.inspect.outputs.digest }}
-        REFLABEL: ${{ steps.inspect.outputs.reflabel }}
-        TAG: ${{ steps.inspect.outputs.tag }}
-        LABELS_FILE: ${{ steps.inspect.outputs.labels-file }}
+        REGISTRY: ${{ inputs.registry }}
+        OCI_REPOSITORY: ${{ inputs.oci-repository }}
+        REPO: ${{ inputs.repo-path }}
         RECORDS_DIR: ${{ inputs.records-dir }}
-        INSECURE_REGISTRY: ${{ inputs.insecure-registry }}
+        INSECURE: ${{ inputs.insecure-registry }}
+        SIGN: ${{ steps.signing.outputs.sign }}
+        GPG_KEY: ${{ inputs.gpg-private-key }}
+        OCI_USERNAME: ${{ github.actor }}
+        OCI_PASSWORD: ${{ inputs.registry-token }}
+        AETHERPAK_GPG_PASSPHRASE: ${{ inputs.gpg-private-key-passphrase }}
       run: |
         set -euo pipefail
-        python3 - <<'PY'
-        import json, os, pathlib, sys
-        sys.path.insert(0, os.path.join(os.environ["GITHUB_ACTION_PATH"], ".."))
-        from publish.records import Record, write_record
-        labels = json.loads(pathlib.Path(os.environ["LABELS_FILE"]).read_text())
-        scheme = "http" if os.environ.get("INSECURE_REGISTRY") == "true" else "https"
-        rec = Record(
-            app_id=os.environ["APP_ID"],
-            arch=os.environ["ARCH"],
-            branch=os.environ["BRANCH"],
-            name=os.environ["NAME"],
-            registry=f"{scheme}://{os.environ['REGISTRY']}",
-            digest=os.environ["DIGEST"],
-            ref=os.environ["REFLABEL"],
-            tag=os.environ["TAG"],
-        )
-        cell = write_record(pathlib.Path(os.environ["RECORDS_DIR"]), rec, labels=labels)
-        with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
-            fh.write(f"cell-dir={cell}\n")
-        print(f"wrote {cell}")
-        PY
-
-    - name: Cleanup temporary files
-      if: always()
-      shell: bash
-      run: |
-        rm -rf _oci-image
-        if [ -n "${{ steps.signing.outputs.gnupghome }}" ] && [ -d "${{ steps.signing.outputs.gnupghome }}" ]; then
-          rm -rf "${{ steps.signing.outputs.gnupghome }}"
+        REPO_NAME="${OCI_REPOSITORY:-$GITHUB_REPOSITORY}"
+        REPO_NAME="$(printf '%s' "$REPO_NAME" | tr '[:upper:]' '[:lower:]')"
+        ARGS=(--app "$APP" --arch "$ARCH" --branch "$BRANCH"
+          --registry "$REGISTRY" --oci-repository "$REPO_NAME"
+          --repo-path "$REPO" --records-dir "$RECORDS_DIR"
+          --output-file "$GITHUB_OUTPUT")
+        [ "$INSECURE" = "true" ] && ARGS+=(--insecure)
+        if [ "$SIGN" = "true" ]; then
+          keyfile="$(mktemp)"
+          chmod 600 "$keyfile"
+          trap 'rm -f "$keyfile"' EXIT
+          printf '%s' "$GPG_KEY" > "$keyfile"
+          ARGS+=(--gpg-key "$keyfile")
         fi
-        if [ -n "${{ steps.signing.outputs.registries-d }}" ] && [ -d "${{ steps.signing.outputs.registries-d }}" ]; then
-          rm -rf "${{ steps.signing.outputs.registries-d }}"
-        fi
+        aetherpak push-oci "${ARGS[@]}"

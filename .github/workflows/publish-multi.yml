@@ -82,6 +82,11 @@ on:
         required: false
         type: string
         default: ""
+      cli-version:
+        description: "aetherpak CLI release tag to install (e.g. v0.2.1), or 'latest'."
+        required: false
+        type: string
+        default: "v0.2.1"
     outputs:
       pages-url:
         value: ${{ jobs.plan.outputs.pages-url }}
@@ -136,6 +141,10 @@ jobs:
           repository: aetherpak/actions
           ref: ${{ steps.aref.outputs.ref }}
           path: .github/actions/aetherpak
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: ${{ inputs.cli-version }}
       - name: Plan
         id: p
         uses: ./.github/actions/aetherpak/plan
@@ -152,7 +161,8 @@ jobs:
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.plan.outputs.matrix-manifest) }}
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix-manifest) }}
     permissions:
       contents: read
     container:
@@ -169,9 +179,14 @@ jobs:
           repository: aetherpak/actions
           ref: ${{ needs.plan.outputs.actions-ref }}
           path: .github/actions/aetherpak
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: ${{ inputs.cli-version }}
       - name: Build
         uses: ./.github/actions/aetherpak/build
         with:
+          app-id:        ${{ matrix.app-id }}
           manifest-path: ${{ matrix.manifest }}
           arch:          ${{ matrix.arch }}
           branch:        ${{ matrix.branch }}
@@ -191,7 +206,8 @@ jobs:
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.plan.outputs.matrix-bundle) }}
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix-bundle) }}
     permissions:
       contents: read
     steps:
@@ -201,6 +217,10 @@ jobs:
           repository: aetherpak/actions
           ref: ${{ needs.plan.outputs.actions-ref }}
           path: .github/actions/aetherpak
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: ${{ inputs.cli-version }}
       - name: Fetch + import + rebind
         uses: ./.github/actions/aetherpak/prep-bundle
         with:
@@ -223,7 +243,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
     permissions:
       contents: read
       packages: write
@@ -236,6 +257,10 @@ jobs:
           repository: aetherpak/actions
           ref: ${{ needs.plan.outputs.actions-ref }}
           path: .github/actions/aetherpak
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: ${{ inputs.cli-version }}
       - name: Download OSTree repo
         # Same artifact for both source kinds: build-manifest uploads its built
         # repo, prep-bundle uploads its imported+rebound repo. publish-oci is
@@ -292,6 +317,10 @@ jobs:
           repository: aetherpak/actions
           ref: ${{ needs.plan.outputs.actions-ref }}
           path: .github/actions/aetherpak
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: ${{ inputs.cli-version }}
       - name: Download records
         if: ${{ !inputs.reconcile-only }}
         uses: actions/download-artifact@v8
@@ -310,7 +339,6 @@ jobs:
         with:
           records-dir: _records
           pages-url:    ${{ needs.plan.outputs.pages-url }}
-          registry:     ${{ inputs.registry }}
           remote-name:  ${{ inputs.remote-name }}
           landing-page: ${{ inputs.landing-page }}
           signing:      ${{ inputs.signing }}

@@ -45,13 +45,9 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Set up Python
-      uses: actions/setup-python@v6
-      with:
-        python-version: "3.14"
-    - name: Install pyyaml
+    - name: Require aetherpak CLI
       shell: bash
-      run: pip install "pyyaml>=6.0.1"
+      run: command -v aetherpak >/dev/null || { echo "::error::aetherpak CLI not on PATH"; exit 1; }
     - name: Compute matrix
       id: plan
       shell: bash
@@ -60,4 +56,10 @@ runs:
         FORCE: ${{ inputs.force }}
         BASE_SHA: ${{ inputs.base-sha }}
         WORKFLOW_PATH: ${{ inputs.workflow-path }}
-      run: python3 "${{ github.action_path }}/plan.py"
+      run: |
+        set -euo pipefail
+        ARGS=(--config "$CONFIG" --output json --output-file "$GITHUB_OUTPUT")
+        [ -n "$FORCE" ] && ARGS+=(--force "$FORCE")
+        [ -n "$BASE_SHA" ] && ARGS+=(--base-sha "$BASE_SHA")
+        [ -n "$WORKFLOW_PATH" ] && ARGS+=(--workflow-path "$WORKFLOW_PATH")
+        aetherpak plan "${ARGS[@]}"

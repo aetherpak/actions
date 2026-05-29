@@ -21,19 +21,20 @@ manifest --build--> OSTree repo --publish--> OCI image in GHCR
 client:  Pages index --(digest)--> GHCR blobs
 ```
 
-1. **build** runs `flatpak-builder` through the official `flatpak-builder@v6`
-   action, inside `ghcr.io/flathub-infra/flatpak-github-actions:<runtime>`, and
-   exports an OSTree repo. Alternatively it imports a prebuilt `.flatpak` bundle
-   or copies an existing OSTree repo. It reads `app-id`/`arch`/`branch` from the
+1. **build** runs `aetherpak build` (which wraps `flatpak-builder`) inside
+   `ghcr.io/flathub-infra/flatpak-github-actions:<runtime>` and exports an OSTree
+   repo. Alternatively `aetherpak import` ingests a prebuilt `.flatpak` bundle, or
+   an existing OSTree repo is copied. It reads `app-id`/`arch`/`branch` from the
    repo ref `app/<id>/<arch>/<branch>`. The branch is the channel: with no
    `branch` input it defaults to `stable` on tag pushes, `beta` on the default
    branch, and the git ref name otherwise.
-2. **publish** converts the OSTree repo to an OCI image (`flatpak build-bundle
-   --oci`), pushes it to `ghcr.io/<owner>/<repo>` (tag `<app-id>-<branch>-<arch>`, signing
-   it when a GPG key is configured; see "Signing"), inspects the pushed image for
-   its digest and `org.flatpak.*` labels, and merges an entry into `index/static`.
-   It then reconciles the index, dropping entries whose image no longer exists in
-   the registry, writes `<owner>-<repo>.flatpakrepo`, generates a per-app
+2. **publish** runs `aetherpak push-oci` to convert the OSTree repo to an OCI
+   image and push it to `ghcr.io/<owner>/<repo>` (tag `<app-id>-<branch>-<arch>`,
+   signing it when a GPG key is configured; see "Signing"), recording the digest
+   and `org.flatpak.*` labels in a per-cell record. `aetherpak build-site` then
+   merges an entry into `index/static`, reconciles the index (dropping entries
+   whose image no longer exists in the registry), writes
+   `<owner>-<repo>.flatpakrepo`, and generates a per-app
    `refs/<app>-<channel>.flatpakref` for each installable entry in the reconciled
    index, copies the static `index.html`, and optionally uploads and deploys the
    Pages artifact.
@@ -74,9 +75,9 @@ A JSON document Flatpak reads directly:
 }
 ```
 
-- `merge_index.py` adds or replaces one image per `(ref, arch)` and never rewrites
-  the file destructively, so matrix runs across arches, branches, and apps
-  accumulate into one index.
+- `aetherpak build-site` adds or replaces one image per `(ref, arch)` and never
+  rewrites the file destructively, so matrix runs across arches, branches, and
+  apps accumulate into one index.
 - Flatpak resolves an app from the labels and pulls the manifest by `Digest`. The
   GHCR tag is not used for resolution; it only keeps the digest referenced. Images
   are tagged `<app-id>-<branch>-<arch>`, with `.` in the app-id encoded as `_`
@@ -90,9 +91,9 @@ A JSON document Flatpak reads directly:
 
 Signing is opt-in and GPG-only (Flatpak's OCI verification uses the
 `containers/image` simple-signing lookaside, which is GPG, not cosign/keyless).
-When a key is configured, `skopeo copy --sign-by` writes a detached signature to
-a `registries.d` `lookaside-staging` directory inside the site, and `signing.py`
-emits the supporting files:
+When a key is configured, `aetherpak push-oci` signs the image manifest in
+process and writes a detached signature into the per-cell record; `aetherpak
+build-site` assembles the lookaside and supporting files into the site:
 
 - `sigs/<repo>@sha256=<digest>/signature-1`: the detached signature per image.
 - `sigs/key.asc`: the exported public key; `sigs/signing.json`: the manifest
@@ -184,22 +185,22 @@ Each `publish-oci` cell writes:
 ```
 <records-dir>/<app-id>-<arch>/
   record.json    { app-id, arch, branch, name, registry, digest, ref, tag }
-  labels.json    full OCI label set from `skopeo inspect`
+  labels.json    full OCI label set read from the pushed image
   sigs/<repo>@sha256=<hex>/signature-1   # only when signed
 ```
 
-`publish-site` walks the tree in any order. Each record drives one
-`merge_index.py` call; any `sigs/` subtree under a record is copied into
-`_site/sigs/` (paths are content-addressed by digest so cells never collide).
+`aetherpak build-site` walks the tree in any order, merging each record into the
+index; any `sigs/` subtree under a record is copied into `_site/sigs/` (paths are
+content-addressed by digest so cells never collide).
 
 ## Dependencies
 
+- The `aetherpak` CLI on `PATH` (installed by `aetherpak/setup-cli`, which also
+  installs `flatpak`/`ostree`/`gpg`/`flatpak-builder`).
 - GitHub Pages deployed from Actions (`upload-pages-artifact` + `deploy-pages`).
 - GHCR with anonymous pull (public package) for unauthenticated installs.
 - Flatpak's OCI remote support (`oci+https://`) and `flatpak-builder-lint`.
 - The flathub builder container, published for amd64 and arm64.
-- Runner-provided `skopeo`, `jq`, `python3`; `flatpak` and `ostree` are installed
-  on demand when missing.
 
 ## Assumptions
 
