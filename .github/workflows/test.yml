@@ -732,3 +732,62 @@ jobs:
           # "My Org/Repo" sanitizes to my-org-repo for the remote/.flatpakrepo name.
           test -f _site/my-org-repo.flatpakrepo || { echo "sanitized .flatpakrepo missing: $(ls _site/*.flatpakrepo 2>/dev/null)"; exit 1; }
           if grep -q '^GPGKey=' _site/my-org-repo.flatpakrepo; then echo "off .flatpakrepo must not embed GPGKey"; exit 1; fi
+
+  # Real flatpak-builder run in the flathub container — the manifest path the
+  # other jobs (prebuilt repo/bundle) never exercise, and where rofiles-fuse
+  # fails without the CI auto --disable-rofiles-fuse.
+  build-manifest-smoke:
+    name: Manifest build smoke (flathub container)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-24.08
+      options: --privileged
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.3.0
+          install-dependencies: "false"
+
+      - name: Write a trivial manifest
+        run: |
+          cat > org.aetherpak.Smoke.json <<'EOF'
+          {
+            "id": "org.aetherpak.Smoke",
+            "runtime": "org.freedesktop.Platform",
+            "runtime-version": "24.08",
+            "sdk": "org.freedesktop.Sdk",
+            "command": "smoke",
+            "modules": [
+              {
+                "name": "smoke",
+                "buildsystem": "simple",
+                "build-commands": ["mkdir -p /app/bin", "touch /app/bin/smoke"]
+              }
+            ]
+          }
+          EOF
+
+      - name: Build the manifest
+        id: build
+        uses: ./build
+        with:
+          manifest-path: org.aetherpak.Smoke.json
+          arch: x86_64
+          branch: stable
+          repo-path: _repo_smoke
+          run-linter: "false"
+
+      - name: Verify the build produced the app ref
+        run: |
+          set -euo pipefail
+          test "${{ steps.build.outputs.app-id }}" = "org.aetherpak.Smoke" || { echo "app-id: ${{ steps.build.outputs.app-id }}"; exit 1; }
+          test "${{ steps.build.outputs.branch }}" = "stable" || { echo "branch: ${{ steps.build.outputs.branch }}"; exit 1; }
+          test "${{ steps.build.outputs.arch }}" = "x86_64" || { echo "arch: ${{ steps.build.outputs.arch }}"; exit 1; }
+          ostree refs --repo=_repo_smoke | grep -qx 'app/org.aetherpak.Smoke/x86_64/stable' \
+            || { echo "expected ref missing:"; ostree refs --repo=_repo_smoke; exit 1; }
