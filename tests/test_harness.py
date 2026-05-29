@@ -11,6 +11,7 @@ are performed via the GitHub Actions runner in `.github/workflows/test.yml`.
 """
 
 import base64
+import contextlib
 import http.server
 import json
 import os
@@ -34,7 +35,7 @@ _HAS_CONTAINER = bool(shutil.which("podman") or shutil.which("docker"))
 
 _FLATPAK_VERSION = None
 if not _MISSING_BINARIES:
-    try:
+    with contextlib.suppress(Exception):
         res = subprocess.run(["flatpak", "--version"], capture_output=True, text=True, check=True)
         # Expected output: "Flatpak 1.17.7"
         parts = res.stdout.strip().split()
@@ -42,8 +43,6 @@ if not _MISSING_BINARIES:
             match = re.search(r"(\d+(?:\.\d+)+)", parts[1])
             if match:
                 _FLATPAK_VERSION = tuple(int(x) for x in match.group(1).split("."))
-    except Exception:
-        pass
 
 _IS_FLATPAK_VERSION_SUPPORTED = _FLATPAK_VERSION is not None and _FLATPAK_VERSION >= (1, 17, 0)
 
@@ -154,18 +153,14 @@ def test_dir(request) -> Generator[pathlib.Path, None, None]:
     path = TMP_ROOT / f"{test_name}_{worker_id}"
 
     if path.exists():
-        try:
+        with contextlib.suppress(PermissionError):
             shutil.rmtree(path)
-        except PermissionError:
-            pass
     path.mkdir(parents=True, exist_ok=True)
     yield path
     if path.exists():
-        try:
+        # Sometimes flatpak leaves locks or mounts, ignore on cleanup
+        with contextlib.suppress(PermissionError):
             shutil.rmtree(path)
-        except PermissionError:
-            # Sometimes flatpak leaves locks or mounts, ignore on cleanup
-            pass
 
 
 @pytest.fixture
