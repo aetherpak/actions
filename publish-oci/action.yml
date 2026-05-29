@@ -101,6 +101,16 @@ runs:
         [ -n "$ARCH" ] && ARGS+=(--arch "$ARCH")
         aetherpak import "${ARGS[@]}"
 
+    - name: Restore OSTree repo layout
+      if: ${{ inputs.bundle-path == '' }}
+      shell: bash
+      env:
+        REPO: ${{ inputs.repo-path }}
+      run: |
+        set -euo pipefail
+        # Artifact upload/download drops empty dirs; recreate the ones ostree needs.
+        mkdir -p "$REPO/refs/heads" "$REPO/refs/mirrors" "$REPO/refs/remotes"
+
     - name: Resolve coordinates
       id: vars
       shell: bash
