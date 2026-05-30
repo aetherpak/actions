@@ -203,7 +203,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ -n "$MANIFEST_PATH" ]; then
-            ARGS=(--manifest "$MANIFEST_PATH" --run-linter="$RUN_LINTER")
+            ARGS=(--manifest "$MANIFEST_PATH")
+            [ "$RUN_LINTER" != "true" ] && ARGS+=(--disable-linter)
             [ -n "$BRANCH" ] && ARGS+=(--branch "$BRANCH")
             for a in $ARCHES; do ARGS+=(--arch "$a"); done
             aetherpak plan "${ARGS[@]}" --output-file "$GITHUB_OUTPUT"

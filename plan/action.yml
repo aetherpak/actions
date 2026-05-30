@@ -79,7 +79,8 @@ runs:
       run: |
         set -euo pipefail
         if [ -n "$MANIFEST" ]; then
-          ARGS=(--manifest "$MANIFEST" --run-linter="$RUN_LINTER" --output json --output-file "$GITHUB_OUTPUT")
+          ARGS=(--manifest "$MANIFEST" --output json --output-file "$GITHUB_OUTPUT")
+          [ "$RUN_LINTER" != "true" ] && ARGS+=(--disable-linter)
           [ -n "$BRANCH" ] && ARGS+=(--branch "$BRANCH")
           for a in $ARCH; do ARGS+=(--arch "$a"); done
           aetherpak plan "${ARGS[@]}"
