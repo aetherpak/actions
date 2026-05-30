@@ -164,7 +164,7 @@ jobs:
           sleep 1
           aetherpak build-site --records-dir _records --site-dir _site_rec \
             --pages-url http://localhost:9999 --insecure --reconcile \
-            --remote-name aetherpak-test
+            --remote-name aetherpak-test --allow-unsigned
           kill "$srv" || true
 
           names="$(jq -r '.Results[].Name' _site_rec/index/static)"
