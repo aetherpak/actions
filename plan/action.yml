@@ -18,6 +18,22 @@ inputs:
     description: "Optional caller workflow path. Touching it forces a full rebuild."
     required: false
     default: ""
+  manifest:
+    description: "Single Flatpak manifest path (manifest mode; bypasses config)."
+    required: false
+    default: ""
+  arch:
+    description: "Manifest mode: space-separated architectures."
+    required: false
+    default: ""
+  branch:
+    description: "Manifest mode: Flatpak branch/channel."
+    required: false
+    default: ""
+  run-linter:
+    description: "Manifest mode: run flatpak-builder-lint."
+    required: false
+    default: "true"
 
 outputs:
   apps:
@@ -56,8 +72,19 @@ runs:
         FORCE: ${{ inputs.force }}
         BASE_SHA: ${{ inputs.base-sha }}
         WORKFLOW_PATH: ${{ inputs.workflow-path }}
+        MANIFEST: ${{ inputs.manifest }}
+        ARCH: ${{ inputs.arch }}
+        BRANCH: ${{ inputs.branch }}
+        RUN_LINTER: ${{ inputs.run-linter }}
       run: |
         set -euo pipefail
+        if [ -n "$MANIFEST" ]; then
+          ARGS=(--manifest "$MANIFEST" --run-linter="$RUN_LINTER" --output json --output-file "$GITHUB_OUTPUT")
+          [ -n "$BRANCH" ] && ARGS+=(--branch "$BRANCH")
+          for a in $ARCH; do ARGS+=(--arch "$a"); done
+          aetherpak plan "${ARGS[@]}"
+          exit 0
+        fi
         ARGS=(--config "$CONFIG" --output json --output-file "$GITHUB_OUTPUT")
         [ -n "$FORCE" ] && ARGS+=(--force "$FORCE")
         [ -n "$BASE_SHA" ] && ARGS+=(--base-sha "$BASE_SHA")
