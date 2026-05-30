@@ -89,13 +89,17 @@ runs:
         RNAME="${INPUT_REMOTE_NAME:-$GITHUB_REPOSITORY}"
         RNAME="$(printf '%s' "$RNAME" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_-]#-#g')"
         echo "remote-name=$RNAME" >> "$GITHUB_OUTPUT"
+        NO_SIGN=false
+        ALLOW_UNSIGNED=false
         case "$MODE" in
-          off) SIGN=false ;;
+          off) SIGN=false; NO_SIGN=true ;;
           gpg) [ -n "$KEY" ] || { echo "::error::signing=gpg requires gpg-private-key"; exit 1; }; SIGN=true ;;
-          auto) [ -n "$KEY" ] && SIGN=true || SIGN=false ;;
+          auto) [ -n "$KEY" ] && SIGN=true || { SIGN=false; ALLOW_UNSIGNED=true; } ;;
           *) echo "::error::signing must be auto|gpg|off"; exit 1 ;;
         esac
         echo "sign=$SIGN" >> "$GITHUB_OUTPUT"
+        echo "no-sign=$NO_SIGN" >> "$GITHUB_OUTPUT"
+        echo "allow-unsigned=$ALLOW_UNSIGNED" >> "$GITHUB_OUTPUT"
         # build-site writes signatures under a fixed "sigs/" directory.
         if [ "$SIGN" = "true" ]; then
           PAGES="${PAGES_URL%/}"
@@ -132,6 +136,8 @@ runs:
           printf '%s' "$GPG_KEY" > "$keyfile"
           ARGS+=(--gpg-key "$keyfile")
         fi
+        [ "${{ steps.target.outputs.no-sign }}" = "true" ] && ARGS+=(--no-sign)
+        [ "${{ steps.target.outputs.allow-unsigned }}" = "true" ] && ARGS+=(--allow-unsigned)
         aetherpak build-site "${ARGS[@]}"
 
     - name: Upload Pages artifact

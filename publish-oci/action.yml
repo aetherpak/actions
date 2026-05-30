@@ -78,13 +78,17 @@ runs:
         KEY: ${{ inputs.gpg-private-key }}
       run: |
         set -euo pipefail
+        NO_SIGN=false
+        ALLOW_UNSIGNED=false
         case "$MODE" in
-          off) SIGN=false ;;
+          off) SIGN=false; NO_SIGN=true ;;
           gpg) [ -n "$KEY" ] || { echo "::error::signing=gpg but gpg-private-key is empty"; exit 1; }; SIGN=true ;;
-          auto) [ -n "$KEY" ] && SIGN=true || SIGN=false ;;
+          auto) [ -n "$KEY" ] && SIGN=true || { SIGN=false; ALLOW_UNSIGNED=true; } ;;
           *) echo "::error::signing must be auto|gpg|off"; exit 1 ;;
         esac
         echo "sign=$SIGN" >> "$GITHUB_OUTPUT"
+        echo "no-sign=$NO_SIGN" >> "$GITHUB_OUTPUT"
+        echo "allow-unsigned=$ALLOW_UNSIGNED" >> "$GITHUB_OUTPUT"
 
     - name: Import bundle
       if: ${{ inputs.bundle-path != '' }}
@@ -168,4 +172,6 @@ runs:
           printf '%s' "$GPG_KEY" > "$keyfile"
           ARGS+=(--gpg-key "$keyfile")
         fi
+        [ "${{ steps.signing.outputs.no-sign }}" = "true" ] && ARGS+=(--no-sign)
+        [ "${{ steps.signing.outputs.allow-unsigned }}" = "true" ] && ARGS+=(--allow-unsigned)
         aetherpak push-oci "${ARGS[@]}"
