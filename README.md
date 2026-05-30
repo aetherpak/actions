@@ -37,15 +37,12 @@ permissions:
   id-token: write
 jobs:
   publish:
-    uses: aetherpak/actions/.github/workflows/publish.yml@v2
+    uses: aetherpak/actions/.github/workflows/publish.yml@v3
     with:
       manifest-path: org.example.App.json
-      runtime: gnome-50            # flathub container tag matching your runtime
 ```
 
-`runtime` is the tag of `ghcr.io/flathub-infra/flatpak-github-actions` for your
-app's runtime (`gnome-50`, `freedesktop-24.08`, `kde-6.7`, and so on). By default
-the app is built for `x86_64` and `aarch64` and deployed to Pages.
+By default the app is built for `x86_64` and `aarch64` and deployed to Pages.
 
 After the first run, make the GHCR package public so users can install without
 authenticating: the package's page, then **Package settings**, then **Change
@@ -61,7 +58,6 @@ then enable **Public**.
 | Input | Default | Purpose |
 |---|---|---|
 | `manifest-path` | _(required)_ | Flatpak manifest to build |
-| `runtime` | _(required)_ | flathub builder container tag |
 | `arches` | `x86_64 aarch64` | architectures to build |
 | `branch` | `stable` on tags, `beta` on the default branch, else the ref name | Flatpak branch (channel) |
 | `deploy` | `true` | deploy to Pages; `false` builds and uploads the site for you to host |
@@ -83,27 +79,27 @@ See [Signing](#signing-optional).
 
 ## Publishing multiple apps
 
-One repository can host many apps in a single index. Give each app its own
-path-filtered workflow so only the changed app rebuilds:
+One repository can host many apps in a single index. Declare them in
+`aetherpak.yaml` and call the same workflow with `config` instead of
+`manifest-path`:
 
 ```yaml
-# .github/workflows/publish-foo.yml
-name: Publish Foo
-on: { push: { branches: [main], paths: ['org.example.Foo.json'] } }
+# .github/workflows/publish.yml
+name: Publish Flatpaks
+on: { push: { branches: [main] } }
 permissions: { contents: read, packages: write, pages: write, id-token: write }
 jobs:
   publish:
-    uses: aetherpak/actions/.github/workflows/publish.yml@v2
+    uses: aetherpak/actions/.github/workflows/publish.yml@v3
     with:
-      manifest-path: org.example.Foo.json
-      runtime: gnome-50
+      config: aetherpak.yaml
 ```
 
-Add a `publish-bar.yml` for the next app, and so on. Each run merges its app into
-the shared index, so the listing accumulates. Publishing is serialized per
-repository, so concurrent runs apply one at a time instead of overwriting the
-index; if several apps change at the same instant, re-push any that did not
-publish. Tag pushes use the `stable` channel, the default branch uses `beta`.
+`aetherpak.yaml` lists each app (manifest or prebuilt bundle), its runtime, and
+its architectures; the workflow plans the changed apps, builds them in parallel,
+and merges them into one shared index. See [ARCHITECTURE.md](ARCHITECTURE.md) for
+the schema. Change detection rebuilds only apps whose manifest directory or
+config entry changed since the previous commit.
 
 ## Installing published apps
 
@@ -172,10 +168,9 @@ and clients can install with verification.
    ```yaml
    jobs:
      publish:
-       uses: aetherpak/actions/.github/workflows/publish.yml@v2
+       uses: aetherpak/actions/.github/workflows/publish.yml@v3
        with:
          manifest-path: org.example.App.json
-         runtime: gnome-50
          signing: gpg
        secrets:
          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
@@ -248,7 +243,7 @@ The reusable workflow pushes blobs to GHCR. To target another registry, call
 
 ```yaml
 - uses: aetherpak/setup-cli@v1   # installs the aetherpak CLI on PATH
-- uses: aetherpak/actions/publish@v2
+- uses: aetherpak/actions/publish@v3
   with:
     repo-path: _repo            # or bundle-path: app.flatpak
     registry: registry.example.com

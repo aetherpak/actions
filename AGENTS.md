@@ -32,16 +32,15 @@ be on `PATH`; the reusable workflows install it with `aetherpak/setup-cli`.
   the consumer-declared `branch` (rewriting the commit's `xa.ref` binding, so
   flatpak does not warn about a deployed-ref mismatch).
 - `plan/action.yml`: `aetherpak plan` expands `aetherpak.yaml` into a build
-  matrix, narrowed by `git diff` since `base-sha`. Consumed by `publish-multi.yml`.
-- `.github/workflows/publish.yml`: single-app reusable `workflow_call` workflow
-  (prep, build matrix in the container, then one serialized publish+deploy job).
-  Each job installs the CLI via `aetherpak/setup-cli`. The `cli-version` input
-  pins the CLI release.
-- `.github/workflows/publish-multi.yml`: multi-app reusable workflow. Calls
-  `plan` once, runs `build-manifest` / `prep-bundle` matrix jobs in parallel
-  (both producing a uniform `repo-<app-id>-<arch>` artifact), then `publish-oci`
-  (parallel push) feeding `publish-site` (single, concurrency-locked) and one
-  Pages deploy. The plan's matrix arrays are wrapped via `matrix.include`.
+  matrix, narrowed by `git diff` since `base-sha`. Consumed by `publish.yml`.
+- `.github/workflows/publish.yml`: the one reusable `workflow_call` workflow.
+  Mode is implicit: `manifest-path` selects single-app (`aetherpak plan
+  --manifest`), `config` selects multi-app (`aetherpak plan --config`); both
+  feed one `plan → build-manifest / prep-bundle → publish-oci → publish-site`
+  pipeline. The `plan` job derives each manifest cell's flathub builder-container
+  tag from the manifest runtime via `plan/runtime-tag.jq` (allowlist:
+  freedesktop/gnome/kde). Each job installs the CLI via `aetherpak/setup-cli`;
+  `cli-version` pins the release.
 - `.github/workflows/site.yml`: deploys this project's own marketing landing page
   (`docs/site/`) to Pages on push to `main`, unrelated to a published app's index.
 - `.github/workflows/test.yml`: CI. A `lint` job (pre-commit: actionlint + file
@@ -80,6 +79,9 @@ Keep these intact when changing the code:
    manifest entries build at it; bundle entries are rebound to it by
    `prep-bundle`. The CLI's default of `'stable'` is the consumer-facing
    fallback when `branch` is omitted.
+10. The runtime-ID → flathub container-tag map lives in the actions layer
+    (`plan/runtime-tag.jq`), never the CLI: the CLI emits raw `runtime` +
+    `runtime-version` and stays environment-agnostic.
 
 ## Testing
 

@@ -38,10 +38,13 @@ client:  Pages index --(digest)--> GHCR blobs
    `refs/<app>-<channel>.flatpakref` for each installable entry in the reconciled
    index, copies the static `index.html`, and optionally uploads and deploys the
    Pages artifact.
-3. The **reusable workflow** runs `build` per architecture (a matrix, in the
-   container), then a single `publish` job that merges all architectures, deploys,
-   and is the unit that publishes one app. It is **single-app**: to host several
-   apps, give each a path-filtered caller workflow (see "Multiple apps" below).
+3. The **reusable workflow** (`publish.yml`) runs one pipeline for both single-
+   and multi-app cases. The `plan` job either parses a single `manifest-path`
+   (`aetherpak plan --manifest`) or expands an `aetherpak.yaml` (`aetherpak plan
+   --config`); both emit the same `(app, arch)` matrix. `build-manifest` /
+   `prep-bundle` produce per-cell OSTree repos, `publish-oci` pushes each in
+   parallel, and a single concurrency-locked `publish-site` job merges every
+   record into the shared index and deploys.
 
 Deployment is optional. With `deploy: false` the reusable workflow uploads the
 built site as a plain artifact instead of deploying it, so the files can be served
@@ -119,7 +122,7 @@ canonical app-id stays in `org.flatpak.ref`.
 
 ## Multiple apps and serialized publishing
 
-For more than one app, use `.github/workflows/publish-multi.yml` and declare apps in `aetherpak.yaml`:
+Declare apps in `aetherpak.yaml` and call `publish.yml` with the `config` input:
 
 ```yaml
 apps:
@@ -143,23 +146,34 @@ The workflow runs in five stages:
 1. **plan** — expand `aetherpak.yaml` into a matrix; narrow it to apps touched since
    `BASE_SHA` (gitlink/manifest-dir diffs for manifest sources; per-entry diff
    of `aetherpak.yaml` for everything else).
-2. **build-manifest** (matrix) — `aetherpak/actions/build@v2` in the flathub
+2. **build-manifest** (matrix) — `aetherpak/actions/build@v3` in the flathub
    container, one job per `(app, arch)`; uploads `repo-<app-id>-<arch>`.
-3. **prep-bundle** (matrix) — `aetherpak/actions/prep-bundle@v2` per bundle
+3. **prep-bundle** (matrix) — `aetherpak/actions/prep-bundle@v3` per bundle
    cell: fetch URL, verify SHA-256, import into an OSTree repo, and **rebind**
    the imported `app/<id>/<arch>/<bundle_branch>` ref to
    `app/<id>/<arch>/<branch>`. Uploads the same `repo-<app-id>-<arch>`
    artifact shape build-manifest does.
-4. **publish-oci** (matrix) — `aetherpak/actions/publish-oci@v2` per cell;
+4. **publish-oci** (matrix) — `aetherpak/actions/publish-oci@v3` per cell;
    source-agnostic: downloads `repo-<app-id>-<arch>` and pushes. Parallel-safe;
    writes one record artifact `aetherpak-record-<app-id>-<arch>` per cell.
 5. **publish-site** (single, concurrency-locked) — downloads every record
-   artifact, runs `aetherpak/actions/publish-site@v2` which merges them into
+   artifact, runs `aetherpak/actions/publish-site@v3` which merges them into
    `index/static`, reconciles, writes the `.flatpakrepo`, `.flatpakref` files,
    landing page, signing metadata, and Pages artifact; `deploy-pages` follows.
 
 The concurrency lock lives on `publish-site` only — `publish-oci` cells stay
 parallel because each pushes an independent OCI image, not the shared index.
+
+### Runtime container tag
+
+`build-manifest` runs in `ghcr.io/flathub-infra/flatpak-github-actions:<tag>`.
+The CLI emits the manifest's raw `runtime` (`org.gnome.Platform`) and
+`runtime-version` (`50`); the `plan` job maps these to the flathub tag
+(`gnome-50`) with `plan/runtime-tag.jq`, an explicit allowlist of the runtimes
+the builder container publishes (`org.freedesktop.Platform`, `org.gnome.Platform`,
+`org.kde.Platform`). Values already in tag form (from `aetherpak.yaml`'s
+`runtime: gnome-50`) pass through unchanged; unsupported runtimes fail the plan.
+This map is GitHub/flathub-specific and lives in the actions layer, not the CLI.
 
 ### Channel handling for bundle sources
 
@@ -216,8 +230,8 @@ content-addressed by digest so cells never collide).
   image is gone from the registry (definitive not-found only; transient or auth
   errors keep the entry). To remove an app, channel, or arch, delete its image
   from the registry and re-run publish. There is no in-action delete; registry
-  blob deletion is a manual step (see README Maintenance). Both reusable
-  workflows accept `reconcile-only: true` to skip every build and just reconcile,
+  blob deletion is a manual step (see README Maintenance). The reusable
+  workflow accepts `reconcile-only: true` to skip every build and just reconcile,
   for catching up the listing after a deletion.
 - **Linter strictness.** `flatpak-builder-lint` enforces Flathub store policies,
   some of which fail for self-hosted apps. Screenshots are mirrored to cover the
