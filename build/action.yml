@@ -163,8 +163,8 @@ runs:
         set -euo pipefail
         aetherpak inspect-repo --repo-path "$REPO" --output-file "$GITHUB_OUTPUT"
 
-    # Manifest builds lint via `aetherpak build --run-linter`; other sources have
-    # no manifest, so lint the resulting repo here when requested.
+    # Manifest builds lint via `aetherpak build --run-linter`; imports have no
+    # manifest, so lint the resulting repo here.
     - name: Lint imported repository
       if: ${{ inputs.run-linter == 'true' && inputs.manifest-path == '' }}
       shell: bash

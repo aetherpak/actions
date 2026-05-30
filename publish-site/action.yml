@@ -92,7 +92,7 @@ runs:
         NO_SIGN=false
         ALLOW_UNSIGNED=false
         case "$MODE" in
-          off) SIGN=false; NO_SIGN=true ;;
+          off) SIGN=false; NO_SIGN=true; ALLOW_UNSIGNED=true ;;
           gpg) [ -n "$KEY" ] || { echo "::error::signing=gpg requires gpg-private-key"; exit 1; }; SIGN=true ;;
           auto) [ -n "$KEY" ] && SIGN=true || { SIGN=false; ALLOW_UNSIGNED=true; } ;;
           *) echo "::error::signing must be auto|gpg|off"; exit 1 ;;
