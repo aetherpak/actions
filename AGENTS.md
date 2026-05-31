@@ -37,14 +37,12 @@ be on `PATH`; the reusable workflows install it with `aetherpak/setup-cli`.
   Mode is implicit: `manifest-path` selects single-app (`aetherpak plan
   --manifest`), `config` selects multi-app (`aetherpak plan --config`); both
   feed one `plan → build-manifest / prep-bundle → publish-oci → publish-site`
-  pipeline. The `plan` job derives each manifest cell's flathub builder-container
-  tag from the manifest runtime via `plan/runtime-tag.jq` (allowlist:
-  freedesktop/gnome/kde). The non-build jobs (`plan`, `prep-bundle`,
-  `publish-oci`, `publish-site`) run inside the pre-baked CLI container
-  `ghcr.io/aetherpak/cli:<cli-version>` and call `aetherpak` directly, without
-  `setup-cli`. Only `build-manifest` runs in the flathub builder container (for
-  the runtime/SDK + `flatpak-builder` + lint), installing the CLI via
-  `aetherpak/setup-cli`. `cli-version` must name a published container tag.
+  pipeline. Every job runs inside the pre-baked CLI container and calls
+  `aetherpak` directly, without `setup-cli`: the non-build jobs (`plan`,
+  `prep-bundle`, `publish-oci`, `publish-site`) use `ghcr.io/aetherpak/cli:<cli-version>`;
+  `build-manifest` uses the `-builder` tag (adds `flatpak-builder` + lint) and runs
+  `--privileged`, installing the runtime from the image's baked flathub remote.
+  `cli-version` must name a published container tag.
 - `.github/workflows/site.yml`: deploys this project's own marketing landing page
   (`docs/site/`) to Pages on push to `main`, unrelated to a published app's index.
 - `.github/workflows/test.yml`: CI. A `lint` job (pre-commit: actionlint + file
@@ -83,9 +81,11 @@ Keep these intact when changing the code:
    manifest entries build at it; bundle entries are rebound to it by
    `prep-bundle`. The CLI's default of `'stable'` is the consumer-facing
    fallback when `branch` is omitted.
-10. The runtime-ID → flathub container-tag map lives in the actions layer
-    (`plan/runtime-tag.jq`), never the CLI: the CLI emits raw `runtime` +
-    `runtime-version` and stays environment-agnostic.
+10. `build-manifest` builds in the `:<cli-version>-builder` image under
+    `--privileged`; as root the runtime installs from the image's baked flathub
+    remote via the default `--system` path, with no polkit/dbus helper. The CLI
+    stays environment-agnostic — it emits raw `runtime` + `runtime-version` and
+    leaves container choice to the workflow.
 
 ## Testing
 
