@@ -1,5 +1,25 @@
 # Changelog
 
+## [3.0.0](https://github.com/aetherpak/actions/compare/v2.3.1...v3.0.0) (2026-05-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* **publish:** remove publish-multi.yml; publish.yml handles both modes
+* **publish:** unify single- and multi-app into one workflow
+
+### Features
+
+* **plan:** map manifest runtime to flathub container tag ([a83d7c6](https://github.com/aetherpak/actions/commit/a83d7c64d74158cd625824fb93ff95edc7f3d6e7))
+* **publish:** remove publish-multi.yml; publish.yml handles both modes ([811d60b](https://github.com/aetherpak/actions/commit/811d60b85c5b6de536768ac21e4aaebb869852a8))
+* **publish:** support no-sign and allow-unsigned flags for image signing ([3fd0573](https://github.com/aetherpak/actions/commit/3fd05733eb05ad190a3d6ec290786fc07045480a))
+* **publish:** unify single- and multi-app into one workflow ([2ae6e95](https://github.com/aetherpak/actions/commit/2ae6e95ca9ee2ebf257c5d83b3ffa952f532cfa6))
+
+
+### Bug Fixes
+
+* **publish:** adopt CLI 0.7.0 plan --disable-linter and off-mode --allow-unsigned ([f86490c](https://github.com/aetherpak/actions/commit/f86490cc5854616855db306732fbca215e81f38e))
+
 ## [2.3.1](https://github.com/aetherpak/actions/compare/v2.3.0...v2.3.1) (2026-05-29)
 
 
