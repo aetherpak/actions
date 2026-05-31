@@ -36,17 +36,7 @@ jobs:
             sleep 1
           done
       - name: Create Mock OSTree Repository
-        run: |
-          mkdir -p tests/mock_repo
-          ostree init --mode=archive --repo=tests/mock_repo
-          mkdir -p tests/mock_contents
-          cat > tests/mock_contents/metadata <<EOF
-          [Application]
-          name=org.flatpak.MockApp
-          runtime=org.freedesktop.Platform/x86_64/23.08
-          sdk=org.freedesktop.Sdk/x86_64/23.08
-          EOF
-          ostree commit --repo=tests/mock_repo --branch=app/org.flatpak.MockApp/x86_64/stable -m "mock app commit" tests/mock_contents
+        run: bash tests/mock_repo.sh
 
       - name: Run Build Action
         id: build_step
@@ -172,6 +162,53 @@ jobs:
           if echo "$names" | grep -qx 'aetherpak/ghost'; then echo "ghost should be reconciled away: $names"; exit 1; fi
           echo "reconcile integration ok"
 
+  # Guards that the publish actions still run in the CLI image publish.yml uses
+  # (e.g. the OCI push needs no skopeo). The registry is a service container, so
+  # it is reached by hostname (registry:5000), not localhost as on a bare runner.
+  publish-in-cli-container:
+    name: Publish path inside the CLI container
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/aetherpak/cli:v0.7.0
+    services:
+      registry:
+        image: registry:2
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Create Mock OSTree Repository
+        run: bash tests/mock_repo.sh
+
+      - name: Build (import prebuilt repo)
+        id: build_step
+        uses: ./build
+        with:
+          prebuilt-repo-path: tests/mock_repo
+          repo-path: _repo_test
+          run-linter: "false"
+
+      - name: Publish (push-oci + build-site) against the registry service
+        uses: ./publish
+        with:
+          repo-path: ${{ steps.build_step.outputs.repo-path }}
+          registry: "registry:5000"
+          insecure-registry: "true"
+          oci-repository: "aetherpak/mock-app"
+          remote-name: "aetherpak-test"
+          pages-url: "http://localhost:9999"
+          registry-token: "" # skip login for the local service registry
+          upload-pages-artifact: "false"
+
+      - name: Verify the index built inside the container
+        run: |
+          set -euo pipefail
+          test -f _site/index/static || { echo "index/static not generated"; exit 1; }
+          test -f _site/aetherpak-test.flatpakrepo || { echo ".flatpakrepo not generated"; exit 1; }
+          name="$(jq -r '.Results[0].Name' _site/index/static)"
+          test "$name" = "aetherpak/mock-app" || { echo "wrong index Name: $name"; exit 1; }
+          echo "containerized publish path ok"
+
   signing-integration-test:
     name: Mock Signing Integration Test (auto activation)
     runs-on: ubuntu-latest
@@ -190,17 +227,7 @@ jobs:
           for _ in {1..10}; do curl -s http://localhost:5001/v2/ && break; sleep 1; done
 
       - name: Create Mock OSTree Repository
-        run: |
-          mkdir -p tests/mock_repo
-          ostree init --mode=archive --repo=tests/mock_repo
-          mkdir -p tests/mock_contents
-          cat > tests/mock_contents/metadata <<EOF
-          [Application]
-          name=org.flatpak.MockApp
-          runtime=org.freedesktop.Platform/x86_64/23.08
-          sdk=org.freedesktop.Sdk/x86_64/23.08
-          EOF
-          ostree commit --repo=tests/mock_repo --branch=app/org.flatpak.MockApp/x86_64/stable -m "mock app commit" tests/mock_contents
+        run: bash tests/mock_repo.sh
 
       - name: Generate ephemeral signing key
         run: |
@@ -295,17 +322,7 @@ jobs:
           version: v0.7.0
 
       - name: Create Mock OSTree Repository
-        run: |
-          mkdir -p tests/mock_repo
-          ostree init --mode=archive --repo=tests/mock_repo
-          mkdir -p tests/mock_contents
-          cat > tests/mock_contents/metadata <<EOF
-          [Application]
-          name=org.flatpak.MockApp
-          runtime=org.freedesktop.Platform/x86_64/23.08
-          sdk=org.freedesktop.Sdk/x86_64/23.08
-          EOF
-          ostree commit --repo=tests/mock_repo --branch=app/org.flatpak.MockApp/x86_64/stable -m "mock app commit" tests/mock_contents
+        run: bash tests/mock_repo.sh
 
       - name: Run Build Action
         id: build_step
@@ -671,17 +688,7 @@ jobs:
           for _ in {1..10}; do curl -s http://localhost:5001/v2/ && break; sleep 1; done
 
       - name: Create Mock OSTree Repository
-        run: |
-          mkdir -p tests/mock_repo
-          ostree init --mode=archive --repo=tests/mock_repo
-          mkdir -p tests/mock_contents
-          cat > tests/mock_contents/metadata <<EOF
-          [Application]
-          name=org.flatpak.MockApp
-          runtime=org.freedesktop.Platform/x86_64/23.08
-          sdk=org.freedesktop.Sdk/x86_64/23.08
-          EOF
-          ostree commit --repo=tests/mock_repo --branch=app/org.flatpak.MockApp/x86_64/stable -m "mock app commit" tests/mock_contents
+        run: bash tests/mock_repo.sh
 
       - name: Generate ephemeral signing key
         run: |

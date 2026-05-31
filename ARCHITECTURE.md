@@ -164,6 +164,19 @@ The workflow runs in five stages:
 The concurrency lock lives on `publish-site` only — `publish-oci` cells stay
 parallel because each pushes an independent OCI image, not the shared index.
 
+### Job containers
+
+The non-build jobs (`plan`, `prep-bundle`, `publish-oci`, `publish-site`) run
+inside the pre-baked CLI image `ghcr.io/aetherpak/cli:<cli-version>` and invoke
+`aetherpak` directly, without `aetherpak/setup-cli`. That image carries
+everything those jobs touch — `flatpak`, `ostree`, `git`, `jq`, and `gpg`; the
+OCI push/reconcile uses the CLI's embedded registry client, so no `skopeo` is
+needed. `cli-version` must therefore name a published image tag (`v0.7.0` →
+`:v0.7.0`); a pin without a matching container falls back to `setup-cli`.
+`build-manifest` is the exception: it runs in the flathub builder container
+(next section) for the pre-installed runtime/SDK, `flatpak-builder`, and the
+linter, and installs the CLI with `setup-cli`.
+
 ### Runtime container tag
 
 `build-manifest` runs in `ghcr.io/flathub-infra/flatpak-github-actions:<tag>`.
