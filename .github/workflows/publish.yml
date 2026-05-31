@@ -161,9 +161,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          # Gitlink bumps are tree changes; submodule contents not needed here.
           fetch-depth: 0
-          submodules: false
+          # Config mode only diffs gitlink trees, so contents aren't needed.
+          # Manifest mode reads a manifest that may live in a submodule.
+          submodules: ${{ inputs.manifest-path != '' && inputs.submodules || false }}
       - name: Resolve Pages URL
         id: u
         env:
