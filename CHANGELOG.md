@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.1](https://github.com/aetherpak/actions/compare/v3.0.0...v3.0.1) (2026-05-31)
+
+
+### Bug Fixes
+
+* **publish:** fetch submodules in plan job for manifest mode ([c91a3fd](https://github.com/aetherpak/actions/commit/c91a3fd4aab40c637d99005b55a248f65252a8f5))
+
 ## [3.0.0](https://github.com/aetherpak/actions/compare/v2.3.1...v3.0.0) (2026-05-31)
 
 
