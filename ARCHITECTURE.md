@@ -214,19 +214,21 @@ content-addressed by digest so cells never collide).
 
 ## Dependencies
 
-- The `aetherpak` CLI on `PATH` (installed by `aetherpak/setup-cli`, which also
-  installs `flatpak`/`ostree`/`gpg`/`flatpak-builder`).
+- The `aetherpak` CLI plus `flatpak`/`ostree`/`gpg`/`flatpak-builder` — bundled in
+  the CLI container the reusable workflow runs in, or installed by
+  `aetherpak/setup-cli` for standalone composite-action use.
 - GitHub Pages deployed from Actions (`upload-pages-artifact` + `deploy-pages`).
 - GHCR with anonymous pull (public package) for unauthenticated installs.
 - Flatpak's OCI remote support (`oci+https://`) and `flatpak-builder-lint`.
-- The flathub builder container, published for amd64 and arm64.
+- The `ghcr.io/aetherpak/cli` images (base + `-builder`), published for amd64 and arm64.
 
 ## Assumptions
 
 - The GHCR package is public; otherwise anonymous `flatpak install` fails.
-- `runtime` matches the app's runtime and exists as a flathub container tag.
-- Architectures are a subset of `x86_64`/`aarch64`, since the container is built
-  for amd64/arm64 only.
+- The manifest's `runtime`/`sdk` resolve on Flathub; the builder image installs
+  them at build time.
+- Architectures are a subset of `x86_64`/`aarch64`, since the builder image is
+  published for amd64/arm64 only.
 - One repository (`Name` is `<owner>/<repo>`) is the unit of the index.
 
 ## Limitations
@@ -241,5 +243,5 @@ content-addressed by digest so cells never collide).
 - **Linter strictness.** `flatpak-builder-lint` enforces Flathub store policies,
   some of which fail for self-hosted apps. Screenshots are mirrored to cover the
   common case; set `run-linter: false` to skip the rest.
-- **Architecture set.** Limited to what the flathub container provides
+- **Architecture set.** Limited to what the builder image provides
   (amd64/arm64).

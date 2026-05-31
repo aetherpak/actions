@@ -181,10 +181,9 @@ permissions:
   id-token: write
 jobs:
   publish:
-    uses: aetherpak/actions/.github/workflows/publish.yml@v2
+    uses: aetherpak/actions/.github/workflows/publish.yml@v3
     with:
       manifest-path: org.example.App.json
-      runtime: gnome-50
     secrets:
       gpg-private-key: ${{ secrets.AETHERPAK_GPG_KEY }}  # signs when the key is set</code></pre>
                   <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
@@ -227,8 +226,9 @@ permissions:
   id-token: write
 jobs:
   publish:
-    uses: aetherpak/actions/.github/workflows/publish-multi.yml@v2
+    uses: aetherpak/actions/.github/workflows/publish.yml@v3
     with:
+      config: aetherpak.yaml
       app: ${{ inputs.app }}
       force-all: ${{ inputs.force-all }}
     secrets:
@@ -254,7 +254,7 @@ jobs:
         <div class="card">
         <div class="opts">
           <div class="opt"><code>manifest-path</code><span>Flatpak manifest to build. Required.</span></div>
-          <div class="opt"><code>runtime</code><span>flathub builder container tag (gnome-50, freedesktop-24.08, …). Required.</span></div>
+          <div class="opt"><code>runtime</code><span>the app's runtime (gnome-50, freedesktop-24.08, …). Required.</span></div>
           <div class="opt"><code>arches</code><span>Architectures to build. Default <code>x86_64 aarch64</code>.</span></div>
           <div class="opt"><code>branch</code><span>Flatpak branch (channel). <code>stable</code> on tags, <code>beta</code> on the default branch, else the ref name.</span></div>
           <div class="opt"><code>deploy</code><span>Deploy to Pages. Set <code>false</code> to host the site yourself.</span></div>
@@ -282,7 +282,6 @@ jobs:
           <div class="code-block inline">
             <pre><code>with:
   manifest-path: org.example.App.json
-  runtime: gnome-50
   pages-url: https://flatpak.example.com</code></pre>
             <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
           </div>
@@ -291,7 +290,7 @@ jobs:
         <div class="panel" data-tab="registry" hidden>
           <p>Blobs go to GHCR by default. For another image path within GHCR, set <code>oci-repository</code>. To push to a different registry, use the <code>publish</code> action directly so you can supply its credentials:</p>
           <div class="code-block">
-            <pre><code>- uses: aetherpak/actions/publish@v2
+            <pre><code>- uses: aetherpak/actions/publish@v3
   with:
     repo-path: _repo                              # or bundle-path: app.flatpak
     registry: registry.example.com
@@ -322,7 +321,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       # Build your app here, producing an OSTree repo (or a .flatpak bundle).
-      - uses: aetherpak/actions/publish@v2
+      - uses: aetherpak/actions/publish@v3
         with:
           repo-path: _repo            # or: bundle-path: app.flatpak
           pages-url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
@@ -393,7 +392,7 @@ secrets:
             <div class="opt"><code>id</code><span>Reverse-DNS app id. Required. Must match the manifest's <code>app-id</code>.</span></div>
             <div class="opt"><code>branch</code><span>Flatpak channel. Default <code>stable</code>. Load-bearing for both source kinds.</span></div>
             <div class="opt"><code>manifest</code><span>Path to a Flatpak manifest. Mutually exclusive with <code>bundles</code>.</span></div>
-            <div class="opt"><code>runtime</code><span>flathub builder container tag (gnome-50, freedesktop-24.08, …). Required when <code>manifest</code> is set.</span></div>
+            <div class="opt"><code>runtime</code><span>the app's runtime (gnome-50, freedesktop-24.08, …). Required when <code>manifest</code> is set.</span></div>
             <div class="opt"><code>arches</code><span>Architectures to build. Default <code>[x86_64]</code>. Manifest entries only.</span></div>
             <div class="opt"><code>run-linter</code><span>Run <code>flatpak-builder-lint</code>. Default <code>false</code>. Manifest entries only.</span></div>
             <div class="opt"><code>bundles</code><span>Map of <code>arch</code> to <code>{ url, sha256 }</code>. Mutually exclusive with <code>manifest</code>.</span></div>

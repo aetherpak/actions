@@ -224,13 +224,13 @@ need the listing to catch up.
 The pipeline is also available as composite actions for custom workflows. These
 delegate to the [`aetherpak` CLI](https://github.com/aetherpak/cli), so a custom
 workflow must put it on `PATH` first with `aetherpak/setup-cli` (the reusable
-workflows above do this for you):
+workflow runs in a container that already bundles it):
 
 - `aetherpak/actions`: the root composite that chains `build` then `publish` in a
   single step. Best for prebuilt inputs (a `.flatpak` bundle or OSTree repo) on a
   standard runner; manifest builds should use the reusable workflow, which
-  supplies the flathub builder container.
-- `aetherpak/actions/build`: build a manifest in the flathub container, or import
+  supplies the builder container.
+- `aetherpak/actions/build`: build a manifest with `flatpak-builder`, or import
   a prebuilt `.flatpak` bundle or OSTree repository.
 - `aetherpak/actions/publish`: push an OSTree repo to GHCR, merge the index, and
   write the site. It works on its own with a `repo-path` (your own OSTree repo)
