@@ -235,7 +235,7 @@ jobs:
       gpg-private-key: ${{ secrets.AETHERPAK_GPG_KEY }}</code></pre>
                   <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
                 </div>
-                <p class="hint">See <a href="#config-multi" onclick="document.querySelector('[data-tab=&quot;config-multi&quot;]').click()">Configuration → Multiple apps</a> below for the full schema and a worked example.</p>
+                <p class="hint">See <a href="#config-file" onclick="document.querySelector('[data-tab=&quot;config-file&quot;]').click()">Configuration → Config file</a> below for the full schema and a worked example.</p>
               </div>
             </div>
           </div>
@@ -246,30 +246,40 @@ jobs:
       <h2>Configuration</h2>
 
       <div class="tabs" role="tablist">
-        <button class="tab" role="tab" data-tab="config-single" aria-selected="true">Single app</button>
-        <button class="tab" role="tab" data-tab="config-multi" aria-selected="false" id="config-multi">Multiple apps</button>
+        <button class="tab" role="tab" data-tab="config-workflow" aria-selected="true">Workflow</button>
+        <button class="tab" role="tab" data-tab="config-file" aria-selected="false" id="config-file">Config file</button>
       </div>
 
-      <div class="panel" data-tab="config-single">
+      <div class="panel" data-tab="config-workflow">
         <div class="card">
         <div class="opts">
-          <div class="opt"><code>manifest-path</code><span>Flatpak manifest to build. Required.</span></div>
-          <div class="opt"><code>runtime</code><span>the app's runtime (gnome-50, freedesktop-24.08, …). Required.</span></div>
-          <div class="opt"><code>arches</code><span>Architectures to build. Default <code>x86_64 aarch64</code>.</span></div>
-          <div class="opt"><code>branch</code><span>Flatpak branch (channel). <code>stable</code> on tags, <code>beta</code> on the default branch, else the ref name.</span></div>
-          <div class="opt"><code>deploy</code><span>Deploy to Pages. Set <code>false</code> to host the site yourself.</span></div>
-          <div class="opt"><code>run-linter</code><span>Run <code>flatpak-builder-lint</code>. Default <code>true</code>.</span></div>
-          <div class="opt"><code>cache</code><span>Cache flatpak runtimes and builder files. Default <code>true</code>.</span></div>
-          <div class="opt"><code>pages-url</code><span>Public URL of the index. Defaults to the project's Pages URL.</span></div>
+          <div class="opt"><code>manifest-path</code><span>Single-app mode: the Flatpak manifest to build.</span></div>
+          <div class="opt"><code>config</code><span>Multi-app mode: path to <code>aetherpak.yaml</code>. Default <code>aetherpak.yaml</code>.</span></div>
+          <div class="opt"><code>arches</code><span>Single-app: architectures to build. Default <code>x86_64 aarch64</code>.</span></div>
+          <div class="opt"><code>branch</code><span>Single-app: Flatpak branch (channel). <code>stable</code> on tags, <code>beta</code> on the default branch, else the ref name.</span></div>
+          <div class="opt"><code>run-linter</code><span>Single-app: run <code>flatpak-builder-lint</code>. Default <code>true</code>.</span></div>
+          <div class="opt"><code>cache</code><span>Single-app: cache flatpak runtimes and builder files. Default <code>true</code>.</span></div>
+          <div class="opt"><code>builder-args</code><span>Single-app: extra <code>flatpak-builder</code> flags, one per line. Default <code>--install-deps-from=flathub</code>.</span></div>
+          <div class="opt"><code>app</code><span>Multi-app: rebuild only this app id (skip change detection).</span></div>
+          <div class="opt"><code>force-all</code><span>Multi-app: rebuild every app. Default <code>false</code>.</span></div>
+          <div class="opt"><code>base-sha</code><span>Multi-app: commit to diff against for change detection. Defaults to <code>github.event.before</code>.</span></div>
+          <div class="opt"><code>workflow-path</code><span>Multi-app: caller workflow path; touching it triggers a rebuild-all.</span></div>
+          <div class="opt"><code>signing</code><span>GPG-sign images: <code>auto</code> (sign when a key is set), <code>gpg</code>, or <code>off</code>. Default <code>auto</code>.</span></div>
           <div class="opt"><code>registry</code><span>OCI registry host. Default <code>ghcr.io</code>.</span></div>
           <div class="opt"><code>oci-repository</code><span>Image repository path. Defaults to this repository.</span></div>
-          <div class="opt"><code>signing</code><span>GPG-sign images: <code>auto</code> (sign when a key is set), <code>gpg</code>, or <code>off</code>. Default <code>auto</code>.</span></div>
+          <div class="opt"><code>remote-name</code><span>Flatpak remote name and <code>.flatpakrepo</code> filename. Defaults to the repo slug.</span></div>
+          <div class="opt"><code>pages-url</code><span>Public URL of the index. Defaults to the project's Pages URL.</span></div>
           <div class="opt"><code>runtime-repo</code><span><code>RuntimeRepo</code> in each one-click <code>.flatpakref</code>. Defaults to Flathub; empty omits it.</span></div>
           <div class="opt"><code>landing-page</code><span>Write the static <code>index.html</code>. Set <code>false</code> to render your own page.</span></div>
+          <div class="opt"><code>deploy</code><span>Deploy to Pages. Set <code>false</code> to host the site yourself.</span></div>
           <div class="opt"><code>artifact-name</code><span>Site artifact name when <code>deploy: false</code>. Default <code>aetherpak-site</code>.</span></div>
+          <div class="opt"><code>submodules</code><span>Submodule fetch mode for the build checkout. Default <code>recursive</code>.</span></div>
           <div class="opt"><code>concurrency-group</code><span>Override the per-repository publish lock. Only for repos publishing several independent sites.</span></div>
           <div class="opt"><code>reconcile-only</code><span>Skip build and push; only reconcile the index against the registry and re-deploy. Use after deleting an image.</span></div>
+          <div class="opt"><code>cli-version</code><span>aetherpak CLI release / container image tag. Default <code>v0.7.0</code>.</span></div>
         </div>
+
+        <div class="callout"><strong>Change detection (multi-app):</strong> a manifest entry rebuilds when its manifest directory changes (including submodule gitlink bumps); any entry rebuilds when its <code>aetherpak.yaml</code> dict changes (sha256 bumps, arch additions, runtime updates). <code>force-all</code> or <code>app</code> override it.</div>
 
         <div class="tabs" role="tablist" style="margin-top: 1.5rem;">
           <button class="tab" role="tab" data-tab="domain" aria-selected="true">Custom domain</button>
@@ -281,25 +291,24 @@ jobs:
           <p>Set <code>pages-url</code> to your domain (also set it under Settings, then Pages):</p>
           <div class="code-block inline">
             <pre><code>with:
-  manifest-path: org.example.App.json
   pages-url: https://flatpak.example.com</code></pre>
             <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
           </div>
         </div>
 
         <div class="panel" data-tab="registry" hidden>
-          <p>Blobs go to GHCR by default. For another image path within GHCR, set <code>oci-repository</code>. To push to a different registry, use the <code>publish</code> action directly so you can supply its credentials:</p>
+          <p>Blobs go to GHCR by default. Set <code>oci-repository</code> for a different image path within GHCR, or pass <code>registry</code> with a <code>registry-token</code> secret to push to another host:</p>
           <div class="code-block">
-            <pre><code>- uses: aetherpak/actions/publish@v3
-  with:
-    repo-path: _repo                              # or bundle-path: app.flatpak
-    registry: registry.example.com
-    oci-repository: my-org/my-app
-    registry-token: ${{ secrets.REGISTRY_TOKEN }} # registry password
-    pages-url: https://flatpak.example.com</code></pre>
+            <pre><code>with:
+  registry: registry.example.com
+  oci-repository: my-org/my-flatpaks
+  pages-url: https://flatpak.example.com
+secrets:
+  registry-token: ${{ secrets.REGISTRY_TOKEN }}
+  gpg-private-key: ${{ secrets.AETHERPAK_GPG_KEY }}</code></pre>
             <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
           </div>
-          <p class="hint">The index points clients at this registry for the blobs. Add <code>insecure-registry: true</code> for a local or HTTP registry.</p>
+          <p class="hint">The index points clients at this registry for the blobs. For a local or HTTP registry, use the <code>publish</code> action with <code>insecure-registry: true</code> (see Bring your build).</p>
         </div>
 
         <div class="panel" data-tab="byo" hidden>
@@ -333,73 +342,22 @@ jobs:
         </div>
       </div>
 
-      <div class="panel" data-tab="config-multi" hidden>
+      <div class="panel" data-tab="config-file" hidden>
         <div class="card">
         <div class="opts">
-          <div class="opt"><code>config</code><span>Path to <code>aetherpak.yaml</code>. Default <code>aetherpak.yaml</code>.</span></div>
-          <div class="opt"><code>app</code><span>Rebuild only this app id (skip change detection). Use for one-off republishes.</span></div>
-          <div class="opt"><code>force-all</code><span>Rebuild every app. Default <code>false</code>.</span></div>
-          <div class="opt"><code>reconcile-only</code><span>Skip every build and push; only reconcile the index against the registry and re-deploy. Use after deleting an image.</span></div>
-          <div class="opt"><code>base-sha</code><span>Commit to diff against for change detection. Defaults to <code>github.event.before</code>.</span></div>
-          <div class="opt"><code>workflow-path</code><span>Optional caller workflow path. Touching it triggers a rebuild-all.</span></div>
-          <div class="opt"><code>signing</code><span>GPG-sign images: <code>auto</code> (sign when a key is set), <code>gpg</code>, or <code>off</code>. Default <code>auto</code>.</span></div>
-          <div class="opt"><code>landing-page</code><span>Write the static <code>index.html</code>. Default <code>true</code>.</span></div>
-          <div class="opt"><code>runtime-repo</code><span><code>RuntimeRepo</code> URL in each one-click <code>.flatpakref</code>. Defaults to Flathub.</span></div>
-          <div class="opt"><code>registry</code><span>OCI registry host. Default <code>ghcr.io</code>.</span></div>
-          <div class="opt"><code>oci-repository</code><span>OCI repository path. Defaults to the GitHub repository.</span></div>
-          <div class="opt"><code>remote-name</code><span>Flatpak remote name and <code>.flatpakrepo</code> filename. Defaults to the GitHub repo slug.</span></div>
-          <div class="opt"><code>pages-url</code><span>Public URL the index is served from. Defaults to the project's Pages URL.</span></div>
-          <div class="opt"><code>submodules</code><span>Submodule fetch mode for the build-manifest job's checkout. Default <code>recursive</code>.</span></div>
-          <div class="opt"><code>deploy</code><span>Deploy to Pages. Set <code>false</code> to upload <code>_site</code> as a plain artifact instead.</span></div>
-          <div class="opt"><code>artifact-name</code><span>Site artifact name when <code>deploy: false</code>. Default <code>aetherpak-site</code>.</span></div>
-          <div class="opt"><code>concurrency-group</code><span>Override the per-repository publish lock.</span></div>
+          <div class="opt"><code>id</code><span>Reverse-DNS app id. Required. Must match the manifest's <code>app-id</code>.</span></div>
+          <div class="opt"><code>branch</code><span>Flatpak channel. Default <code>stable</code>. Load-bearing for both source kinds.</span></div>
+          <div class="opt"><code>manifest</code><span>Path to a Flatpak manifest. Mutually exclusive with <code>bundles</code>.</span></div>
+          <div class="opt"><code>runtime</code><span>the app's runtime (gnome-50, freedesktop-24.08, …). Required when <code>manifest</code> is set.</span></div>
+          <div class="opt"><code>arches</code><span>Architectures to build. Default <code>[x86_64]</code>. Manifest entries only.</span></div>
+          <div class="opt"><code>run-linter</code><span>Run <code>flatpak-builder-lint</code>. Default <code>false</code>. Manifest entries only.</span></div>
+          <div class="opt"><code>bundles</code><span>Map of <code>arch</code> to <code>{ url, sha256 }</code>. Mutually exclusive with <code>manifest</code>.</span></div>
         </div>
 
-        <div class="callout"><strong>Change detection:</strong> a manifest entry rebuilds when its manifest directory changes (including submodule gitlink bumps); any entry rebuilds when its <code>aetherpak.yaml</code> dict changes (sha256 bumps, arch additions, runtime updates).</div>
+        <div class="callout"><code>aetherpak.yaml</code> at the repo root declares every app in a multi-app repository; pass it with <code>config: aetherpak.yaml</code>. Each entry is a Flatpak manifest checked into the repo (often via submodule) or a prebuilt <code>.flatpak</code> bundle imported from an upstream release.</div>
 
-        <div class="tabs" role="tablist">
-          <button class="tab" role="tab" data-tab="multi-domain" aria-selected="true">Custom domain</button>
-          <button class="tab" role="tab" data-tab="multi-registry" aria-selected="false">Custom registry</button>
-          <button class="tab" role="tab" data-tab="aetherpak-yaml" aria-selected="false">aetherpak.yaml</button>
-        </div>
-
-        <div class="panel" data-tab="multi-domain">
-          <p>Set <code>pages-url</code> to your domain (also set it under Settings, then Pages):</p>
-          <div class="code-block inline">
-            <pre><code>with:
-  pages-url: https://flatpak.example.com</code></pre>
-            <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
-          </div>
-        </div>
-
-        <div class="panel" data-tab="multi-registry" hidden>
-          <p>Blobs go to GHCR by default. Set <code>oci-repository</code> for a different image path within GHCR, or pass <code>registry</code> plus a <code>registry-token</code> secret to push to another host:</p>
-          <div class="code-block">
-            <pre><code>with:
-  registry: registry.example.com
-  oci-repository: my-org/my-flatpaks
-  pages-url: https://flatpak.example.com
-secrets:
-  registry-token: ${{ secrets.REGISTRY_TOKEN }}
-  gpg-private-key: ${{ secrets.AETHERPAK_GPG_KEY }}</code></pre>
-            <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
-          </div>
-          <p class="hint">The index points clients at this registry for the blobs.</p>
-        </div>
-
-        <div class="panel" data-tab="aetherpak-yaml" hidden>
-          <div class="opts">
-            <div class="opt"><code>id</code><span>Reverse-DNS app id. Required. Must match the manifest's <code>app-id</code>.</span></div>
-            <div class="opt"><code>branch</code><span>Flatpak channel. Default <code>stable</code>. Load-bearing for both source kinds.</span></div>
-            <div class="opt"><code>manifest</code><span>Path to a Flatpak manifest. Mutually exclusive with <code>bundles</code>.</span></div>
-            <div class="opt"><code>runtime</code><span>the app's runtime (gnome-50, freedesktop-24.08, …). Required when <code>manifest</code> is set.</span></div>
-            <div class="opt"><code>arches</code><span>Architectures to build. Default <code>[x86_64]</code>. Manifest entries only.</span></div>
-            <div class="opt"><code>run-linter</code><span>Run <code>flatpak-builder-lint</code>. Default <code>false</code>. Manifest entries only.</span></div>
-            <div class="opt"><code>bundles</code><span>Map of <code>arch</code> to <code>{ url, sha256 }</code>. Mutually exclusive with <code>manifest</code>.</span></div>
-          </div>
-
-          <div class="code-block" style="margin-top: 1.25rem;">
-            <pre><code>apps:
+        <div class="code-block" style="margin-top: 1.25rem;">
+          <pre><code>apps:
   - id: org.example.App
     manifest: apps/org.example.App/manifest.yaml
     runtime: gnome-50
@@ -415,8 +373,7 @@ secrets:
       aarch64:
         url: https://github.com/upstream/Other/releases/download/v1.0.0/Other_aarch64.flatpak
         sha256: a74e9855d8a66eaa03f9beff3c42b4973eb4ac91ed81f81db49da4599080960d</code></pre>
-            <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
-          </div>
+          <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
         </div>
         </div>
       </div>
@@ -508,7 +465,7 @@ gpg --armor --export-secret-keys "$EMAIL" \
         sha256: a74e98...</code></pre>
       <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
     </div>
-    <p class="hint">See <a href="#config-multi" onclick="this.closest('dialog').close(); document.querySelector('[data-tab=&quot;config-multi&quot;]').click()">Configuration → Multiple apps</a> for the full schema.</p>
+    <p class="hint">See <a href="#config-file" onclick="this.closest('dialog').close(); document.querySelector('[data-tab=&quot;config-file&quot;]').click()">Configuration → Config file</a> for the full schema.</p>
   </dialog>
 
   <script>
