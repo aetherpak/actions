@@ -136,6 +136,8 @@ jobs:
   plan:
     name: Plan build matrix
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}
     outputs:
       matrix:                  ${{ steps.p.outputs.matrix }}
       matrix-manifest-tagged:  ${{ steps.tag.outputs.matrix-manifest-tagged }}
@@ -184,10 +186,6 @@ jobs:
           repository: aetherpak/actions
           ref: ${{ steps.aref.outputs.ref }}
           path: .github/actions/aetherpak
-      - name: Set up aetherpak CLI
-        uses: aetherpak/setup-cli@v1
-        with:
-          version: ${{ inputs.cli-version }}
       - name: Plan
         id: p
         env:
@@ -289,6 +287,8 @@ jobs:
         include: ${{ fromJSON(needs.plan.outputs.matrix-bundle) }}
     permissions:
       contents: read
+    container:
+      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}
     steps:
       - name: Check out actions repo
         uses: actions/checkout@v6
@@ -296,10 +296,6 @@ jobs:
           repository: aetherpak/actions
           ref: ${{ needs.plan.outputs.actions-ref }}
           path: .github/actions/aetherpak
-      - name: Set up aetherpak CLI
-        uses: aetherpak/setup-cli@v1
-        with:
-          version: ${{ inputs.cli-version }}
       - name: Fetch + import + rebind
         uses: ./.github/actions/aetherpak/prep-bundle
         with:
@@ -326,6 +322,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    container:
+      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -335,10 +333,6 @@ jobs:
           repository: aetherpak/actions
           ref: ${{ needs.plan.outputs.actions-ref }}
           path: .github/actions/aetherpak
-      - name: Set up aetherpak CLI
-        uses: aetherpak/setup-cli@v1
-        with:
-          version: ${{ inputs.cli-version }}
       - name: Download OSTree repo
         uses: actions/download-artifact@v8
         with:
@@ -378,6 +372,8 @@ jobs:
       contents: read
       pages: write
       id-token: write
+    container:
+      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}
     environment:
       name: ${{ inputs.deploy && 'github-pages' || '' }}
       url: ${{ steps.deploy.outputs.page_url }}
@@ -390,10 +386,6 @@ jobs:
           repository: aetherpak/actions
           ref: ${{ needs.plan.outputs.actions-ref }}
           path: .github/actions/aetherpak
-      - name: Set up aetherpak CLI
-        uses: aetherpak/setup-cli@v1
-        with:
-          version: ${{ inputs.cli-version }}
       - name: Download records
         if: ${{ !inputs.reconcile-only }}
         uses: actions/download-artifact@v8

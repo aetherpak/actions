@@ -39,8 +39,12 @@ be on `PATH`; the reusable workflows install it with `aetherpak/setup-cli`.
   feed one `plan → build-manifest / prep-bundle → publish-oci → publish-site`
   pipeline. The `plan` job derives each manifest cell's flathub builder-container
   tag from the manifest runtime via `plan/runtime-tag.jq` (allowlist:
-  freedesktop/gnome/kde). Each job installs the CLI via `aetherpak/setup-cli`;
-  `cli-version` pins the release.
+  freedesktop/gnome/kde). The non-build jobs (`plan`, `prep-bundle`,
+  `publish-oci`, `publish-site`) run inside the pre-baked CLI container
+  `ghcr.io/aetherpak/cli:<cli-version>` and call `aetherpak` directly, without
+  `setup-cli`. Only `build-manifest` runs in the flathub builder container (for
+  the runtime/SDK + `flatpak-builder` + lint), installing the CLI via
+  `aetherpak/setup-cli`. `cli-version` must name a published container tag.
 - `.github/workflows/site.yml`: deploys this project's own marketing landing page
   (`docs/site/`) to Pages on push to `main`, unrelated to a published app's index.
 - `.github/workflows/test.yml`: CI. A `lint` job (pre-commit: actionlint + file
