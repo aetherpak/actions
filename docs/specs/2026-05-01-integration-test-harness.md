@@ -54,7 +54,7 @@ Flatpak requires specific OCI index metadata fields. Each image entry in the bui
 - `Tags`
 
 ### C. Dynamic Reusable Workflows Checkout
-To ensure workflows under test run the active in-branch/PR versions of actions, the reusable workflows [.github/workflows/publish.yml](../../.github/workflows/publish.yml) and [.github/workflows/publish-multi.yml](../../.github/workflows/publish-multi.yml) checkout the repo dynamically by parsing `github.job_workflow_ref`:
+To ensure workflows under test run the active in-branch/PR versions of actions, the reusable workflow [.github/workflows/publish.yml](../../.github/workflows/publish.yml) checks out the repo dynamically by parsing `github.job_workflow_ref`:
 ```yaml
 - name: Resolve actions ref
   id: aref
