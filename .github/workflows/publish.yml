@@ -140,7 +140,7 @@ jobs:
       image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}
     outputs:
       matrix:                  ${{ steps.p.outputs.matrix }}
-      matrix-manifest-tagged:  ${{ steps.tag.outputs.matrix-manifest-tagged }}
+      matrix-manifest:         ${{ steps.p.outputs.matrix-manifest }}
       matrix-bundle:           ${{ steps.p.outputs.matrix-bundle }}
       count:                   ${{ steps.p.outputs.count }}
       count-manifest:          ${{ steps.p.outputs.count-manifest }}
@@ -218,16 +218,6 @@ jobs:
             [ -n "$WORKFLOW_PATH" ] && ARGS+=(--workflow-path "$WORKFLOW_PATH")
             aetherpak plan "${ARGS[@]}" --output-file "$GITHUB_OUTPUT"
           fi
-      - name: Derive runtime container tags
-        id: tag
-        env:
-          MM: ${{ steps.p.outputs.matrix-manifest }}
-        run: |
-          set -euo pipefail
-          MM="${MM:-[]}"
-          tagged="$(jq -c -f .github/actions/aetherpak/plan/runtime-tag.jq <<<"$MM")" \
-            || { echo "::error::runtime tag derivation failed"; exit 1; }
-          echo "matrix-manifest-tagged=$tagged" >> "$GITHUB_OUTPUT"
 
   build-manifest:
     name: "Build ${{ matrix.app-id }} (${{ matrix.arch }})"
@@ -237,11 +227,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(needs.plan.outputs.matrix-manifest-tagged) }}
+        include: ${{ fromJSON(needs.plan.outputs.matrix-manifest) }}
     permissions:
       contents: read
     container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:${{ matrix.runtime-tag }}
+      # Builds run as root here, so flatpak-builder's default --system install
+      # writes the runtime directly without the polkit/dbus system helper.
+      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}-builder
       options: --privileged
     steps:
       - name: Checkout
@@ -254,10 +246,6 @@ jobs:
           repository: aetherpak/actions
           ref: ${{ needs.plan.outputs.actions-ref }}
           path: .github/actions/aetherpak
-      - name: Set up aetherpak CLI
-        uses: aetherpak/setup-cli@v1
-        with:
-          version: ${{ inputs.cli-version }}
       - name: Build
         uses: ./.github/actions/aetherpak/build
         with:

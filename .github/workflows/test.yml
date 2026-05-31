@@ -742,26 +742,21 @@ jobs:
           test -f _site/my-org-repo.flatpakrepo || { echo "sanitized .flatpakrepo missing: $(ls _site/*.flatpakrepo 2>/dev/null)"; exit 1; }
           if grep -q '^GPGKey=' _site/my-org-repo.flatpakrepo; then echo "off .flatpakrepo must not embed GPGKey"; exit 1; fi
 
-  # Real flatpak-builder run in the flathub container — the manifest path the
-  # other jobs (prebuilt repo/bundle) never exercise, and where rofiles-fuse
-  # fails without the CI auto --disable-rofiles-fuse.
+  # Real flatpak-builder run in the builder container — the manifest path the
+  # other jobs (prebuilt repo/bundle) never exercise. The image ships no
+  # pre-installed runtime, so this also covers the live fetch from the baked
+  # flathub remote and the root/--privileged --system install (no dbus helper).
   build-manifest-smoke:
-    name: Manifest build smoke (flathub container)
+    name: Manifest build smoke (builder container)
     runs-on: ubuntu-latest
     permissions:
       contents: read
     container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-24.08
+      image: ghcr.io/aetherpak/cli:v0.7.0-builder
       options: --privileged
     steps:
       - name: Checkout Code
         uses: actions/checkout@v6
-
-      - name: Set up aetherpak CLI
-        uses: aetherpak/setup-cli@v1
-        with:
-          version: v0.7.0
-          install-dependencies: "false"
 
       - name: Write a trivial manifest
         run: |
@@ -791,8 +786,6 @@ jobs:
           branch: stable
           repo-path: _repo_smoke
           run-linter: "false"
-          # Mirrors the publish workflows' default; deps already present in the
-          # container, so this exercises the passthrough without a real fetch.
           builder-args: "--install-deps-from=flathub"
 
       - name: Verify the build produced the app ref
@@ -804,17 +797,8 @@ jobs:
           ostree refs --repo=_repo_smoke | grep -qx 'app/org.aetherpak.Smoke/x86_64/stable' \
             || { echo "expected ref missing:"; ostree refs --repo=_repo_smoke; exit 1; }
 
-  runtime-tag-unit:
-    name: Runtime-tag filter unit test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v6
-      - name: Run runtime-tag filter test
-        run: bash tests/test_runtime_tag.sh
-
   plan-manifest-glue-test:
-    name: Plan action glue (single manifest -> tagged matrix)
+    name: Plan action glue (single manifest -> matrix)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -855,10 +839,3 @@ jobs:
           test "$ID" = "org.example.Single" || { echo "app-id: $ID"; exit 1; }
           RT="$(echo '${{ steps.plan.outputs.matrix-manifest }}' | jq -r '.[0].runtime')"
           test "$RT" = "org.gnome.Platform" || { echo "runtime: $RT"; exit 1; }
-
-      - name: Assert runtime-tag derivation maps it to gnome-50
-        run: |
-          set -euo pipefail
-          TAG="$(echo '${{ steps.plan.outputs.matrix-manifest }}' \
-            | jq -c -f plan/runtime-tag.jq | jq -r '.[0]."runtime-tag"')"
-          test "$TAG" = "gnome-50" || { echo "runtime-tag: $TAG"; exit 1; }

@@ -22,7 +22,7 @@ client:  Pages index --(digest)--> GHCR blobs
 ```
 
 1. **build** runs `aetherpak build` (which wraps `flatpak-builder`) inside
-   `ghcr.io/flathub-infra/flatpak-github-actions:<runtime>` and exports an OSTree
+   `ghcr.io/aetherpak/cli:<cli-version>-builder` and exports an OSTree
    repo. Alternatively `aetherpak import` ingests a prebuilt `.flatpak` bundle, or
    an existing OSTree repo is copied. It reads `app-id`/`arch`/`branch` from the
    repo ref `app/<id>/<arch>/<branch>`. The branch is the channel: with no
@@ -166,27 +166,19 @@ parallel because each pushes an independent OCI image, not the shared index.
 
 ### Job containers
 
-The non-build jobs (`plan`, `prep-bundle`, `publish-oci`, `publish-site`) run
-inside the pre-baked CLI image `ghcr.io/aetherpak/cli:<cli-version>` and invoke
-`aetherpak` directly, without `aetherpak/setup-cli`. That image carries
-everything those jobs touch — `flatpak`, `ostree`, `git`, `jq`, and `gpg`; the
-OCI push/reconcile uses the CLI's embedded registry client, so no `skopeo` is
-needed. `cli-version` must therefore name a published image tag (`v0.7.0` →
-`:v0.7.0`); a pin without a matching container falls back to `setup-cli`.
-`build-manifest` is the exception: it runs in the flathub builder container
-(next section) for the pre-installed runtime/SDK, `flatpak-builder`, and the
-linter, and installs the CLI with `setup-cli`.
-
-### Runtime container tag
-
-`build-manifest` runs in `ghcr.io/flathub-infra/flatpak-github-actions:<tag>`.
-The CLI emits the manifest's raw `runtime` (`org.gnome.Platform`) and
-`runtime-version` (`50`); the `plan` job maps these to the flathub tag
-(`gnome-50`) with `plan/runtime-tag.jq`, an explicit allowlist of the runtimes
-the builder container publishes (`org.freedesktop.Platform`, `org.gnome.Platform`,
-`org.kde.Platform`). Values already in tag form (from `aetherpak.yaml`'s
-`runtime: gnome-50`) pass through unchanged; unsupported runtimes fail the plan.
-This map is GitHub/flathub-specific and lives in the actions layer, not the CLI.
+Every job runs inside the pre-baked CLI image `ghcr.io/aetherpak/cli` and invokes
+`aetherpak` directly, without `aetherpak/setup-cli`. The non-build jobs (`plan`,
+`prep-bundle`, `publish-oci`, `publish-site`) use the base tag
+`:<cli-version>`, which carries everything they touch — `flatpak`, `ostree`,
+`git`, `jq`, and `gpg` (the OCI push/reconcile uses the CLI's embedded registry
+client, so no `skopeo` is needed). `build-manifest` uses the `:<cli-version>-builder`
+tag, which adds `flatpak-builder` and `flatpak-builder-lint`, and runs
+`--privileged`: as root the runtime/SDK installs from the image's baked flathub
+remote directly, without the polkit/dbus system helper. Any flathub runtime
+works — there is no allowlist — at the cost of a per-build fetch (the image ships
+no pre-installed runtime). `cli-version` must name a published image tag
+(`v0.7.0` → `:v0.7.0` / `:v0.7.0-builder`); a pin without a matching container
+falls back to `setup-cli`.
 
 ### Channel handling for bundle sources
 
