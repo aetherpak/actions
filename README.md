@@ -232,10 +232,14 @@ The pipeline is also available as composite actions for custom workflows. These
 delegate to the [`aetherpak` CLI](https://github.com/aetherpak/cli).
 
 If the `aetherpak` CLI is not found on the runner's `PATH`, the composite
-actions will automatically invoke `aetherpak/setup-cli@v1` to install it.
-For non-build actions (`plan` and `publish-site`), the automatic fallback
-disables system dependency installation (like `flatpak` and `ostree`) to save
-runner setup time.
+actions use a shared internal fallback and automatically invoke
+`aetherpak/setup-cli@v1` to install it. For non-build actions (`plan` and
+`publish-site`), that fallback disables system dependency installation (like
+`flatpak` and `ostree`) to save runner setup time.
+
+For publish paths, the wrappers only resolve GitHub Action context (for
+example signing mode outputs and remote-name shaping) and pass normalized flags
+into CLI commands; build/publish/sign/index behavior remains in the CLI.
 
 You can still manually configure `aetherpak/setup-cli` if you need to pin to a
 specific CLI version or customize installations:

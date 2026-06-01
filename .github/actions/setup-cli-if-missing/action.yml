@@ -1,0 +1,36 @@
+name: "AetherPak Setup CLI If Missing"
+description: "Install aetherpak/setup-cli only when aetherpak is not already on PATH."
+
+inputs:
+  install-dependencies:
+    description: "Optional pass-through for setup-cli install-dependencies."
+    required: false
+    default: ""
+
+outputs:
+  need-setup:
+    description: "'true' when setup-cli had to run; otherwise 'false'."
+    value: ${{ steps.check.outputs.need-setup }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check aetherpak CLI
+      id: check
+      shell: bash
+      run: |
+        if ! command -v aetherpak >/dev/null; then
+          echo "need-setup=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "need-setup=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Run setup-cli fallback
+      if: ${{ steps.check.outputs.need-setup == 'true' && inputs.install-dependencies == '' }}
+      uses: aetherpak/setup-cli@v1
+
+    - name: Run setup-cli fallback (custom deps mode)
+      if: ${{ steps.check.outputs.need-setup == 'true' && inputs.install-dependencies != '' }}
+      uses: aetherpak/setup-cli@v1
+      with:
+        install-dependencies: ${{ inputs.install-dependencies }}

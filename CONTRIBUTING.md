@@ -48,6 +48,9 @@ install from the deployed remote.
 - Comments explain *why*, not *what*; skip ones that restate the code.
 - Action YAML stays thin: validate inputs, map them to a single `aetherpak`
   command, surface its outputs. Keep substantive logic in the CLI, not in bash.
+- Reuse shared internals for wrapper-only concerns:
+  `.github/actions/setup-cli-if-missing` for CLI bootstrap fallback and
+  `.github/actions/resolve-publish-context` for signing/target context shaping.
 
 ## Commits
 

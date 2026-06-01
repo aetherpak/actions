@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  AETHERPAK_CLI_VERSION: v0.11.0
+
 jobs:
   lint:
     name: Lint (pre-commit)
@@ -15,6 +18,66 @@ jobs:
         uses: actions/checkout@v6
       - name: Run pre-commit
         uses: pre-commit/action@v3.0.1
+
+  helper-actions-test:
+    name: Helper actions wiring and signing gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Assert shared setup-cli helper usage
+        run: |
+          set -euo pipefail
+          files=(
+            build/action.yml
+            plan/action.yml
+            prep-bundle/action.yml
+            publish-oci/action.yml
+            publish-site/action.yml
+          )
+          for f in "${files[@]}"; do
+            grep -q '\.\./\.github/actions/setup-cli-if-missing' "$f" || { echo "missing shared helper in $f"; exit 1; }
+            if grep -q 'id: check-cli' "$f"; then
+              echo "legacy check-cli block still present in $f"
+              exit 1
+            fi
+          done
+
+      - name: Resolve context (auto, no key)
+        id: ctx_auto
+        uses: ./.github/actions/resolve-publish-context
+        with:
+          signing: auto
+
+      - name: Check auto/no-key outputs
+        run: |
+          set -euo pipefail
+          [ "${{ steps.ctx_auto.outputs.sign }}" = "false" ] || { echo "auto/no-key should not sign"; exit 1; }
+          [ "${{ steps.ctx_auto.outputs.no-sign }}" = "false" ] || { echo "auto/no-key should not force --no-sign"; exit 1; }
+          [ "${{ steps.ctx_auto.outputs.allow-unsigned }}" = "true" ] || { echo "auto/no-key should allow unsigned"; exit 1; }
+          [ "${{ steps.ctx_auto.outputs.signing-path }}" = "off" ] || { echo "auto/no-key signing-path should be off"; exit 1; }
+
+      - name: Resolve context (gpg with key, target metadata)
+        id: ctx_gpg
+        uses: ./.github/actions/resolve-publish-context
+        with:
+          signing: gpg
+          gpg-private-key: dummy-key-material
+          remote-name: My Org/Repo
+          pages-url: https://example.test/myrepo/
+          site-subpath: flatpak
+
+      - name: Check gpg outputs and target shaping
+        run: |
+          set -euo pipefail
+          [ "${{ steps.ctx_gpg.outputs.sign }}" = "true" ] || { echo "gpg should sign"; exit 1; }
+          [ "${{ steps.ctx_gpg.outputs.no-sign }}" = "false" ] || { echo "gpg should not set --no-sign"; exit 1; }
+          [ "${{ steps.ctx_gpg.outputs.allow-unsigned }}" = "false" ] || { echo "gpg should not allow unsigned"; exit 1; }
+          [ "${{ steps.ctx_gpg.outputs.signing-path }}" = "gpg" ] || { echo "gpg signing-path should be gpg"; exit 1; }
+          [ "${{ steps.ctx_gpg.outputs.remote-name }}" = "my-org-repo" ] || { echo "remote-name sanitization mismatch"; exit 1; }
+          [ "${{ steps.ctx_gpg.outputs.public-key-url }}" = "https://example.test/myrepo/flatpak/sigs/key.asc" ] || { echo "public-key-url mismatch"; exit 1; }
+          [ "${{ steps.ctx_gpg.outputs.signature-lookaside-url }}" = "https://example.test/myrepo/flatpak/sigs" ] || { echo "signature-lookaside-url mismatch"; exit 1; }
 
   integration-test:
     name: Mock Integration Test
@@ -26,7 +89,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.0
+          version: ${{ env.AETHERPAK_CLI_VERSION }}
 
       - name: Start Local OCI Registry
         run: |
@@ -169,7 +232,7 @@ jobs:
     name: Publish path inside the CLI container
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/aetherpak/cli:v0.11.0
+      image: ghcr.io/aetherpak/cli:${{ env.AETHERPAK_CLI_VERSION }}
     services:
       registry:
         image: registry:2
@@ -219,7 +282,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.0
+          version: ${{ env.AETHERPAK_CLI_VERSION }}
 
       - name: Start Local OCI Registry
         run: |
@@ -319,7 +382,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.0
+          version: ${{ env.AETHERPAK_CLI_VERSION }}
 
       - name: Create Mock OSTree Repository
         run: bash tests/mock_repo.sh
@@ -363,7 +426,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.0
+          version: ${{ env.AETHERPAK_CLI_VERSION }}
 
       - name: Start Local OCI Registry
         run: |
@@ -427,7 +490,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.0
+          version: ${{ env.AETHERPAK_CLI_VERSION }}
 
       - name: Start Local OCI Registry
         run: |
@@ -502,7 +565,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.0
+          version: ${{ env.AETHERPAK_CLI_VERSION }}
 
       - name: No source must fail
         id: nosrc
@@ -569,7 +632,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.0
+          version: ${{ env.AETHERPAK_CLI_VERSION }}
           install-dependencies: "false"
 
       - name: Write a mock aetherpak.yaml (manifest + bundle apps)
@@ -631,7 +694,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.0
+          version: ${{ env.AETHERPAK_CLI_VERSION }}
 
       - name: Build and serve a bundle on branch beta
         run: |
@@ -680,7 +743,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.0
+          version: ${{ env.AETHERPAK_CLI_VERSION }}
 
       - name: Start Local OCI Registry
         run: |
@@ -752,7 +815,7 @@ jobs:
     permissions:
       contents: read
     container:
-      image: ghcr.io/aetherpak/cli:v0.11.0-builder
+      image: ghcr.io/aetherpak/cli:${{ env.AETHERPAK_CLI_VERSION }}-builder
       options: --privileged
     steps:
       - name: Checkout Code
@@ -807,7 +870,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.0
+          version: ${{ env.AETHERPAK_CLI_VERSION }}
           install-dependencies: "false"
 
       - name: Write a single manifest

@@ -3,9 +3,9 @@ description: "Expand aetherpak.yaml into a build matrix, narrowed to the apps ch
 
 inputs:
   config:
-    description: "Path to the aetherpak.yaml file."
+    description: "Path to the aetherpak.yaml file. Empty defers to CLI auto-detection."
     required: false
-    default: "aetherpak.yaml"
+    default: ""
   force:
     description: "'' to use change detection, '<app-id>' for a single app, 'all' for everything."
     required: false
@@ -61,19 +61,8 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Set up aetherpak CLI if missing
-      shell: bash
-      id: check-cli
-      run: |
-        if ! command -v aetherpak >/dev/null; then
-          echo "need-setup=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "need-setup=false" >> "$GITHUB_OUTPUT"
-        fi
-
-    - name: Run setup-cli fallback
-      if: steps.check-cli.outputs.need-setup == 'true'
-      uses: aetherpak/setup-cli@v1
+    - name: Ensure aetherpak CLI
+      uses: ../.github/actions/setup-cli-if-missing
       with:
         install-dependencies: "false"
     - name: Compute matrix
@@ -98,7 +87,8 @@ runs:
           aetherpak plan "${ARGS[@]}"
           exit 0
         fi
-        ARGS=(--config "$CONFIG" --output json --output-file "$GITHUB_OUTPUT")
+        ARGS=(--output json --output-file "$GITHUB_OUTPUT")
+        [ -n "$CONFIG" ] && ARGS+=(--config "$CONFIG")
         [ -n "$FORCE" ] && ARGS+=(--force "$FORCE")
         [ -n "$BASE_SHA" ] && ARGS+=(--base-sha "$BASE_SHA")
         [ -n "$WORKFLOW_PATH" ] && ARGS+=(--workflow-path "$WORKFLOW_PATH")

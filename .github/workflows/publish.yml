@@ -121,10 +121,10 @@ on:
         type: string
         default: ""
       cli-version:
-        description: "aetherpak CLI release tag to install (e.g. v0.11.0), or 'latest'."
+        description: "aetherpak CLI release tag override (e.g. v0.11.0), or 'latest'. Empty uses env.AETHERPAK_CLI_VERSION."
         required: false
         type: string
-        default: "v0.11.0"
+        default: ""
       builder-args:
         description: "Extra flatpak-builder flags applied to every manifest build, one per line."
         required: false
@@ -142,12 +142,15 @@ on:
         description: "Registry auth token for skopeo login. Defaults to the GitHub token (GHCR)."
         required: false
 
+env:
+  AETHERPAK_CLI_VERSION: v0.11.0
+
 jobs:
   plan:
     name: Plan build matrix
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}
+      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version != '' && inputs.cli-version || env.AETHERPAK_CLI_VERSION }}
     outputs:
       matrix:                  ${{ steps.p.outputs.matrix }}
       matrix-manifest:         ${{ steps.p.outputs.matrix-manifest }}
@@ -199,36 +202,16 @@ jobs:
           path: .github/actions/aetherpak
       - name: Plan
         id: p
-        env:
-          MANIFEST_PATH: ${{ inputs.manifest-path }}
-          ARCHES: ${{ inputs.arches }}
-          BRANCH: ${{ inputs.branch }}
-          RUN_LINTER: ${{ inputs.run-linter }}
-          CONFIG: ${{ inputs.config }}
-          APP: ${{ inputs.app }}
-          FORCE_ALL: ${{ github.event_name == 'schedule' || inputs.force-all }}
-          BASE_SHA: ${{ inputs.base-sha != '' && inputs.base-sha || github.event.before }}
-          WORKFLOW_PATH: ${{ inputs.workflow-path }}
-        run: |
-          set -euo pipefail
-          if [ -n "$MANIFEST_PATH" ]; then
-            ARGS=(--manifest "$MANIFEST_PATH")
-            [ "$RUN_LINTER" != "true" ] && ARGS+=(--disable-linter)
-            [ -n "$BRANCH" ] && ARGS+=(--branch "$BRANCH")
-            for a in $ARCHES; do ARGS+=(--arch "$a"); done
-            aetherpak plan "${ARGS[@]}" --output-file "$GITHUB_OUTPUT"
-          else
-            ARGS=()
-            [ -n "$CONFIG" ] && ARGS+=(--config "$CONFIG")
-            if [ "$FORCE_ALL" = "true" ]; then
-              ARGS+=(--force all)
-            elif [ -n "$APP" ]; then
-              ARGS+=(--force "$APP")
-            fi
-            [ -n "$BASE_SHA" ] && ARGS+=(--base-sha "$BASE_SHA")
-            [ -n "$WORKFLOW_PATH" ] && ARGS+=(--workflow-path "$WORKFLOW_PATH")
-            aetherpak plan "${ARGS[@]}" --output-file "$GITHUB_OUTPUT"
-          fi
+        uses: ./.github/actions/aetherpak/plan
+        with:
+          config: ${{ inputs.config }}
+          force: ${{ (github.event_name == 'schedule' || inputs.force-all) && 'all' || inputs.app }}
+          base-sha: ${{ inputs.base-sha != '' && inputs.base-sha || github.event.before }}
+          workflow-path: ${{ inputs.workflow-path }}
+          manifest: ${{ inputs.manifest-path }}
+          arch: ${{ inputs.arches }}
+          branch: ${{ inputs.branch }}
+          run-linter: ${{ inputs.run-linter }}
 
   build-manifest:
     name: "Build ${{ matrix.app-id }} (${{ matrix.arch }})"
@@ -244,7 +227,7 @@ jobs:
     container:
       # Builds run as root here, so flatpak-builder's default --system install
       # writes the runtime directly without the polkit/dbus system helper.
-      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}-builder
+      image: ghcr.io/aetherpak/cli:${{ (inputs.cli-version != '' && inputs.cli-version || env.AETHERPAK_CLI_VERSION) }}-builder
       options: --privileged
     steps:
       - name: Checkout
@@ -287,7 +270,7 @@ jobs:
     permissions:
       contents: read
     container:
-      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}
+      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version != '' && inputs.cli-version || env.AETHERPAK_CLI_VERSION }}
     steps:
       - name: Check out actions repo
         uses: actions/checkout@v6
@@ -322,7 +305,7 @@ jobs:
       contents: read
       packages: write
     container:
-      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}
+      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version != '' && inputs.cli-version || env.AETHERPAK_CLI_VERSION }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -372,7 +355,7 @@ jobs:
       pages: write
       id-token: write
     container:
-      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}
+      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version != '' && inputs.cli-version || env.AETHERPAK_CLI_VERSION }}
     environment:
       name: ${{ inputs.deploy && 'github-pages' || '' }}
       url: ${{ steps.deploy.outputs.page_url }}

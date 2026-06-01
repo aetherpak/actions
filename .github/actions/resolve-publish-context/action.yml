@@ -1,0 +1,93 @@
+name: "AetherPak Resolve Publish Context"
+description: "Resolve signing behavior and publish-site target metadata."
+
+inputs:
+  signing:
+    description: "Signing mode: auto (sign iff key is set), gpg (require key), or off."
+    required: false
+    default: "auto"
+  gpg-private-key:
+    description: "ASCII-armored GPG private key."
+    required: false
+    default: ""
+  remote-name:
+    description: "Optional remote name override; sanitized to [a-z0-9_-]."
+    required: false
+    default: ""
+  pages-url:
+    description: "Optional pages URL for computed signing URLs."
+    required: false
+    default: ""
+  site-subpath:
+    description: "Optional subpath appended to pages-url for signing URLs."
+    required: false
+    default: ""
+
+outputs:
+  sign:
+    description: "'true' when signing should run."
+    value: ${{ steps.resolve.outputs.sign }}
+  no-sign:
+    description: "'true' when --no-sign should be passed."
+    value: ${{ steps.resolve.outputs.no-sign }}
+  allow-unsigned:
+    description: "'true' when --allow-unsigned should be passed."
+    value: ${{ steps.resolve.outputs.allow-unsigned }}
+  signing-path:
+    description: "'gpg' when signing is on, else 'off'."
+    value: ${{ steps.resolve.outputs.signing-path }}
+  remote-name:
+    description: "Resolved/sanitized remote name."
+    value: ${{ steps.resolve.outputs.remote-name }}
+  public-key-url:
+    description: "Resolved public key URL when signing is on and pages-url is set."
+    value: ${{ steps.resolve.outputs.public-key-url }}
+  signature-lookaside-url:
+    description: "Resolved signature lookaside URL when signing is on and pages-url is set."
+    value: ${{ steps.resolve.outputs.signature-lookaside-url }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Resolve signing and target
+      id: resolve
+      shell: bash
+      env:
+        MODE: ${{ inputs.signing }}
+        KEY: ${{ inputs.gpg-private-key }}
+        INPUT_REMOTE_NAME: ${{ inputs.remote-name }}
+        PAGES_URL: ${{ inputs.pages-url }}
+        SITE_SUBPATH: ${{ inputs.site-subpath }}
+      run: |
+        set -euo pipefail
+
+        NO_SIGN=false
+        ALLOW_UNSIGNED=false
+        case "$MODE" in
+          off) SIGN=false; NO_SIGN=true; ALLOW_UNSIGNED=true ;;
+          gpg) [ -n "$KEY" ] || { echo "::error::signing=gpg requires gpg-private-key"; exit 1; }; SIGN=true ;;
+          auto) [ -n "$KEY" ] && SIGN=true || { SIGN=false; ALLOW_UNSIGNED=true; } ;;
+          *) echo "::error::signing must be auto|gpg|off"; exit 1 ;;
+        esac
+
+        RNAME="${INPUT_REMOTE_NAME:-$GITHUB_REPOSITORY}"
+        RNAME="$(printf '%s' "$RNAME" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_-]#-#g')"
+
+        {
+          echo "sign=$SIGN"
+          echo "no-sign=$NO_SIGN"
+          echo "allow-unsigned=$ALLOW_UNSIGNED"
+          echo "signing-path=$([ "$SIGN" = "true" ] && echo gpg || echo off)"
+          echo "remote-name=$RNAME"
+        } >> "$GITHUB_OUTPUT"
+
+        if [ "$SIGN" = "true" ] && [ -n "$PAGES_URL" ]; then
+          PAGES="${PAGES_URL%/}"
+          if [ -n "$SITE_SUBPATH" ]; then
+            PAGES="${PAGES}/${SITE_SUBPATH}"
+          fi
+          {
+            echo "public-key-url=${PAGES}/sigs/key.asc"
+            echo "signature-lookaside-url=${PAGES}/sigs"
+          } >> "$GITHUB_OUTPUT"
+        fi

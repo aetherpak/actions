@@ -212,6 +212,22 @@ Each `publish-oci` cell writes:
 index; any `sigs/` subtree under a record is copied into `_site/sigs/` (paths are
 content-addressed by digest so cells never collide).
 
+### Wrapper-to-CLI mapping (v0.11.0)
+
+The composite actions stay thin and treat `aetherpak` as the system of record.
+The wrappers now mostly normalize GitHub Actions I/O, then hand off to CLI
+subcommands:
+
+| Wrapper logic in this repo | Native CLI behavior |
+|---|---|
+| `build/action.yml`: source selection, then call `aetherpak build`/`import` | Build/import execution, lint invocation (`--run-linter`), repo export, inspectable outputs (`inspect-repo`) |
+| `plan/action.yml`: workflow inputs to one plan invocation | Matrix planning (`aetherpak plan`), including manifest/config modes and output-file emission |
+| `prep-bundle/action.yml`: fetch/verify/rebind entrypoint | Bundle fetch/import/rebind semantics in `aetherpak import` (`--bundle-url`, `--bundle-sha256`, branch binding) |
+| `publish-oci/action.yml`: push input plumbing | Push behavior in `aetherpak push-oci`, including signing toggles (`--no-sign`, `--allow-unsigned`) and record writing |
+| `publish-site/action.yml`: site orchestration wiring | Site synthesis and reconcile in `aetherpak build-site`, including signing metadata export and `.flatpakrepo`/`.flatpakref` generation |
+| Shared signing gate (`.github/actions/resolve-publish-context`) | CLI flags carry the final signing semantics; wrapper only maps mode/key to the correct flags and outputs |
+| Shared CLI bootstrap (`.github/actions/setup-cli-if-missing`) | `aetherpak/setup-cli` remains the fallback installer when a runner lacks `aetherpak` |
+
 ## Dependencies
 
 - The `aetherpak` CLI plus `flatpak`/`ostree`/`gpg`/`flatpak-builder` — bundled in

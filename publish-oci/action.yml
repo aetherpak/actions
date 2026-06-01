@@ -61,44 +61,20 @@ outputs:
     value: ${{ steps.push.outputs.cell-dir }}
   signing-path:
     description: "'gpg' when signed, else 'off'."
-    value: ${{ steps.signing.outputs.sign == 'true' && 'gpg' || 'off' }}
+    value: ${{ steps.ctx.outputs.signing-path }}
 
 runs:
   using: "composite"
   steps:
-    - name: Set up aetherpak CLI if missing
-      shell: bash
-      id: check-cli
-      run: |
-        if ! command -v aetherpak >/dev/null; then
-          echo "need-setup=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "need-setup=false" >> "$GITHUB_OUTPUT"
-        fi
+    - name: Ensure aetherpak CLI
+      uses: ../.github/actions/setup-cli-if-missing
 
-    - name: Run setup-cli fallback
-      if: steps.check-cli.outputs.need-setup == 'true'
-      uses: aetherpak/setup-cli@v1
-
-    - name: Signing gate
-      id: signing
-      shell: bash
-      env:
-        MODE: ${{ inputs.signing }}
-        KEY: ${{ inputs.gpg-private-key }}
-      run: |
-        set -euo pipefail
-        NO_SIGN=false
-        ALLOW_UNSIGNED=false
-        case "$MODE" in
-          off) SIGN=false; NO_SIGN=true; ALLOW_UNSIGNED=true ;;
-          gpg) [ -n "$KEY" ] || { echo "::error::signing=gpg but gpg-private-key is empty"; exit 1; }; SIGN=true ;;
-          auto) [ -n "$KEY" ] && SIGN=true || { SIGN=false; ALLOW_UNSIGNED=true; } ;;
-          *) echo "::error::signing must be auto|gpg|off"; exit 1 ;;
-        esac
-        echo "sign=$SIGN" >> "$GITHUB_OUTPUT"
-        echo "no-sign=$NO_SIGN" >> "$GITHUB_OUTPUT"
-        echo "allow-unsigned=$ALLOW_UNSIGNED" >> "$GITHUB_OUTPUT"
+    - name: Resolve publish context
+      id: ctx
+      uses: ../.github/actions/resolve-publish-context
+      with:
+        signing: ${{ inputs.signing }}
+        gpg-private-key: ${{ inputs.gpg-private-key }}
 
     - name: Import bundle
       if: ${{ inputs.bundle-path != '' }}
@@ -161,7 +137,7 @@ runs:
         REPO: ${{ inputs.repo-path }}
         RECORDS_DIR: ${{ inputs.records-dir }}
         INSECURE: ${{ inputs.insecure-registry }}
-        SIGN: ${{ steps.signing.outputs.sign }}
+        SIGN: ${{ steps.ctx.outputs.sign }}
         GPG_KEY: ${{ inputs.gpg-private-key }}
         OCI_USERNAME: ${{ github.actor }}
         OCI_PASSWORD: ${{ inputs.registry-token }}
@@ -182,6 +158,6 @@ runs:
           printf '%s' "$GPG_KEY" > "$keyfile"
           ARGS+=(--gpg-key "$keyfile")
         fi
-        [ "${{ steps.signing.outputs.no-sign }}" = "true" ] && ARGS+=(--no-sign)
-        [ "${{ steps.signing.outputs.allow-unsigned }}" = "true" ] && ARGS+=(--allow-unsigned)
+        [ "${{ steps.ctx.outputs.no-sign }}" = "true" ] && ARGS+=(--no-sign)
+        [ "${{ steps.ctx.outputs.allow-unsigned }}" = "true" ] && ARGS+=(--allow-unsigned)
         aetherpak push-oci "${ARGS[@]}"
