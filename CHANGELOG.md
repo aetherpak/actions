@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.0](https://github.com/aetherpak/actions/compare/v3.0.1...v3.1.0) (2026-06-01)
+
+
+### Features
+
+* **publish:** adopt aetherpak CLI v0.9.0 with index-template input and status diagnostics ([3d8935d](https://github.com/aetherpak/actions/commit/3d8935d626c0000f59ff80091544c906a654f712))
+
 ## [3.0.1](https://github.com/aetherpak/actions/compare/v3.0.0...v3.0.1) (2026-05-31)
 
 
