@@ -74,6 +74,7 @@ then enable **Public**.
 | `index-template` | `aetherpak.yaml` branding | path to a custom HTML index template; overrides `branding.index_template` |
 | `artifact-name` | `aetherpak-site` | name of the uploaded site artifact when `deploy: false` |
 | `concurrency-group` | per repository | override the publish lock; set only if a repo publishes to several independent sites |
+| `site-subpath` | _(empty)_ | Optional subdirectory under site-dir/pages-url to structure the repository files (e.g. `flatpak`) |
 
 Secrets `gpg-private-key` and `gpg-private-key-passphrase` enable image signing.
 See [Signing](#signing-optional).
@@ -228,9 +229,16 @@ need the listing to catch up.
 ## Standalone actions
 
 The pipeline is also available as composite actions for custom workflows. These
-delegate to the [`aetherpak` CLI](https://github.com/aetherpak/cli), so a custom
-workflow must put it on `PATH` first with `aetherpak/setup-cli` (the reusable
-workflow runs in a container that already bundles it):
+delegate to the [`aetherpak` CLI](https://github.com/aetherpak/cli).
+
+If the `aetherpak` CLI is not found on the runner's `PATH`, the composite
+actions will automatically invoke `aetherpak/setup-cli@v1` to install it.
+For non-build actions (`plan` and `publish-site`), the automatic fallback
+disables system dependency installation (like `flatpak` and `ostree`) to save
+runner setup time.
+
+You can still manually configure `aetherpak/setup-cli` if you need to pin to a
+specific CLI version or customize installations:
 
 - `aetherpak/actions`: the root composite that chains `build` then `publish` in a
   single step. Best for prebuilt inputs (a `.flatpak` bundle or OSTree repo) on a

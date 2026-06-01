@@ -115,6 +115,11 @@ on:
         required: false
         type: string
         default: ""
+      site-subpath:
+        description: "Optional subdirectory under site-dir to structure the repository files."
+        required: false
+        type: string
+        default: ""
       cli-version:
         description: "aetherpak CLI release tag to install (e.g. v0.10.0), or 'latest'."
         required: false
@@ -406,6 +411,7 @@ jobs:
           gpg-private-key:            ${{ secrets.gpg-private-key }}
           gpg-private-key-passphrase: ${{ secrets.gpg-private-key-passphrase }}
           upload-pages-artifact: ${{ inputs.deploy }}
+          site-subpath: ${{ inputs.site-subpath }}
       - name: Deploy
         id: deploy
         if: ${{ inputs.deploy }}
