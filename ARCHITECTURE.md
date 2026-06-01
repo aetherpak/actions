@@ -177,7 +177,7 @@ tag, which adds `flatpak-builder` and `flatpak-builder-lint`, and runs
 remote directly, without the polkit/dbus system helper. Any flathub runtime
 works — there is no allowlist — at the cost of a per-build fetch (the image ships
 no pre-installed runtime). `cli-version` must name a published image tag
-(`v0.11.0` → `:v0.11.0` / `:v0.11.0-builder`); a pin without a matching container
+(for example `vX.Y.Z` → `:vX.Y.Z` / `:vX.Y.Z-builder`); a pin without a matching container
 falls back to `setup-cli`.
 
 ### Channel handling for bundle sources
@@ -212,7 +212,7 @@ Each `publish-oci` cell writes:
 index; any `sigs/` subtree under a record is copied into `_site/sigs/` (paths are
 content-addressed by digest so cells never collide).
 
-### Wrapper-to-CLI mapping (v0.11.0)
+### Wrapper-to-CLI mapping
 
 The composite actions stay thin and treat `aetherpak` as the system of record.
 The wrappers now mostly normalize GitHub Actions I/O, then hand off to CLI

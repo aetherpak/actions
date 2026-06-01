@@ -121,7 +121,7 @@ on:
         type: string
         default: ""
       cli-version:
-        description: "aetherpak CLI release tag override (e.g. v0.11.0), or 'latest'. Empty uses vars.AETHERPAK_CLI_VERSION (fallback: v0.11.0)."
+        description: "aetherpak CLI release tag override (e.g. v0.11.0), or 'latest'. Empty uses vars.AETHERPAK_CLI_VERSION."
         required: false
         type: string
         default: ""
@@ -147,7 +147,7 @@ jobs:
     name: Plan build matrix
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version != '' && inputs.cli-version || (vars.AETHERPAK_CLI_VERSION != '' && vars.AETHERPAK_CLI_VERSION || 'v0.11.0') }}
+      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version != '' && inputs.cli-version || vars.AETHERPAK_CLI_VERSION }}
     outputs:
       matrix:                  ${{ steps.p.outputs.matrix }}
       matrix-manifest:         ${{ steps.p.outputs.matrix-manifest }}
@@ -224,7 +224,7 @@ jobs:
     container:
       # Builds run as root here, so flatpak-builder's default --system install
       # writes the runtime directly without the polkit/dbus system helper.
-      image: ghcr.io/aetherpak/cli:${{ (inputs.cli-version != '' && inputs.cli-version || (vars.AETHERPAK_CLI_VERSION != '' && vars.AETHERPAK_CLI_VERSION || 'v0.11.0')) }}-builder
+      image: ghcr.io/aetherpak/cli:${{ (inputs.cli-version != '' && inputs.cli-version || vars.AETHERPAK_CLI_VERSION) }}-builder
       options: --privileged
     steps:
       - name: Checkout
@@ -267,7 +267,7 @@ jobs:
     permissions:
       contents: read
     container:
-      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version != '' && inputs.cli-version || (vars.AETHERPAK_CLI_VERSION != '' && vars.AETHERPAK_CLI_VERSION || 'v0.11.0') }}
+      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version != '' && inputs.cli-version || vars.AETHERPAK_CLI_VERSION }}
     steps:
       - name: Check out actions repo
         uses: actions/checkout@v6
@@ -302,7 +302,7 @@ jobs:
       contents: read
       packages: write
     container:
-      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version != '' && inputs.cli-version || (vars.AETHERPAK_CLI_VERSION != '' && vars.AETHERPAK_CLI_VERSION || 'v0.11.0') }}
+      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version != '' && inputs.cli-version || vars.AETHERPAK_CLI_VERSION }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -352,7 +352,7 @@ jobs:
       pages: write
       id-token: write
     container:
-      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version != '' && inputs.cli-version || (vars.AETHERPAK_CLI_VERSION != '' && vars.AETHERPAK_CLI_VERSION || 'v0.11.0') }}
+      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version != '' && inputs.cli-version || vars.AETHERPAK_CLI_VERSION }}
     environment:
       name: ${{ inputs.deploy && 'github-pages' || '' }}
       url: ${{ steps.deploy.outputs.page_url }}

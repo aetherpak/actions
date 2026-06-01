@@ -89,7 +89,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION != '' && vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION }}
 
       - name: Start Local OCI Registry
         run: |
@@ -232,7 +232,7 @@ jobs:
     name: Publish path inside the CLI container
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/aetherpak/cli:${{ vars.AETHERPAK_CLI_VERSION != '' && vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
+      image: ghcr.io/aetherpak/cli:${{ vars.AETHERPAK_CLI_VERSION }}
     services:
       registry:
         image: registry:2
@@ -282,7 +282,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION != '' && vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION }}
 
       - name: Start Local OCI Registry
         run: |
@@ -382,7 +382,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION != '' && vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION }}
 
       - name: Create Mock OSTree Repository
         run: bash tests/mock_repo.sh
@@ -426,7 +426,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION != '' && vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION }}
 
       - name: Start Local OCI Registry
         run: |
@@ -490,7 +490,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION != '' && vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION }}
 
       - name: Start Local OCI Registry
         run: |
@@ -565,7 +565,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION != '' && vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION }}
 
       - name: No source must fail
         id: nosrc
@@ -632,7 +632,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION != '' && vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION }}
           install-dependencies: "false"
 
       - name: Write a mock aetherpak.yaml (manifest + bundle apps)
@@ -694,7 +694,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION != '' && vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION }}
 
       - name: Build and serve a bundle on branch beta
         run: |
@@ -743,7 +743,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION != '' && vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION }}
 
       - name: Start Local OCI Registry
         run: |
@@ -815,7 +815,7 @@ jobs:
     permissions:
       contents: read
     container:
-      image: ghcr.io/aetherpak/cli:${{ vars.AETHERPAK_CLI_VERSION != '' && vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}-builder
+      image: ghcr.io/aetherpak/cli:${{ vars.AETHERPAK_CLI_VERSION }}-builder
       options: --privileged
     steps:
       - name: Checkout Code
@@ -870,7 +870,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION != '' && vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION }}
           install-dependencies: "false"
 
       - name: Write a single manifest
