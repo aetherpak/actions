@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.2.0](https://github.com/aetherpak/actions/compare/v3.1.0...v3.2.0) (2026-06-01)
+
+
+### Features
+
+* **publish:** disable dependency installation in plan and publish-site fallbacks ([532f0c3](https://github.com/aetherpak/actions/commit/532f0c369050c07429df719c0328f17035adcb24))
+* **publish:** support setup-cli fallback and site-subpath ([57b518f](https://github.com/aetherpak/actions/commit/57b518f40c4bbb74201c93f24c40f3c1a1cb76f0))
+
 ## [3.1.0](https://github.com/aetherpak/actions/compare/v3.0.1...v3.1.0) (2026-06-01)
 
 
