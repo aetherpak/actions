@@ -28,9 +28,12 @@ runs:
     - name: Run setup-cli fallback
       if: ${{ steps.check.outputs.need-setup == 'true' && inputs.install-dependencies == '' }}
       uses: aetherpak/setup-cli@v1
+      with:
+        version: ${{ vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
 
     - name: Run setup-cli fallback (custom deps mode)
       if: ${{ steps.check.outputs.need-setup == 'true' && inputs.install-dependencies != '' }}
       uses: aetherpak/setup-cli@v1
       with:
+        version: ${{ vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
         install-dependencies: ${{ inputs.install-dependencies }}

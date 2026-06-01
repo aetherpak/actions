@@ -261,6 +261,8 @@ The reusable workflow pushes blobs to GHCR. To target another registry, call
 
 ```yaml
 - uses: aetherpak/setup-cli@v1   # installs the aetherpak CLI on PATH
+  with:
+    version: v0.11.0
 - uses: aetherpak/actions/publish@v3
   with:
     repo-path: _repo            # or bundle-path: app.flatpak
