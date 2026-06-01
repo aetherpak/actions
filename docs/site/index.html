@@ -277,7 +277,7 @@ jobs:
           <div class="opt"><code>submodules</code><span>Submodule fetch mode for the build checkout. Default <code>recursive</code>.</span></div>
           <div class="opt"><code>concurrency-group</code><span>Override the per-repository publish lock. Only for repos publishing several independent sites.</span></div>
           <div class="opt"><code>reconcile-only</code><span>Skip build and push; only reconcile the index against the registry and re-deploy. Use after deleting an image.</span></div>
-          <div class="opt"><code>cli-version</code><span>aetherpak CLI release / container image tag. Default <code>v0.9.0</code>.</span></div>
+          <div class="opt"><code>cli-version</code><span>aetherpak CLI release / container image tag. Default <code>v0.10.0</code>.</span></div>
         </div>
 
         <div class="callout"><strong>Change detection (multi-app):</strong> a manifest entry rebuilds when its manifest directory changes (including submodule gitlink bumps); any entry rebuilds when its <code>aetherpak.yaml</code> dict changes (sha256 bumps, arch additions, runtime updates). <code>force-all</code> or <code>app</code> override it.</div>
