@@ -37,6 +37,10 @@ inputs:
     description: "Homepage for the .flatpakrepo. Empty defers to aetherpak.yaml's repo_homepage, then the pages URL."
     required: false
     default: ""
+  index-template:
+    description: "Path to a custom HTML index template. Empty defers to aetherpak.yaml's branding.index_template, then the CLI default."
+    required: false
+    default: ""
   signing:
     description: "Signing mode: auto (export key iff present), gpg (require), off."
     required: false
@@ -75,6 +79,25 @@ runs:
     - name: Require aetherpak CLI
       shell: bash
       run: command -v aetherpak >/dev/null || { echo "::error::aetherpak CLI not on PATH"; exit 1; }
+
+    - name: Diagnostics
+      shell: bash
+      # Diagnostic only: reports signing/setup issues without gating the job.
+      env:
+        GPG_KEY: ${{ inputs.gpg-private-key }}
+        GPG_PASS: ${{ inputs.gpg-private-key-passphrase }}
+      run: |
+        set -euo pipefail
+        ARGS=()
+        if [ -n "$GPG_KEY" ]; then
+          keyfile="$(mktemp)"
+          chmod 600 "$keyfile"
+          trap 'rm -f "$keyfile"' EXIT
+          printf '%s' "$GPG_KEY" > "$keyfile"
+          ARGS+=(--gpg-key "$keyfile")
+          [ -n "$GPG_PASS" ] && ARGS+=(--gpg-key-passphrase "$GPG_PASS")
+        fi
+        aetherpak status "${ARGS[@]}" || echo "::warning::aetherpak status reported issues; see diagnostics above"
 
     - name: Resolve target and signing gate
       id: target
@@ -117,6 +140,8 @@ runs:
         REMOTE_NAME: ${{ steps.target.outputs.remote-name }}
         REPO_TITLE: ${{ inputs.repo-title }}
         REPO_HOMEPAGE: ${{ inputs.repo-homepage }}
+        # Empty value falls through to aetherpak.yaml's branding.index_template; non-empty overrides it.
+        AETHERPAK_INDEX_TEMPLATE: ${{ inputs.index-template }}
         RUNTIME_REPO: ${{ inputs.runtime-repo }}
         LANDING: ${{ inputs.landing-page }}
         SIGN: ${{ steps.target.outputs.sign }}

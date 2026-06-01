@@ -71,6 +71,7 @@ then enable **Public**.
 | `signing` | `auto` | sign images: `auto` (sign when a key is set), `gpg`, or `off` (see [Signing](#signing-optional)) |
 | `runtime-repo` | Flathub `.flatpakrepo` | `RuntimeRepo` in each generated `.flatpakref`; empty omits it |
 | `landing-page` | `true` | write the static `index.html`; `false` to render your own page from `index/static` |
+| `index-template` | `aetherpak.yaml` branding | path to a custom HTML index template; overrides `branding.index_template` |
 | `artifact-name` | `aetherpak-site` | name of the uploaded site artifact when `deploy: false` |
 | `concurrency-group` | per repository | override the publish lock; set only if a repo publishes to several independent sites |
 
@@ -195,6 +196,11 @@ that artifact yourself (under a subpath of an existing Pages site, or on externa
 hosting) and set `pages-url` to the final URL so the index and `.flatpakrepo`
 reference it. Use `landing-page: false` to skip `index.html` and render your own
 page from `index/static`.
+
+To brand the generated landing page rather than replace it, point `index-template`
+(or `branding.index_template` in `aetherpak.yaml`) at a custom HTML template; the
+other `branding` keys (`logo_url`, `favicon_url`, `accent_color`, `footer_text`)
+tune the default page.
 
 ## Maintaining the repository
 

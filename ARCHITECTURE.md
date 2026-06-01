@@ -177,7 +177,7 @@ tag, which adds `flatpak-builder` and `flatpak-builder-lint`, and runs
 remote directly, without the polkit/dbus system helper. Any flathub runtime
 works — there is no allowlist — at the cost of a per-build fetch (the image ships
 no pre-installed runtime). `cli-version` must name a published image tag
-(`v0.7.0` → `:v0.7.0` / `:v0.7.0-builder`); a pin without a matching container
+(`v0.9.0` → `:v0.9.0` / `:v0.9.0-builder`); a pin without a matching container
 falls back to `setup-cli`.
 
 ### Channel handling for bundle sources
