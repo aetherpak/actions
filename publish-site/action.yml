@@ -61,6 +61,10 @@ inputs:
     description: "The name of the uploaded GitHub Pages artifact."
     required: false
     default: "github-pages"
+  site-subpath:
+    description: "Optional subdirectory under site-dir to structure the repository files (e.g. flatpak)."
+    required: false
+    default: ""
 
 outputs:
   signing-path:
@@ -76,9 +80,19 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Require aetherpak CLI
+    - name: Set up aetherpak CLI if missing
       shell: bash
-      run: command -v aetherpak >/dev/null || { echo "::error::aetherpak CLI not on PATH"; exit 1; }
+      id: check-cli
+      run: |
+        if ! command -v aetherpak >/dev/null; then
+          echo "need-setup=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "need-setup=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Run setup-cli fallback
+      if: steps.check-cli.outputs.need-setup == 'true'
+      uses: aetherpak/setup-cli@v1
 
     - name: Diagnostics
       shell: bash
@@ -126,6 +140,9 @@ runs:
         # build-site writes signatures under a fixed "sigs/" directory.
         if [ "$SIGN" = "true" ]; then
           PAGES="${PAGES_URL%/}"
+          if [ -n "${{ inputs.site-subpath }}" ]; then
+            PAGES="${PAGES}/${{ inputs.site-subpath }}"
+          fi
           echo "public-key-url=${PAGES}/sigs/key.asc" >> "$GITHUB_OUTPUT"
           echo "signature-lookaside-url=${PAGES}/sigs" >> "$GITHUB_OUTPUT"
         fi
@@ -148,7 +165,13 @@ runs:
         GPG_KEY: ${{ inputs.gpg-private-key }}
       run: |
         set -euo pipefail
-        ARGS=(--records-dir "$RECORDS_DIR" --pages-url "$PAGES_URL" --site-dir "$SITE_DIR"
+        RESOLVED_PAGES_URL="${PAGES_URL}"
+        RESOLVED_SITE_DIR="${SITE_DIR}"
+        if [ -n "${{ inputs.site-subpath }}" ]; then
+          RESOLVED_PAGES_URL="${PAGES_URL%/}/${{ inputs.site-subpath }}"
+          RESOLVED_SITE_DIR="${SITE_DIR%/}/${{ inputs.site-subpath }}"
+        fi
+        ARGS=(--records-dir "$RECORDS_DIR" --pages-url "$RESOLVED_PAGES_URL" --site-dir "$RESOLVED_SITE_DIR"
           --remote-name "$REMOTE_NAME" --runtime-repo "$RUNTIME_REPO" --reconcile)
         [ -n "$REPO_TITLE" ] && ARGS+=(--repo-title "$REPO_TITLE")
         [ -n "$REPO_HOMEPAGE" ] && ARGS+=(--repo-homepage "$REPO_HOMEPAGE")

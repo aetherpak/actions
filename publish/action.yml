@@ -21,6 +21,7 @@ inputs:
   gpg-private-key-passphrase: { required: false, default: "" }
   runtime-repo: { required: false, default: "https://dl.flathub.org/repo/flathub.flatpakrepo" }
   remote-name: { required: false, default: "" }
+  site-subpath: { required: false, default: "", description: "Optional subdirectory under site-dir to structure the repository files." }
 
 outputs:
   signing-path:
@@ -70,3 +71,4 @@ runs:
         gpg-private-key-passphrase: ${{ inputs.gpg-private-key-passphrase }}
         upload-pages-artifact: ${{ inputs.upload-pages-artifact }}
         pages-artifact-name: ${{ inputs.pages-artifact-name }}
+        site-subpath: ${{ inputs.site-subpath }}

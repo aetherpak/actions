@@ -61,9 +61,19 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Require aetherpak CLI
+    - name: Set up aetherpak CLI if missing
       shell: bash
-      run: command -v aetherpak >/dev/null || { echo "::error::aetherpak CLI not on PATH"; exit 1; }
+      id: check-cli
+      run: |
+        if ! command -v aetherpak >/dev/null; then
+          echo "need-setup=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "need-setup=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Run setup-cli fallback
+      if: steps.check-cli.outputs.need-setup == 'true'
+      uses: aetherpak/setup-cli@v1
     - name: Compute matrix
       id: plan
       shell: bash

@@ -106,6 +106,10 @@ inputs:
     description: "Site-relative directory for the generated per-app .flatpakref files."
     required: false
     default: "refs"
+  site-subpath:
+    description: "Optional subdirectory under site-dir to structure the repository files (e.g. flatpak)."
+    required: false
+    default: ""
 
 outputs:
   repo-path:
@@ -171,3 +175,4 @@ runs:
         sig-dir: ${{ inputs.sig-dir }}
         runtime-repo: ${{ inputs.runtime-repo }}
         refs-dir: ${{ inputs.refs-dir }}
+        site-subpath: ${{ inputs.site-subpath }}
