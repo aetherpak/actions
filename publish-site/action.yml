@@ -93,6 +93,8 @@ runs:
     - name: Run setup-cli fallback
       if: steps.check-cli.outputs.need-setup == 'true'
       uses: aetherpak/setup-cli@v1
+      with:
+        install-dependencies: "false"
 
     - name: Diagnostics
       shell: bash
