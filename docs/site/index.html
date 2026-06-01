@@ -271,12 +271,13 @@ jobs:
           <div class="opt"><code>pages-url</code><span>Public URL of the index. Defaults to the project's Pages URL.</span></div>
           <div class="opt"><code>runtime-repo</code><span><code>RuntimeRepo</code> in each one-click <code>.flatpakref</code>. Defaults to Flathub; empty omits it.</span></div>
           <div class="opt"><code>landing-page</code><span>Write the static <code>index.html</code>. Set <code>false</code> to render your own page.</span></div>
+          <div class="opt"><code>index-template</code><span>Path to a custom HTML index template. Overrides <code>branding.index_template</code>.</span></div>
           <div class="opt"><code>deploy</code><span>Deploy to Pages. Set <code>false</code> to host the site yourself.</span></div>
           <div class="opt"><code>artifact-name</code><span>Site artifact name when <code>deploy: false</code>. Default <code>aetherpak-site</code>.</span></div>
           <div class="opt"><code>submodules</code><span>Submodule fetch mode for the build checkout. Default <code>recursive</code>.</span></div>
           <div class="opt"><code>concurrency-group</code><span>Override the per-repository publish lock. Only for repos publishing several independent sites.</span></div>
           <div class="opt"><code>reconcile-only</code><span>Skip build and push; only reconcile the index against the registry and re-deploy. Use after deleting an image.</span></div>
-          <div class="opt"><code>cli-version</code><span>aetherpak CLI release / container image tag. Default <code>v0.7.0</code>.</span></div>
+          <div class="opt"><code>cli-version</code><span>aetherpak CLI release / container image tag. Default <code>v0.9.0</code>.</span></div>
         </div>
 
         <div class="callout"><strong>Change detection (multi-app):</strong> a manifest entry rebuilds when its manifest directory changes (including submodule gitlink bumps); any entry rebuilds when its <code>aetherpak.yaml</code> dict changes (sha256 bumps, arch additions, runtime updates). <code>force-all</code> or <code>app</code> override it.</div>
@@ -352,6 +353,7 @@ jobs:
           <div class="opt"><code>arches</code><span>Architectures to build. Default <code>[x86_64]</code>. Manifest entries only.</span></div>
           <div class="opt"><code>run-linter</code><span>Run <code>flatpak-builder-lint</code>. Default <code>false</code>. Manifest entries only.</span></div>
           <div class="opt"><code>bundles</code><span>Map of <code>arch</code> to <code>{ url, sha256 }</code>. Mutually exclusive with <code>manifest</code>.</span></div>
+          <div class="opt"><code>branding</code><span>Top-level landing-page branding: <code>logo_url</code>, <code>favicon_url</code>, <code>accent_color</code>, <code>footer_text</code>, and <code>index_template</code> (path to a custom HTML template).</span></div>
         </div>
 
         <div class="callout"><code>aetherpak.yaml</code> at the repo root declares every app in a multi-app repository; pass it with <code>config: aetherpak.yaml</code>. Each entry is a Flatpak manifest checked into the repo (often via submodule) or a prebuilt <code>.flatpak</code> bundle imported from an upstream release.</div>
