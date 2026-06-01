@@ -167,7 +167,7 @@ runs:
         GPG_KEY: ${{ inputs.gpg-private-key }}
       run: |
         set -euo pipefail
-        RESOLVED_PAGES_URL="${PAGES_URL}"
+        RESOLVED_PAGES_URL="${PAGES_URL%/}"
         RESOLVED_SITE_DIR="${SITE_DIR}"
         if [ -n "${{ inputs.site-subpath }}" ]; then
           RESOLVED_PAGES_URL="${PAGES_URL%/}/${{ inputs.site-subpath }}"
