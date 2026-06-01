@@ -25,7 +25,7 @@ runs:
   using: "composite"
   steps:
     - name: Ensure aetherpak CLI
-      uses: ../.github/actions/setup-cli-if-missing
+      uses: ./../.github/actions/setup-cli-if-missing
 
     - name: Fetch, verify, import, and rebind
       shell: bash

@@ -78,7 +78,7 @@ runs:
         fi
 
     - name: Ensure aetherpak CLI
-      uses: ../.github/actions/setup-cli-if-missing
+      uses: ./../.github/actions/setup-cli-if-missing
 
     - name: Resolve channel
       id: channel

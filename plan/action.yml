@@ -62,7 +62,7 @@ runs:
   using: "composite"
   steps:
     - name: Ensure aetherpak CLI
-      uses: ../.github/actions/setup-cli-if-missing
+      uses: ./../.github/actions/setup-cli-if-missing
       with:
         install-dependencies: "false"
     - name: Compute matrix

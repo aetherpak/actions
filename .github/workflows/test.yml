@@ -37,7 +37,7 @@ jobs:
             publish-site/action.yml
           )
           for f in "${files[@]}"; do
-            grep -q '\.\./\.github/actions/setup-cli-if-missing' "$f" || { echo "missing shared helper in $f"; exit 1; }
+            grep -q '\./\.\./\.github/actions/setup-cli-if-missing' "$f" || { echo "missing shared helper in $f"; exit 1; }
             if grep -q 'id: check-cli' "$f"; then
               echo "legacy check-cli block still present in $f"
               exit 1
@@ -89,7 +89,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
 
       - name: Start Local OCI Registry
         run: |
@@ -232,7 +232,7 @@ jobs:
     name: Publish path inside the CLI container
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/aetherpak/cli:${{ vars.AETHERPAK_CLI_VERSION }}
+      image: ghcr.io/aetherpak/cli:${{ vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
     services:
       registry:
         image: registry:2
@@ -282,7 +282,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
 
       - name: Start Local OCI Registry
         run: |
@@ -382,7 +382,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
 
       - name: Create Mock OSTree Repository
         run: bash tests/mock_repo.sh
@@ -426,7 +426,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
 
       - name: Start Local OCI Registry
         run: |
@@ -490,7 +490,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
 
       - name: Start Local OCI Registry
         run: |
@@ -565,7 +565,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
 
       - name: No source must fail
         id: nosrc
@@ -632,7 +632,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
           install-dependencies: "false"
 
       - name: Write a mock aetherpak.yaml (manifest + bundle apps)
@@ -694,7 +694,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
 
       - name: Build and serve a bundle on branch beta
         run: |
@@ -743,7 +743,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
 
       - name: Start Local OCI Registry
         run: |
@@ -815,7 +815,7 @@ jobs:
     permissions:
       contents: read
     container:
-      image: ghcr.io/aetherpak/cli:${{ vars.AETHERPAK_CLI_VERSION }}-builder
+      image: ghcr.io/aetherpak/cli:${{ vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}-builder
       options: --privileged
     steps:
       - name: Checkout Code
@@ -870,7 +870,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: ${{ vars.AETHERPAK_CLI_VERSION }}
+          version: ${{ vars.AETHERPAK_CLI_VERSION || 'v0.11.0' }}
           install-dependencies: "false"
 
       - name: Write a single manifest

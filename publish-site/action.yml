@@ -81,7 +81,7 @@ runs:
   using: "composite"
   steps:
     - name: Ensure aetherpak CLI
-      uses: ../.github/actions/setup-cli-if-missing
+      uses: ./../.github/actions/setup-cli-if-missing
       with:
         install-dependencies: "false"
 
@@ -106,7 +106,7 @@ runs:
 
     - name: Resolve publish context
       id: ctx
-      uses: ../.github/actions/resolve-publish-context
+      uses: ./../.github/actions/resolve-publish-context
       with:
         signing: ${{ inputs.signing }}
         gpg-private-key: ${{ inputs.gpg-private-key }}
