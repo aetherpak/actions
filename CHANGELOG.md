@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.3.0](https://github.com/aetherpak/actions/compare/v3.2.0...v3.3.0) (2026-06-02)
+
+
+### Features
+
+* **publish:** support pre-built flatpaks with outputs and app-id forwarding ([a4c0deb](https://github.com/aetherpak/actions/commit/a4c0deb3109fbe32cb2b2b95fa1eb31ed784c239))
+
+
+### Bug Fixes
+
+* **publish-site:** strip trailing slash from pages-url before build-site ([836fd3d](https://github.com/aetherpak/actions/commit/836fd3dfd042b7c4db73d2075965a413909ebc21))
+* trigger setup-cli if any manifest build dependency is missing ([fa2e3ee](https://github.com/aetherpak/actions/commit/fa2e3ee5ae9dd62b5abe438fdc0443e7b3985df0))
+
 ## [3.2.0](https://github.com/aetherpak/actions/compare/v3.1.0...v3.2.0) (2026-06-01)
 
 
