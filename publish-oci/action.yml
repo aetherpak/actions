@@ -62,6 +62,18 @@ outputs:
   signing-path:
     description: "'gpg' when signed, else 'off'."
     value: ${{ steps.signing.outputs.sign == 'true' && 'gpg' || 'off' }}
+  app-id:
+    description: "Resolved Reverse-DNS Application ID."
+    value: ${{ steps.vars.outputs.app-id }}
+  branch:
+    description: "Resolved Flatpak branch."
+    value: ${{ steps.vars.outputs.branch }}
+  arch:
+    description: "Resolved application architecture."
+    value: ${{ steps.vars.outputs.arch }}
+  repo-path:
+    description: "OSTree repo path containing the application."
+    value: ${{ inputs.repo-path }}
 
 runs:
   using: "composite"
@@ -108,11 +120,13 @@ runs:
         REPO: ${{ inputs.repo-path }}
         BRANCH: ${{ inputs.branch }}
         ARCH: ${{ inputs.arch }}
+        APP: ${{ inputs.app-id }}
       run: |
         set -euo pipefail
         ARGS=(--bundle-path "$BUNDLE" --repo-path "$REPO")
         [ -n "$BRANCH" ] && ARGS+=(--branch "$BRANCH")
         [ -n "$ARCH" ] && ARGS+=(--arch "$ARCH")
+        [ -n "$APP" ] && ARGS+=(--app-id "$APP")
         aetherpak import "${ARGS[@]}"
 
     - name: Restore OSTree repo layout
