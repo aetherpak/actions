@@ -286,6 +286,7 @@ jobs:
         <div class="tabs" role="tablist" style="margin-top: 1.5rem;">
           <button class="tab" role="tab" data-tab="domain" aria-selected="true">Custom domain</button>
           <button class="tab" role="tab" data-tab="registry" aria-selected="false">Custom registry</button>
+          <button class="tab" role="tab" data-tab="prebuilt" aria-selected="false">Pre-built Flatpak</button>
           <button class="tab" role="tab" data-tab="byo" aria-selected="false">Bring your build</button>
         </div>
 
@@ -311,6 +312,35 @@ secrets:
             <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
           </div>
           <p class="hint">The index points clients at this registry for the blobs. For a local or HTTP registry, use the <code>publish</code> action with <code>insecure-registry: true</code> (see Bring your build).</p>
+        </div>
+
+        <div class="panel" data-tab="prebuilt" hidden>
+          <p>Publish a pre-built <code>.flatpak</code> bundle (e.g. built in a previous job or from an external release). The action imports the bundle, resolves the coordinates (app-id, arch, branch), and deploys the site.</p>
+          <div class="code-block">
+            <pre><code>name: Publish Pre-built Flatpak
+on: { push: { branches: [main] } }
+permissions:
+  contents: read
+  packages: write
+  pages: write
+  id-token: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      # Download or fetch your pre-built app.flatpak here
+      - uses: aetherpak/actions/publish@v3
+        with:
+          bundle-path: app.flatpak
+          pages-url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+      - id: deploy
+        uses: actions/deploy-pages@v5</code></pre>
+            <button class="btn-copy" title="Copy" aria-label="Copy" onclick="copyBlock(this)"></button>
+          </div>
         </div>
 
         <div class="panel" data-tab="byo" hidden>

@@ -251,6 +251,35 @@ specific CLI version or customize installations:
   or `bundle-path` (a `.flatpak`), so you can publish output from any toolchain
   (for example a Rust/Tauri build) without the `build` action.
 
+### Publishing a pre-built Flatpak bundle (.flatpak)
+
+You can publish a pre-built flatpak bundle using a workflow like:
+
+```yaml
+name: Publish Pre-built Flatpak
+on: { push: { branches: [main] } }
+permissions:
+  contents: read
+  packages: write
+  pages: write
+  id-token: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      # Download or fetch your pre-built app.flatpak here
+      - uses: aetherpak/actions/publish@v3
+        with:
+          bundle-path: app.flatpak
+          pages-url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+      - id: deploy
+        uses: actions/deploy-pages@v5
+```
+
 The reusable workflow pushes blobs to GHCR. To target another registry, call
 `publish` directly with `registry`, `oci-repository`, and `registry-token` (add
 `insecure-registry: true` for a local or HTTP registry):

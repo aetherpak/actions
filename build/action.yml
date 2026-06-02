@@ -147,9 +147,12 @@ runs:
         ARCH: ${{ inputs.arch }}
         BRANCH: ${{ steps.channel.outputs.name }}
         REPO: ${{ inputs.repo-path }}
+        APP: ${{ inputs.app-id }}
       run: |
         set -euo pipefail
-        aetherpak import --bundle-path "$BUNDLE" --arch "$ARCH" --branch "$BRANCH" --repo-path "$REPO"
+        ARGS=(--bundle-path "$BUNDLE" --arch "$ARCH" --branch "$BRANCH" --repo-path "$REPO")
+        [ -n "$APP" ] && ARGS+=(--app-id "$APP")
+        aetherpak import "${ARGS[@]}"
 
     - name: Copy pre-built OSTree repository
       if: ${{ inputs.prebuilt-repo-path != '' }}

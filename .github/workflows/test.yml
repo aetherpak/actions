@@ -75,6 +75,23 @@ jobs:
 
       - name: Verify Generated Index
         run: |
+          if [ "${{ steps.publish_step.outputs.app-id }}" != "org.flatpak.MockApp" ]; then
+            echo "Error: publish app-id output is wrong"
+            exit 1
+          fi
+          if [ "${{ steps.publish_step.outputs.branch }}" != "stable" ]; then
+            echo "Error: publish branch output is wrong"
+            exit 1
+          fi
+          if [ "${{ steps.publish_step.outputs.arch }}" != "x86_64" ]; then
+            echo "Error: publish arch output is wrong"
+            exit 1
+          fi
+          if [ "${{ steps.publish_step.outputs.repo-path }}" != "_repo_test" ]; then
+            echo "Error: publish repo-path output is wrong: ${{ steps.publish_step.outputs.repo-path }}"
+            exit 1
+          fi
+
           if [ ! -f "_site/index/static" ]; then
             echo "Error: index/static not generated"
             exit 1
@@ -416,6 +433,12 @@ jobs:
           fi
           REF="$(jq -r '.Results[0].Images[0].Labels["org.flatpak.ref"]' _site/index/static)"
           test "$REF" = "app/org.flatpak.BundleApp/x86_64/stable"
+
+          # Verify publish outputs are resolved and populated correctly
+          test "${{ steps.publish_step.outputs.app-id }}" = "org.flatpak.BundleApp"
+          test "${{ steps.publish_step.outputs.branch }}" = "stable"
+          test "${{ steps.publish_step.outputs.arch }}" = "x86_64"
+          test "${{ steps.publish_step.outputs.repo-path }}" = "_repo_from_bundle"
 
   split-integration-test:
     name: Mock Split Integration Test (oci+site)

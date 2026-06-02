@@ -33,6 +33,18 @@ outputs:
   signature-lookaside-url:
     description: "Public URL of the signature lookaside directory, or empty when unsigned."
     value: ${{ steps.site.outputs.signature-lookaside-url }}
+  app-id:
+    description: "Resolved Reverse-DNS Application ID."
+    value: ${{ steps.oci.outputs.app-id }}
+  branch:
+    description: "Resolved Flatpak branch."
+    value: ${{ steps.oci.outputs.branch }}
+  arch:
+    description: "Resolved application architecture."
+    value: ${{ steps.oci.outputs.arch }}
+  repo-path:
+    description: "Path to the OSTree repository containing the application."
+    value: ${{ steps.oci.outputs.repo-path }}
 
 runs:
   using: "composite"
