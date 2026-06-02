@@ -81,11 +81,19 @@ runs:
       shell: bash
       id: check-cli
       run: |
+        NEED_SETUP="false"
         if ! command -v aetherpak >/dev/null; then
-          echo "need-setup=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "need-setup=false" >> "$GITHUB_OUTPUT"
+          NEED_SETUP="true"
+        elif [ -n "${{ inputs.manifest-path }}" ]; then
+          # If building from manifest, verify that flatpak-builder dependencies are present
+          for cmd in flatpak-builder patch unzip bzip2 zstd; do
+            if ! command -v "$cmd" >/dev/null 2>&1; then
+              NEED_SETUP="true"
+              break
+            fi
+          done
         fi
+        echo "need-setup=${NEED_SETUP}" >> "$GITHUB_OUTPUT"
 
     - name: Run setup-cli fallback
       if: steps.check-cli.outputs.need-setup == 'true'
