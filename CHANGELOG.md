@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.3.1](https://github.com/aetherpak/actions/compare/v3.3.0...v3.3.1) (2026-06-02)
+
+
+### Miscellaneous Chores
+
+* release 3.3.1 ([939795b](https://github.com/aetherpak/actions/commit/939795bc2b96120154bd4f34eb457a8272c0f8ec))
+
 ## [3.3.0](https://github.com/aetherpak/actions/compare/v3.2.0...v3.3.0) (2026-06-02)
 
 
