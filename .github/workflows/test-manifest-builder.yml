@@ -1,0 +1,65 @@
+name: Manifest Builder Smoke Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-manifest-smoke:
+    name: Manifest build smoke (builder container)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    container:
+      image: ghcr.io/aetherpak/cli:v0.14.0-builder
+      options: --privileged
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Write a trivial manifest
+        run: |
+          cat > org.aetherpak.Smoke.json <<'EOF'
+          {
+            "id": "org.aetherpak.Smoke",
+            "runtime": "org.freedesktop.Platform",
+            "runtime-version": "24.08",
+            "sdk": "org.freedesktop.Sdk",
+            "command": "smoke",
+            "modules": [
+              {
+                "name": "smoke",
+                "buildsystem": "simple",
+                "build-commands": ["mkdir -p /app/bin", "touch /app/bin/smoke"]
+              }
+            ]
+          }
+          EOF
+
+      - name: Build the manifest
+        id: build
+        uses: ./build
+        with:
+          manifest-path: org.aetherpak.Smoke.json
+          arch: x86_64
+          branch: stable
+          repo-path: _repo_smoke
+          run-linter: "false"
+          builder-args: "--install-deps-from=flathub"
+          upload-bundle: "true"
+
+      - name: Verify the build produced the app ref
+        run: |
+          set -euo pipefail
+          test "${{ steps.build.outputs.app-id }}" = "org.aetherpak.Smoke" || { echo "app-id: ${{ steps.build.outputs.app-id }}"; exit 1; }
+          test "${{ steps.build.outputs.branch }}" = "stable" || { echo "branch: ${{ steps.build.outputs.branch }}"; exit 1; }
+          test "${{ steps.build.outputs.arch }}" = "x86_64" || { echo "arch: ${{ steps.build.outputs.arch }}"; exit 1; }
+          ostree refs --repo=_repo_smoke | grep -qx 'app/org.aetherpak.Smoke/x86_64/stable' \
+            || { echo "expected ref missing:"; ostree refs --repo=_repo_smoke; exit 1; }
+
+          # Verify bundle outputs and existence
+          test "${{ steps.build.outputs.bundle-path }}" = "org.aetherpak.Smoke_x86_64.flatpak" || { echo "bundle-path mismatch: ${{ steps.build.outputs.bundle-path }}"; exit 1; }
+          test "${{ steps.build.outputs.bundle-artifact-name }}" = "flatpak-bundle-org.aetherpak.Smoke-x86_64" || { echo "bundle-artifact-name mismatch: ${{ steps.build.outputs.bundle-artifact-name }}"; exit 1; }
+          test -f "org.aetherpak.Smoke_x86_64.flatpak" || { echo "bundle file org.aetherpak.Smoke_x86_64.flatpak not found"; exit 1; }

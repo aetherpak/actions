@@ -1,0 +1,242 @@
+name: Action Glue Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-glue-test:
+    name: Build action glue (validation + bundle source)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.14.0
+
+      - name: No source must fail
+        id: nosrc
+        continue-on-error: true
+        uses: ./build
+        with:
+          repo-path: _r_nosrc
+          run-linter: "false"
+
+      - name: Conflicting sources must fail
+        id: twosrc
+        continue-on-error: true
+        uses: ./build
+        with:
+          manifest-path: apps/m.json
+          prebuilt-repo-path: tests/mock_repo
+          repo-path: _r_two
+          run-linter: "false"
+
+      - name: Assert source validation rejected both
+        run: |
+          set -euo pipefail
+          [ "${{ steps.nosrc.outcome }}" = "failure" ] || { echo "no-source should fail"; exit 1; }
+          [ "${{ steps.twosrc.outcome }}" = "failure" ] || { echo "two-source should fail"; exit 1; }
+
+      - name: Build a mock bundle on branch beta
+        run: |
+          set -euo pipefail
+          ostree init --mode=archive --repo=bsrc
+          mkdir -p bcontents
+          cat > bcontents/metadata <<EOF
+          [Application]
+          name=org.flatpak.BundleApp
+          runtime=org.freedesktop.Platform/x86_64/23.08
+          sdk=org.freedesktop.Sdk/x86_64/23.08
+          EOF
+          ostree commit --repo=bsrc --branch=app/org.flatpak.BundleApp/x86_64/beta -m c bcontents
+          flatpak build-bundle bsrc app.flatpak org.flatpak.BundleApp beta
+
+      - name: Build from prebuilt bundle (rebind to stable)
+        id: b
+        uses: ./build
+        with:
+          prebuilt-bundle-path: app.flatpak
+          branch: stable
+          arch: x86_64
+          repo-path: _r_bundle
+          run-linter: "false"
+
+      - name: Assert bundle-source resolved outputs and rebind
+        run: |
+          set -euo pipefail
+          test "${{ steps.b.outputs.app-id }}" = "org.flatpak.BundleApp" || { echo "app-id: ${{ steps.b.outputs.app-id }}"; exit 1; }
+          test "${{ steps.b.outputs.arch }}" = "x86_64" || { echo "arch: ${{ steps.b.outputs.arch }}"; exit 1; }
+          test "${{ steps.b.outputs.branch }}" = "stable" || { echo "branch (rebind beta->stable): ${{ steps.b.outputs.branch }}"; exit 1; }
+
+  plan-glue-test:
+    name: Plan action glue (force selection + matrix shape)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.14.0
+          install-dependencies: "false"
+
+      - name: Write a mock aetherpak.yaml (manifest + bundle apps)
+        run: |
+          set -euo pipefail
+          mkdir -p apps
+          echo '{}' > apps/manifest.json
+          cat > aetherpak.yaml <<'EOF'
+          registry: ghcr.io
+          apps:
+            - id: org.example.ManifestApp
+              manifest: apps/manifest.json
+              runtime: gnome-50
+              arches: [x86_64]
+            - id: org.example.BundleApp
+              branch: stable
+              bundles:
+                x86_64:
+                  url: https://example.com/a.flatpak
+                  sha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          EOF
+
+      - name: Plan force=all
+        id: all
+        uses: ./plan
+        with:
+          config: aetherpak.yaml
+          force: all
+
+      - name: Assert all apps expand with correct source split
+        run: |
+          set -euo pipefail
+          test "${{ steps.all.outputs.count }}" = "2" || { echo "count: ${{ steps.all.outputs.count }}"; exit 1; }
+          test "${{ steps.all.outputs.count-manifest }}" = "1" || { echo "count-manifest: ${{ steps.all.outputs.count-manifest }}"; exit 1; }
+          test "${{ steps.all.outputs.count-bundle }}" = "1" || { echo "count-bundle: ${{ steps.all.outputs.count-bundle }}"; exit 1; }
+          echo '${{ steps.all.outputs.matrix }}' | jq -e 'length == 2' >/dev/null || { echo "matrix length != 2"; exit 1; }
+
+      - name: Plan force=single app
+        id: one
+        uses: ./plan
+        with:
+          config: aetherpak.yaml
+          force: org.example.BundleApp
+
+      - name: Assert only the named app is selected
+        run: |
+          set -euo pipefail
+          test "${{ steps.one.outputs.count }}" = "1" || { echo "count: ${{ steps.one.outputs.count }}"; exit 1; }
+          test "${{ steps.one.outputs.count-bundle }}" = "1" || { echo "count-bundle: ${{ steps.one.outputs.count-bundle }}"; exit 1; }
+          test "${{ steps.one.outputs.count-manifest }}" = "0" || { echo "count-manifest should be 0: ${{ steps.one.outputs.count-manifest }}"; exit 1; }
+
+  prep-bundle-glue-test:
+    name: Prep-bundle action glue (fetch + verify + rebind)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.14.0
+
+      - name: Build and serve a bundle on branch beta
+        run: |
+          set -euo pipefail
+          ostree init --mode=archive --repo=psrc
+          mkdir -p pcontents
+          cat > pcontents/metadata <<EOF
+          [Application]
+          name=org.flatpak.PrepApp
+          runtime=org.freedesktop.Platform/x86_64/23.08
+          sdk=org.freedesktop.Sdk/x86_64/23.08
+          EOF
+          ostree commit --repo=psrc --branch=app/org.flatpak.PrepApp/x86_64/beta -m c pcontents
+          mkdir -p srv
+          flatpak build-bundle psrc srv/app.flatpak org.flatpak.PrepApp beta
+          sha="$(sha256sum srv/app.flatpak | cut -d' ' -f1)"
+          echo "BUNDLE_SHA=$sha" >> "$GITHUB_ENV"
+          python3 -m http.server 9998 --directory srv & echo "HTTP_PID=$!" >> "$GITHUB_ENV"
+          sleep 1
+
+      - name: Prep bundle (rebind beta -> stable)
+        uses: ./prep-bundle
+        with:
+          url: http://localhost:9998/app.flatpak
+          sha256: ${{ env.BUNDLE_SHA }}
+          branch: stable
+          repo-path: _repo_prep
+
+      - name: Verify the imported ref was rebound to stable
+        run: |
+          set -euo pipefail
+          ref="$(ostree refs --repo=_repo_prep | grep '^app/' | head -1)"
+          test "$ref" = "app/org.flatpak.PrepApp/x86_64/stable" || { echo "ref: $ref"; exit 1; }
+
+      - name: Prep bundle from local path
+        uses: ./prep-bundle
+        with:
+          bundle-path: srv/app.flatpak
+          branch: stable-local
+          repo-path: _repo_prep_local
+
+      - name: Verify the local imported ref was rebound to stable-local
+        run: |
+          set -euo pipefail
+          ref="$(ostree refs --repo=_repo_prep_local | grep '^app/' | head -1)"
+          test "$ref" = "app/org.flatpak.PrepApp/x86_64/stable-local" || { echo "ref: $ref"; exit 1; }
+
+      - name: Stop bundle server
+        if: always()
+        run: kill "${HTTP_PID:-}" 2>/dev/null || true
+
+  plan-manifest-glue-test:
+    name: Plan action glue (single manifest -> matrix)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.14.0
+          install-dependencies: "false"
+
+      - name: Write a single manifest
+        run: |
+          cat > org.example.Single.json <<'EOF'
+          {
+            "id": "org.example.Single",
+            "runtime": "org.gnome.Platform",
+            "runtime-version": "50",
+            "sdk": "org.gnome.Sdk",
+            "command": "single",
+            "modules": []
+          }
+          EOF
+
+      - name: Plan against the manifest
+        id: plan
+        uses: ./plan
+        with:
+          manifest: org.example.Single.json
+          arch: x86_64
+
+      - name: Assert one manifest cell with resolved app-id
+        run: |
+          set -euo pipefail
+          test "${{ steps.plan.outputs.count }}" = "1" || { echo "count: ${{ steps.plan.outputs.count }}"; exit 1; }
+          test "${{ steps.plan.outputs.count-manifest }}" = "1" || { echo "count-manifest: ${{ steps.plan.outputs.count-manifest }}"; exit 1; }
+          ID="$(echo '${{ steps.plan.outputs.matrix-manifest }}' | jq -r '.[0]."app-id"')"
+          test "$ID" = "org.example.Single" || { echo "app-id: $ID"; exit 1; }
+          RT="$(echo '${{ steps.plan.outputs.matrix-manifest }}' | jq -r '.[0].runtime')"
+          test "$RT" = "org.gnome.Platform" || { echo "runtime: $RT"; exit 1; }

@@ -24,15 +24,18 @@ if ! grep -q "default: \"$VERSION\"" .github/workflows/publish.yml; then
   ERRORS=$((ERRORS + 1))
 fi
 
-# 2. Check .github/workflows/test.yml
-if ! grep -q "version: $VERSION" .github/workflows/test.yml; then
-  echo "Error: .github/workflows/test.yml has mismatched version for setup-cli!" >&2
-  ERRORS=$((ERRORS + 1))
-fi
-if ! grep -q "cli:$VERSION" .github/workflows/test.yml; then
-  echo "Error: .github/workflows/test.yml has mismatched container image versions!" >&2
-  ERRORS=$((ERRORS + 1))
-fi
+# 2. Check all test workflows
+for f in .github/workflows/test-*.yml; do
+  [ -f "$f" ] || continue
+  if grep -q "uses: aetherpak/setup-cli" "$f" && ! grep -q "version: $VERSION" "$f"; then
+    echo "Error: $f has mismatched version for setup-cli!" >&2
+    ERRORS=$((ERRORS + 1))
+  fi
+  if grep -q "ghcr.io/aetherpak/cli:" "$f" && ! grep -q "cli:$VERSION" "$f"; then
+    echo "Error: $f has mismatched container image versions!" >&2
+    ERRORS=$((ERRORS + 1))
+  fi
+done
 
 # 3. Check docs/site/index.html
 if ! grep -q "Default <code>$VERSION</code>" docs/site/index.html; then

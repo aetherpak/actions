@@ -1,0 +1,156 @@
+name: Signing Integration Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  signing-integration-test:
+    name: Mock Signing Integration Test (auto activation)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.14.0
+
+      - name: Start Local OCI Registry
+        run: bash tests/integration/start_local_registry.sh
+
+      - name: Create Mock OSTree Repository
+        run: bash tests/mock_repo.sh
+
+      - name: Generate ephemeral signing key
+        run: bash tests/integration/generate_signing_key.sh
+
+      - name: Run Build Action
+        id: build_step
+        uses: ./build
+        with:
+          prebuilt-repo-path: tests/mock_repo
+          repo-path: _repo_test
+          run-linter: "false"
+
+      - name: Run Publish Action (key present, default mode)
+        id: signed_publish
+        uses: ./publish
+        with:
+          repo-path: ${{ steps.build_step.outputs.repo-path }}
+          registry: "localhost:5001"
+          insecure-registry: "true"
+          oci-repository: "aetherpak/mock-app"
+          remote-name: "aetherpak-test"
+          pages-url: "http://localhost:9999"
+          registry-token: ""
+          upload-pages-artifact: "false"
+          gpg-private-key: ${{ env.AEP_GPG_KEY }}
+
+      - name: Install skopeo
+        run: sudo apt-get update && sudo apt-get install -y skopeo
+
+      - name: Verify auto-activation, signature, key, and metadata
+        run: |
+          bash tests/integration/verify_publish_signed.sh \
+            "${{ steps.signed_publish.outputs.signing-path }}" \
+            "localhost:5001" "aetherpak/mock-app" "org.flatpak.MockApp" "stable" "x86_64" \
+            _site aetherpak-test
+
+  signing-gate-test:
+    name: Mock Signing Gate (gpg requires a key)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.14.0
+
+      - name: Create Mock OSTree Repository
+        run: bash tests/mock_repo.sh
+
+      - name: Run Build Action
+        id: build_step
+        uses: ./build
+        with:
+          prebuilt-repo-path: tests/mock_repo
+          repo-path: _repo_test
+          run-linter: "false"
+
+      - name: Publish with signing=gpg but no key (must fail)
+        id: gate
+        continue-on-error: true
+        uses: ./publish
+        with:
+          repo-path: ${{ steps.build_step.outputs.repo-path }}
+          registry: "localhost:5001"
+          insecure-registry: "true"
+          oci-repository: "aetherpak/mock-app"
+          pages-url: "http://localhost:9999"
+          registry-token: ""
+          upload-pages-artifact: "false"
+          signing: "gpg"
+
+      - name: Assert it failed
+        run: |
+          if [ "${{ steps.gate.outcome }}" != "failure" ]; then
+            echo "Error: signing=gpg without a key must fail"; exit 1
+          fi
+          echo "gpg gate correctly rejected an empty key"
+
+  signing-off-and-sanitize-test:
+    name: Signing off + remote-name sanitization
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.14.0
+
+      - name: Start Local OCI Registry
+        run: bash tests/integration/start_local_registry.sh
+
+      - name: Create Mock OSTree Repository
+        run: bash tests/mock_repo.sh
+
+      - name: Generate ephemeral signing key
+        run: bash tests/integration/generate_signing_key.sh
+
+      - name: Run Build Action
+        id: build_step
+        uses: ./build
+        with:
+          prebuilt-repo-path: tests/mock_repo
+          repo-path: _repo_test
+          run-linter: "false"
+
+      - name: Publish with signing=off despite a key, and a messy remote-name
+        id: publish_step
+        uses: ./publish
+        with:
+          repo-path: ${{ steps.build_step.outputs.repo-path }}
+          registry: "localhost:5001"
+          insecure-registry: "true"
+          oci-repository: "aetherpak/mock-app"
+          remote-name: "My Org/Repo"
+          pages-url: "http://localhost:9999"
+          registry-token: ""
+          upload-pages-artifact: "false"
+          signing: "off"
+          gpg-private-key: ${{ env.AEP_GPG_KEY }}
+
+      - name: Assert off path and sanitized remote-name
+        run: |
+          bash tests/integration/verify_publish_unsigned.sh \
+            org.flatpak.MockApp stable x86_64 _repo_test \
+            "${{ steps.publish_step.outputs.app-id }}" "${{ steps.publish_step.outputs.branch }}" "${{ steps.publish_step.outputs.arch }}" "${{ steps.publish_step.outputs.repo-path }}" \
+            _site my-org-repo "http://localhost:5001" aetherpak/mock-app "${{ steps.publish_step.outputs.signing-path }}"
