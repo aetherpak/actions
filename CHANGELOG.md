@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.5.0](https://github.com/aetherpak/actions/compare/v3.4.0...v3.5.0) (2026-06-03)
+
+
+### Features
+
+* support multiple bundle ingestion and bump default CLI to v0.14.0 ([e987137](https://github.com/aetherpak/actions/commit/e98713749f72c23e49ca0582dca2cba89094827c))
+* update E2E tests and documentation to show multiline bundle-path block format ([9f628d4](https://github.com/aetherpak/actions/commit/9f628d4fe563e08788d1c97f8b2cf017738b272f))
+
+
+### Bug Fixes
+
+* parse multiline bundle-path and url blocks correctly in actions ([d211266](https://github.com/aetherpak/actions/commit/d2112669ceaa09afb7c2b96e9e9844866a6c8e78))
+
 ## [3.4.0](https://github.com/aetherpak/actions/compare/v3.3.1...v3.4.0) (2026-06-03)
 
 
