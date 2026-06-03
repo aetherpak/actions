@@ -44,7 +44,10 @@ client:  Pages index --(digest)--> GHCR blobs
    --config`); both emit the same `(app, arch)` matrix. `build-manifest` /
    `prep-bundle` produce per-cell OSTree repos, `publish-oci` pushes each in
    parallel, and a single concurrency-locked `publish-site` job merges every
-   record into the shared index and deploys.
+   record into the shared index and deploys. When `dry-run: true` is passed,
+   the publish and deploy jobs (`publish-oci` and `publish-site`) are skipped,
+   allowing complete manifest builds and imports to be verified in CI without
+   affecting any remote state.
 
 Deployment is optional. With `deploy: false` the reusable workflow uploads the
 built site as a plain artifact instead of deploying it, so the files can be served
@@ -239,7 +242,8 @@ content-addressed by digest so cells never collide).
   from the registry and re-run publish. There is no in-action delete; registry
   blob deletion is a manual step (see README Maintenance). The reusable
   workflow accepts `reconcile-only: true` to skip every build and just reconcile,
-  for catching up the listing after a deletion.
+  for catching up the listing after a deletion. Similarly, passing `dry-run: true`
+  skips the publishing and site-deployment stages entirely.
 - **Linter strictness.** `flatpak-builder-lint` enforces Flathub store policies,
   some of which fail for self-hosted apps. Screenshots are mirrored to cover the
   common case; set `run-linter: false` to skip the rest.
