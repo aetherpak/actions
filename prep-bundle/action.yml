@@ -23,7 +23,7 @@ inputs:
   cli-version:
     description: "aetherpak CLI version to install if missing (ignored if already on PATH)."
     required: false
-    default: "v0.13.0"
+    default: "v0.14.0"
 
 runs:
   using: "composite"
@@ -48,9 +48,21 @@ runs:
           exit 1
         fi
         ARGS=()
-        [ -n "$URL" ] && ARGS+=(--bundle-url "$URL")
+        if [ -n "$URL" ]; then
+          IFS=$',\n' read -r -a urls <<< "$URL"
+          for u in "${urls[@]}"; do
+            u=$(echo "$u" | xargs)
+            [ -n "$u" ] && ARGS+=(--bundle-url "$u")
+          done
+        fi
         [ -n "$SHA" ] && ARGS+=(--bundle-sha256 "$SHA")
-        [ -n "$BUNDLE_PATH" ] && ARGS+=(--bundle-path "$BUNDLE_PATH")
+        if [ -n "$BUNDLE_PATH" ]; then
+          IFS=$',\n' read -r -a paths <<< "$BUNDLE_PATH"
+          for p in "${paths[@]}"; do
+            p=$(echo "$p" | xargs)
+            [ -n "$p" ] && ARGS+=(--bundle-path "$p")
+          done
+        fi
         [ -n "$BRANCH" ] && ARGS+=(--branch "$BRANCH")
         [ -n "$REPO" ] && ARGS+=(--repo-path "$REPO")
         aetherpak import "${ARGS[@]}"

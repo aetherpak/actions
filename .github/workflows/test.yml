@@ -26,7 +26,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.13.0
+          version: v0.14.0
 
       - name: Start Local OCI Registry
         run: |
@@ -186,7 +186,7 @@ jobs:
     name: Publish path inside the CLI container
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/aetherpak/cli:v0.13.0
+      image: ghcr.io/aetherpak/cli:v0.14.0
     services:
       registry:
         image: registry:2
@@ -236,7 +236,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.13.0
+          version: v0.14.0
 
       - name: Start Local OCI Registry
         run: |
@@ -336,7 +336,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.13.0
+          version: v0.14.0
 
       - name: Create Mock OSTree Repository
         run: bash tests/mock_repo.sh
@@ -380,7 +380,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.13.0
+          version: v0.14.0
 
       - name: Start Local OCI Registry
         run: |
@@ -450,7 +450,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.13.0
+          version: v0.14.0
 
       - name: Start Local OCI Registry
         run: |
@@ -515,6 +515,72 @@ jobs:
             || { echo "refs mismatch: $REFS"; exit 1; }
           ls _site/refs/org.flatpak.AppA-stable.flatpakref _site/refs/org.flatpak.AppB-stable.flatpakref
 
+  multi-bundle-integration-test:
+    name: Mock Multi-Bundle Integration Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.14.0
+
+      - name: Start Local OCI Registry
+        run: |
+          docker run -d -p 5001:5000 --name registry registry:2
+          for _ in {1..10}; do curl -s http://localhost:5001/v2/ && break; sleep 1; done
+
+      - name: Build two mock bundles (AppA, AppB)
+        run: |
+          set -euo pipefail
+          for app in AppA AppB; do
+            mkdir -p tests/${app}_repo tests/${app}_contents
+            ostree init --mode=archive --repo=tests/${app}_repo
+            cat > tests/${app}_contents/metadata <<EOF
+          [Application]
+          name=org.flatpak.${app}
+          runtime=org.freedesktop.Platform/x86_64/23.08
+          sdk=org.freedesktop.Sdk/x86_64/23.08
+          EOF
+            ostree commit --repo=tests/${app}_repo \
+              --branch=app/org.flatpak.${app}/x86_64/stable \
+              -m "mock ${app} commit" tests/${app}_contents
+            flatpak build-bundle tests/${app}_repo tests/${app}.flatpak \
+              org.flatpak.${app} stable
+          done
+
+      - name: Publish both bundles simultaneously
+        uses: ./publish
+        with:
+          repo-path: _repo_multi_bundle
+          bundle-path: tests/AppA.flatpak,tests/AppB.flatpak
+          registry: "localhost:5001"
+          insecure-registry: "true"
+          oci-repository: "aetherpak/multi-app"
+          remote-name: "aetherpak-multi-test"
+          pages-url: "http://localhost:9999"
+          registry-token: ""
+          upload-pages-artifact: "false"
+
+      - name: Verify both apps rebound and published
+        run: |
+          set -euo pipefail
+          if [ ! -f "_site/index/static" ]; then
+            echo "Error: index/static not generated"
+            exit 1
+          fi
+
+          NAMES="$(jq -r '.Results[].Name' _site/index/static | sort | tr '\n' ' ')"
+          [ "$NAMES" = "aetherpak/multi-app " ] || { echo "names mismatch: $NAMES"; exit 1; }
+
+          REFS="$(jq -r '.Results[].Images[].Labels["org.flatpak.ref"]' _site/index/static | sort | tr '\n' ' ')"
+          [ "$REFS" = "app/org.flatpak.AppA/x86_64/stable app/org.flatpak.AppB/x86_64/stable " ] \
+            || { echo "refs mismatch: $REFS"; exit 1; }
+
+          ls _site/refs/org.flatpak.AppA-stable.flatpakref _site/refs/org.flatpak.AppB-stable.flatpakref
+
   build-glue-test:
     name: Build action glue (validation + bundle source)
     runs-on: ubuntu-latest
@@ -525,7 +591,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.13.0
+          version: v0.14.0
 
       - name: No source must fail
         id: nosrc
@@ -592,7 +658,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.13.0
+          version: v0.14.0
           install-dependencies: "false"
 
       - name: Write a mock aetherpak.yaml (manifest + bundle apps)
@@ -654,7 +720,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.13.0
+          version: v0.14.0
 
       - name: Build and serve a bundle on branch beta
         run: |
@@ -716,7 +782,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.13.0
+          version: v0.14.0
 
       - name: Start Local OCI Registry
         run: |
@@ -788,7 +854,7 @@ jobs:
     permissions:
       contents: read
     container:
-      image: ghcr.io/aetherpak/cli:v0.13.0-builder
+      image: ghcr.io/aetherpak/cli:v0.14.0-builder
       options: --privileged
     steps:
       - name: Checkout Code
@@ -849,7 +915,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.13.0
+          version: v0.14.0
           install-dependencies: "false"
 
       - name: Write a single manifest

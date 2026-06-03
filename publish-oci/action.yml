@@ -57,7 +57,7 @@ inputs:
   cli-version:
     description: "aetherpak CLI version to install if missing (ignored if already on PATH)."
     required: false
-    default: "v0.13.0"
+    default: "v0.14.0"
 
 outputs:
   cell-dir:
@@ -118,11 +118,20 @@ runs:
         APP: ${{ inputs.app-id }}
       run: |
         set -euo pipefail
-        ARGS=(--bundle-path "$BUNDLE" --repo-path "$REPO")
+        ARGS=()
+        if [ -n "$BUNDLE" ]; then
+          IFS=$',\n' read -r -a paths <<< "$BUNDLE"
+          for p in "${paths[@]}"; do
+            p=$(echo "$p" | xargs)
+            [ -n "$p" ] && ARGS+=(--bundle-path "$p")
+          done
+        fi
         [ -n "$BRANCH" ] && ARGS+=(--branch "$BRANCH")
         [ -n "$ARCH" ] && ARGS+=(--arch "$ARCH")
+        [ -n "$REPO" ] && ARGS+=(--repo-path "$REPO")
         [ -n "$APP" ] && ARGS+=(--app-id "$APP")
         aetherpak import "${ARGS[@]}"
+
 
     - name: Restore OSTree repo layout
       if: ${{ inputs.bundle-path == '' }}
@@ -162,9 +171,6 @@ runs:
       id: push
       shell: bash
       env:
-        APP: ${{ steps.vars.outputs.app-id }}
-        ARCH: ${{ steps.vars.outputs.arch }}
-        BRANCH: ${{ steps.vars.outputs.branch }}
         REGISTRY: ${{ inputs.registry }}
         OCI_REPOSITORY: ${{ inputs.oci-repository }}
         REPO: ${{ inputs.repo-path }}
@@ -177,20 +183,61 @@ runs:
         AETHERPAK_GPG_PASSPHRASE: ${{ inputs.gpg-private-key-passphrase }}
       run: |
         set -euo pipefail
-        REPO_NAME="${OCI_REPOSITORY:-$GITHUB_REPOSITORY}"
-        REPO_NAME="$(printf '%s' "$REPO_NAME" | tr '[:upper:]' '[:lower:]')"
-        ARGS=(--app "$APP" --arch "$ARCH" --branch "$BRANCH"
-          --registry "$REGISTRY" --oci-repository "$REPO_NAME"
-          --repo-path "$REPO" --records-dir "$RECORDS_DIR"
-          --output-file "$GITHUB_OUTPUT")
-        [ "$INSECURE" = "true" ] && ARGS+=(--insecure)
-        if [ "$SIGN" = "true" ]; then
-          keyfile="$(mktemp)"
-          chmod 600 "$keyfile"
-          trap 'rm -f "$keyfile"' EXIT
-          printf '%s' "$GPG_KEY" > "$keyfile"
-          ARGS+=(--gpg-key "$keyfile")
+
+        # Get all app refs in the repo
+        refs=$(ostree refs --repo="$REPO" | grep '^app/' || true)
+        if [ -z "$refs" ]; then
+          echo "::error::No application refs found in OSTree repository."
+          exit 1
         fi
-        [ "${{ steps.signing.outputs.no-sign }}" = "true" ] && ARGS+=(--no-sign)
-        [ "${{ steps.signing.outputs.allow-unsigned }}" = "true" ] && ARGS+=(--allow-unsigned)
-        aetherpak push-oci "${ARGS[@]}"
+
+        pushed_any=false
+        IN_APP="${{ inputs.app-id }}"
+        IN_ARCH="${{ inputs.arch }}"
+        IN_BRANCH="${{ inputs.branch }}"
+
+        while read -r ref; do
+          [ -z "$ref" ] && continue
+
+          # ref is app/<app-id>/<arch>/<branch>
+          IFS='/' read -r _ ref_app ref_arch ref_branch <<< "$ref"
+
+          # Filter by inputs if specified
+          if [ -n "$IN_APP" ] && [ "$IN_APP" != "$ref_app" ]; then
+            continue
+          fi
+          if [ -n "$IN_ARCH" ] && [ "$IN_ARCH" != "$ref_arch" ]; then
+            continue
+          fi
+          if [ -n "$IN_BRANCH" ] && [ "$IN_BRANCH" != "$ref_branch" ]; then
+            continue
+          fi
+
+          echo "Pushing cell: $ref_app ($ref_arch) on channel $ref_branch"
+
+          REPO_NAME="${OCI_REPOSITORY:-$GITHUB_REPOSITORY}"
+          REPO_NAME="$(printf '%s' "$REPO_NAME" | tr '[:upper:]' '[:lower:]')"
+          ARGS=(--app "$ref_app" --arch "$ref_arch" --branch "$ref_branch"
+            --registry "$REGISTRY" --oci-repository "$REPO_NAME"
+            --repo-path "$REPO" --records-dir "$RECORDS_DIR"
+            --output-file "$GITHUB_OUTPUT")
+
+          [ "$INSECURE" = "true" ] && ARGS+=(--insecure)
+          if [ "$SIGN" = "true" ]; then
+            keyfile="$(mktemp)"
+            chmod 600 "$keyfile"
+            printf '%s' "$GPG_KEY" > "$keyfile"
+            ARGS+=(--gpg-key "$keyfile")
+          fi
+          [ "${{ steps.signing.outputs.no-sign }}" = "true" ] && ARGS+=(--no-sign)
+          [ "${{ steps.signing.outputs.allow-unsigned }}" = "true" ] && ARGS+=(--allow-unsigned)
+
+          aetherpak push-oci "${ARGS[@]}"
+          [ "$SIGN" = "true" ] && rm -f "$keyfile"
+          pushed_any=true
+        done <<< "$refs"
+
+        if [ "$pushed_any" = "false" ]; then
+          echo "::error::No refs matched the specified app-id/arch/branch filters."
+          exit 1
+        fi

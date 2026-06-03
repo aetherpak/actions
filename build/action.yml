@@ -49,7 +49,7 @@ inputs:
   cli-version:
     description: "aetherpak CLI version to install if missing (ignored if already on PATH)."
     required: false
-    default: "v0.13.0"
+    default: "v0.14.0"
 
 outputs:
   repo-path:
@@ -155,9 +155,20 @@ runs:
         APP: ${{ inputs.app-id }}
       run: |
         set -euo pipefail
-        ARGS=(--bundle-path "$BUNDLE" --arch "$ARCH" --branch "$BRANCH" --repo-path "$REPO")
+        ARGS=()
+        if [ -n "$BUNDLE" ]; then
+          IFS=$',\n' read -r -a paths <<< "$BUNDLE"
+          for p in "${paths[@]}"; do
+            p=$(echo "$p" | xargs)
+            [ -n "$p" ] && ARGS+=(--bundle-path "$p")
+          done
+        fi
+        [ -n "$ARCH" ] && ARGS+=(--arch "$ARCH")
+        [ -n "$BRANCH" ] && ARGS+=(--branch "$BRANCH")
+        [ -n "$REPO" ] && ARGS+=(--repo-path "$REPO")
         [ -n "$APP" ] && ARGS+=(--app-id "$APP")
         aetherpak import "${ARGS[@]}"
+
 
     - name: Copy pre-built OSTree repository
       if: ${{ inputs.prebuilt-repo-path != '' }}

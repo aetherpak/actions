@@ -124,7 +124,7 @@ on:
         description: "aetherpak CLI release tag to install (e.g. v0.11.2), or 'latest'."
         required: false
         type: string
-        default: "v0.13.0"
+        default: "v0.14.0"
       builder-args:
         description: "Extra flatpak-builder flags applied to every manifest build, one per line."
         required: false
@@ -338,12 +338,42 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s globstar nullglob
-          files=( _downloaded_bundle/**/*.flatpak )
-          if [ ${#files[@]} -eq 0 ]; then
-            echo "::error::No .flatpak bundle found in downloaded artifact."
-            exit 1
+          target_ref="app/${{ matrix.app-id }}/${{ matrix.arch }}/${{ matrix.branch }}"
+          target_prefix="app/${{ matrix.app-id }}/${{ matrix.arch }}/"
+
+          matched_file=""
+          for f in _downloaded_bundle/**/*.flatpak; do
+            ref=$(flatpak info --show-ref "$f" 2>/dev/null || true)
+            if [ "$ref" = "$target_ref" ]; then
+              matched_file="$f"
+              break
+            fi
+          done
+
+          if [ -z "$matched_file" ]; then
+            for f in _downloaded_bundle/**/*.flatpak; do
+              ref=$(flatpak info --show-ref "$f" 2>/dev/null || true)
+              if [[ "$ref" == "$target_prefix"* ]]; then
+                matched_file="$f"
+                break
+              fi
+            done
           fi
-          echo "bundle-path=${files[0]}" >> "$GITHUB_OUTPUT"
+
+          if [ -z "$matched_file" ]; then
+            files=( _downloaded_bundle/**/*.flatpak )
+            if [ ${#files[@]} -eq 1 ]; then
+              matched_file="${files[0]}"
+            elif [ ${#files[@]} -gt 1 ]; then
+              echo "::error::Multiple .flatpak bundles found, but none match app-id '${{ matrix.app-id }}' and arch '${{ matrix.arch }}'."
+              exit 1
+            else
+              echo "::error::No .flatpak bundle found in downloaded artifact."
+              exit 1
+            fi
+          fi
+          echo "bundle-path=$matched_file" >> "$GITHUB_OUTPUT"
+
 
       - name: Fetch + import + rebind
         uses: ./.github/actions/aetherpak/prep-bundle
