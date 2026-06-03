@@ -45,4 +45,9 @@ sed -i "s/\`$OLD_VER\`/\`$NEW_VER\`/g" ARCHITECTURE.md
 sed -i "s/:\`$OLD_VER\`/:\`$NEW_VER\`/g" ARCHITECTURE.md
 sed -i "s/:$OLD_VER/:$NEW_VER/g" ARCHITECTURE.md
 
+# 7. Update composite actions
+for f in action.yml build/action.yml plan/action.yml prep-bundle/action.yml publish-oci/action.yml publish-site/action.yml publish/action.yml; do
+  sed -i "s/default: \"$OLD_VER\"/default: \"$NEW_VER\"/g" "$f"
+done
+
 echo "Done!"

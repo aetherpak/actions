@@ -46,6 +46,14 @@ if ! grep -q "\`$VERSION\`" ARCHITECTURE.md || ! grep -q ":$VERSION" ARCHITECTUR
   ERRORS=$((ERRORS + 1))
 fi
 
+# 5. Check composite actions
+for f in action.yml build/action.yml plan/action.yml prep-bundle/action.yml publish-oci/action.yml publish-site/action.yml publish/action.yml; do
+  if ! grep -q "default: \"$VERSION\"" "$f"; then
+    echo "Error: $f default version is not synced with cli-version.txt!" >&2
+    ERRORS=$((ERRORS + 1))
+  fi
+done
+
 if [ $ERRORS -gt 0 ]; then
   echo "Found $ERRORS mismatching version references!" >&2
   echo "Please run './scripts/update-version.sh <version>' to synchronize them." >&2

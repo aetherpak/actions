@@ -37,7 +37,7 @@ inputs:
   cli-version:
     description: "aetherpak CLI version to install if missing (ignored if already on PATH)."
     required: false
-    default: ""
+    default: "v0.13.0"
 
 outputs:
   apps:
@@ -66,9 +66,9 @@ runs:
   using: "composite"
   steps:
     - name: Set up aetherpak CLI
-      uses: ./setup-cli
+      uses: aetherpak/setup-cli@v1
       with:
-        cli-version: ${{ inputs.cli-version }}
+        version: ${{ inputs.cli-version }}
         install-dependencies: "false"
     - name: Compute matrix
       id: plan
