@@ -46,6 +46,10 @@ inputs:
     description: "Export the built application as a single .flatpak bundle and upload it as a workflow artifact."
     required: false
     default: "false"
+  cli-version:
+    description: "aetherpak CLI version to install if missing (ignored if already on PATH)."
+    required: false
+    default: ""
 
 outputs:
   repo-path:
@@ -87,27 +91,10 @@ runs:
           exit 1
         fi
 
-    - name: Set up aetherpak CLI if missing
-      shell: bash
-      id: check-cli
-      run: |
-        NEED_SETUP="false"
-        if ! command -v aetherpak >/dev/null; then
-          NEED_SETUP="true"
-        elif [ -n "${{ inputs.manifest-path }}" ]; then
-          # If building from manifest, verify that flatpak-builder dependencies are present
-          for cmd in flatpak-builder patch unzip bzip2 zstd; do
-            if ! command -v "$cmd" >/dev/null 2>&1; then
-              NEED_SETUP="true"
-              break
-            fi
-          done
-        fi
-        echo "need-setup=${NEED_SETUP}" >> "$GITHUB_OUTPUT"
-
-    - name: Run setup-cli fallback
-      if: steps.check-cli.outputs.need-setup == 'true'
-      uses: aetherpak/setup-cli@v1
+    - name: Set up aetherpak CLI
+      uses: ./setup-cli
+      with:
+        cli-version: ${{ inputs.cli-version }}
 
     - name: Resolve channel
       id: channel

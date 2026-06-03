@@ -54,6 +54,10 @@ inputs:
     description: "Directory where the per-cell record subtree is written."
     required: false
     default: "_records"
+  cli-version:
+    description: "aetherpak CLI version to install if missing (ignored if already on PATH)."
+    required: false
+    default: ""
 
 outputs:
   cell-dir:
@@ -78,19 +82,10 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Set up aetherpak CLI if missing
-      shell: bash
-      id: check-cli
-      run: |
-        if ! command -v aetherpak >/dev/null; then
-          echo "need-setup=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "need-setup=false" >> "$GITHUB_OUTPUT"
-        fi
-
-    - name: Run setup-cli fallback
-      if: steps.check-cli.outputs.need-setup == 'true'
-      uses: aetherpak/setup-cli@v1
+    - name: Set up aetherpak CLI
+      uses: ./setup-cli
+      with:
+        cli-version: ${{ inputs.cli-version }}
 
     - name: Signing gate
       id: signing

@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: setup lint clean help
+.PHONY: setup lint check-version-sync clean help
 
 ##@ Bootstrap
 
@@ -9,7 +9,10 @@ setup: ## Install the pre-commit git hook
 
 ##@ Quality
 
-lint: ## Run all pre-commit checks (actionlint, yaml, formatting)
+check-version-sync: ## Check that all CLI version references are in sync
+	./tests/check_version_sync.sh
+
+lint: check-version-sync ## Run all pre-commit checks (actionlint, yaml, formatting)
 	uvx pre-commit run --all-files
 
 clean: ## Remove generated build, repo, and site artifacts

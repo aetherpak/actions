@@ -34,6 +34,10 @@ inputs:
     description: "Manifest mode: run flatpak-builder-lint."
     required: false
     default: "true"
+  cli-version:
+    description: "aetherpak CLI version to install if missing (ignored if already on PATH)."
+    required: false
+    default: ""
 
 outputs:
   apps:
@@ -61,20 +65,10 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - name: Set up aetherpak CLI if missing
-      shell: bash
-      id: check-cli
-      run: |
-        if ! command -v aetherpak >/dev/null; then
-          echo "need-setup=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "need-setup=false" >> "$GITHUB_OUTPUT"
-        fi
-
-    - name: Run setup-cli fallback
-      if: steps.check-cli.outputs.need-setup == 'true'
-      uses: aetherpak/setup-cli@v1
+    - name: Set up aetherpak CLI
+      uses: ./setup-cli
       with:
+        cli-version: ${{ inputs.cli-version }}
         install-dependencies: "false"
     - name: Compute matrix
       id: plan
