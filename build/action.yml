@@ -50,6 +50,22 @@ inputs:
     description: "aetherpak CLI version to install if missing (ignored if already on PATH)."
     required: false
     default: "v0.14.2"
+  cache-key:
+    description: "Custom cache key prefix for caching build state. When unset, a default prefix including the manifest hash is used."
+    required: false
+    default: ""
+  cache-state:
+    description: "Cache flatpak-builder state (downloads and built modules)."
+    required: false
+    default: "true"
+  cache-ccache:
+    description: "Cache ccache compiler artifacts."
+    required: false
+    default: "true"
+  cache-build-dir:
+    description: "Cache flatpak-builder build directories (requires --keep-build-dirs in builder-args)."
+    required: false
+    default: "false"
 
 outputs:
   repo-path:
@@ -113,15 +129,37 @@ runs:
         fi
         echo "name=${name}" >> "$GITHUB_OUTPUT"
 
+    - name: Determine cache paths
+      if: ${{ inputs.manifest-path != '' && inputs.cache == 'true' && (inputs.cache-state == 'true' || inputs.cache-ccache == 'true' || inputs.cache-build-dir == 'true') }}
+      id: cache-paths
+      shell: bash
+      run: |
+        set -euo pipefail
+        PATHS=""
+        if [ "${{ inputs.cache-state }}" = "true" ]; then
+          PATHS="$PATHS"$'\n'".state/state-*"
+        fi
+        if [ "${{ inputs.cache-ccache }}" = "true" ]; then
+          PATHS="$PATHS"$'\n'".ccache"
+        fi
+        if [ "${{ inputs.cache-build-dir }}" = "true" ]; then
+          PATHS="$PATHS"$'\n'".state/build-*"
+        fi
+        PATHS="${PATHS#$'\n'}"
+
+        echo "paths<<EOF" >> "$GITHUB_OUTPUT"
+        echo "$PATHS" >> "$GITHUB_OUTPUT"
+        echo "EOF" >> "$GITHUB_OUTPUT"
+
     - name: Cache build state
-      if: ${{ inputs.manifest-path != '' && inputs.cache == 'true' }}
+      if: ${{ inputs.manifest-path != '' && inputs.cache == 'true' && (inputs.cache-state == 'true' || inputs.cache-ccache == 'true' || inputs.cache-build-dir == 'true') }}
       uses: actions/cache@v5
       with:
-        path: |
-          .state
-          .ccache
-        key: aetherpak-flatpak-${{ inputs.arch }}-${{ hashFiles(inputs.manifest-path) }}
-        restore-keys: aetherpak-flatpak-${{ inputs.arch }}-
+        path: ${{ steps.cache-paths.outputs.paths }}
+        key: ${{ inputs.cache-key && format('{0}-{1}-{2}', inputs.cache-key, inputs.arch, github.sha) || format('aetherpak-flatpak-{0}-{1}-{2}', inputs.arch, hashFiles(inputs.manifest-path), github.sha) }}
+        restore-keys: |
+          ${{ inputs.cache-key && format('{0}-{1}-', inputs.cache-key, inputs.arch) || format('aetherpak-flatpak-{0}-{1}-', inputs.arch, hashFiles(inputs.manifest-path)) }}
+          ${{ inputs.cache-key && format('{0}-', inputs.cache-key) || format('aetherpak-flatpak-{0}-', inputs.arch) }}
 
     - name: Build from manifest
       if: ${{ inputs.manifest-path != '' }}

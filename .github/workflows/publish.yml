@@ -28,6 +28,26 @@ on:
         required: false
         type: boolean
         default: true
+      cache-key:
+        description: "Custom cache key prefix for caching build state."
+        required: false
+        type: string
+        default: ""
+      cache-state:
+        description: "Cache flatpak-builder state (downloads and built modules)."
+        required: false
+        type: boolean
+        default: true
+      cache-ccache:
+        description: "Cache ccache compiler artifacts."
+        required: false
+        type: boolean
+        default: true
+      cache-build-dir:
+        description: "Cache flatpak-builder build directories (requires --keep-build-dirs)."
+        required: false
+        type: boolean
+        default: false
       # --- Config mode (one or more apps) ---
       config:
         description: "Path to aetherpak.yaml. Used when manifest-path is empty; defaults to aetherpak.yaml auto-detection."
@@ -282,6 +302,10 @@ jobs:
           repo-path:     _repo
           run-linter:    ${{ matrix.run-linter }}
           cache:         ${{ inputs.cache }}
+          cache-key:     ${{ inputs.cache-key }}
+          cache-state:   ${{ inputs.cache-state }}
+          cache-ccache:  ${{ inputs.cache-ccache }}
+          cache-build-dir: ${{ inputs.cache-build-dir }}
           builder-args:  ${{ inputs.builder-args }}
           upload-bundle: ${{ inputs.upload-bundle }}
       - name: Upload OSTree repo
