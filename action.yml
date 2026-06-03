@@ -118,6 +118,22 @@ inputs:
     description: "aetherpak CLI version to install if missing (ignored if already on PATH)."
     required: false
     default: "v0.14.2"
+  cache-key:
+    description: "Custom cache key prefix for caching build state. When unset, a default prefix including the manifest hash is used."
+    required: false
+    default: ""
+  cache-state:
+    description: "Cache flatpak-builder state (downloads and built modules)."
+    required: false
+    default: "true"
+  cache-ccache:
+    description: "Cache ccache compiler artifacts."
+    required: false
+    default: "true"
+  cache-build-dir:
+    description: "Cache flatpak-builder build directories (requires --keep-build-dirs in builder-args)."
+    required: false
+    default: "false"
 
 outputs:
   repo-path:
@@ -163,6 +179,10 @@ runs:
         arch: ${{ inputs.arch }}
         run-linter: ${{ inputs.run-linter }}
         cache: ${{ inputs.cache }}
+        cache-key: ${{ inputs.cache-key }}
+        cache-state: ${{ inputs.cache-state }}
+        cache-ccache: ${{ inputs.cache-ccache }}
+        cache-build-dir: ${{ inputs.cache-build-dir }}
         repo-path: ${{ inputs.repo-path }}
         builder-args: ${{ inputs.builder-args }}
         upload-bundle: ${{ inputs.upload-bundle }}
