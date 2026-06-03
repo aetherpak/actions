@@ -25,6 +25,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
 
       - name: Get Latest CLI Version
         id: get-version
@@ -51,7 +52,7 @@ jobs:
 
       - name: Create Pull Request
         if: steps.get-version.outputs.latest != steps.current-version.outputs.current
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ steps.app-token.outputs.token }}
           commit-message: "chore(deps): bump aetherpak cli version to ${{ steps.get-version.outputs.latest }}"
