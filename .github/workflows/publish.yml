@@ -130,6 +130,11 @@ on:
         required: false
         type: string
         default: "--install-deps-from=flathub"
+      upload-bundle:
+        description: "Export the built application as a single .flatpak bundle and upload it as a workflow artifact."
+        required: false
+        type: boolean
+        default: false
     outputs:
       pages-url:
         value: ${{ jobs.plan.outputs.pages-url }}
@@ -268,6 +273,7 @@ jobs:
           run-linter:    ${{ matrix.run-linter }}
           cache:         ${{ inputs.cache }}
           builder-args:  ${{ inputs.builder-args }}
+          upload-bundle: ${{ inputs.upload-bundle }}
       - name: Upload OSTree repo
         uses: actions/upload-artifact@v7
         with:
