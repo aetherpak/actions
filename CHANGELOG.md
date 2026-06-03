@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.4.0](https://github.com/aetherpak/actions/compare/v3.3.1...v3.4.0) (2026-06-03)
+
+
+### Features
+
+* allow dry run in shared publish workflow ([8f3d0db](https://github.com/aetherpak/actions/commit/8f3d0db49f62b908af2e907ca42f05ad7f2a22ea))
+* support CLI version overrides, pinned defaults, and automated weekly bump ([#62](https://github.com/aetherpak/actions/issues/62)) ([1a40038](https://github.com/aetherpak/actions/commit/1a400380bc551fd61476a845f3f39b0a8937e423))
+* support exporting and uploading built Flatpak bundles ([c40ac54](https://github.com/aetherpak/actions/commit/c40ac5440ec256be4ac9625a679a503ced334c88))
+* support local prebuilt bundle artifact ingestion in publish workflow ([521af4d](https://github.com/aetherpak/actions/commit/521af4d2112746b38d7911727506b56fd107739e))
+
+
+### Bug Fixes
+
+* **ci:** fix credentials config and upgrade create-pull-request to v8 in bump-cli ([03f164c](https://github.com/aetherpak/actions/commit/03f164cfb90388a4acc0b96b50c96e75b6c9ea86))
+
 ## [3.3.1](https://github.com/aetherpak/actions/compare/v3.3.0...v3.3.1) (2026-06-02)
 
 
