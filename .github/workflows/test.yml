@@ -555,7 +555,9 @@ jobs:
         uses: ./publish
         with:
           repo-path: _repo_multi_bundle
-          bundle-path: tests/AppA.flatpak,tests/AppB.flatpak
+          bundle-path: |
+            tests/AppA.flatpak
+            tests/AppB.flatpak
           registry: "localhost:5001"
           insecure-registry: "true"
           oci-repository: "aetherpak/multi-app"
