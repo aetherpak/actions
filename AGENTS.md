@@ -87,6 +87,13 @@ Keep these intact when changing the code:
     remote via the default `--system` path, with no polkit/dbus helper. The CLI
     stays environment-agnostic — it emits raw `runtime` + `runtime-version` and
     leaves container choice to the workflow.
+11. Composite actions must never call nested local actions in this repository via
+    relative paths (e.g. `uses: ./setup-cli`). In GitHub Actions, relative action
+    paths resolve to the workspace root of the calling repository, which breaks
+    downstream workflows and standalone composite actions. We make an explicit
+    decision to keep CLI versions aligned by hardcoding the default `cli-version`
+    input across all actions, directly invoking `aetherpak/setup-cli@v1`, and
+    relying on synchronization scripts (`update-version.sh`, `check_version_sync.sh`) to keep them in sync.
 
 ## Testing
 
