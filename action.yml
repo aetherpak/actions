@@ -114,6 +114,10 @@ inputs:
     description: "Optional subdirectory under site-dir to structure the repository files (e.g. flatpak)."
     required: false
     default: ""
+  cli-version:
+    description: "aetherpak CLI version to install if missing (ignored if already on PATH)."
+    required: false
+    default: ""
 
 outputs:
   repo-path:
@@ -162,6 +166,7 @@ runs:
         repo-path: ${{ inputs.repo-path }}
         builder-args: ${{ inputs.builder-args }}
         upload-bundle: ${{ inputs.upload-bundle }}
+        cli-version: ${{ inputs.cli-version }}
 
     - name: Publish OCI to GHCR & Register Index to Pages
       id: publish
@@ -187,3 +192,4 @@ runs:
         runtime-repo: ${{ inputs.runtime-repo }}
         refs-dir: ${{ inputs.refs-dir }}
         site-subpath: ${{ inputs.site-subpath }}
+        cli-version: ${{ inputs.cli-version }}
