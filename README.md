@@ -77,6 +77,7 @@ then enable **Public**.
 | `site-subpath` | _(empty)_ | Optional subdirectory under site-dir/pages-url to structure the repository files (e.g. `flatpak`) |
 | `upload-bundle` | `false` | Export the built application as a single `.flatpak` bundle and upload it as a workflow artifact |
 | `prebuilt-bundle-artifact` | _(empty)_ | Name or pattern of prebuilt bundle workflow artifacts to download and ingest. Supports `{arch}`, `{app-id}`, and `{branch}` placeholders |
+| `dry-run` | `false` | dry run mode: build and verify everything, but skip pushing to the registry and publishing the site |
 
 Secrets `gpg-private-key` and `gpg-private-key-passphrase` enable image signing.
 See [Signing](#signing-optional).
