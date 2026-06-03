@@ -42,6 +42,10 @@ inputs:
     description: "Extra flatpak-builder flags for manifest builds, one per line (e.g. --install-deps-from=flathub). Ignored for bundle/repo imports."
     required: false
     default: ""
+  upload-bundle:
+    description: "Export the built application as a single .flatpak bundle and upload it as a workflow artifact."
+    required: false
+    default: "false"
 
 outputs:
   repo-path:
@@ -56,6 +60,12 @@ outputs:
   arch:
     description: "Resolved application architecture."
     value: ${{ steps.resolve.outputs.arch }}
+  bundle-path:
+    description: "Path to the generated .flatpak bundle (only if manifest-path was set)."
+    value: ${{ steps.bundle.outputs.bundle-path || '' }}
+  bundle-artifact-name:
+    description: "Name of the uploaded bundle artifact (only if manifest-path was set and upload-bundle is true)."
+    value: ${{ steps.bundle.outputs.artifact-name || '' }}
 
 runs:
   using: "composite"
@@ -194,3 +204,27 @@ runs:
       run: |
         set -euo pipefail
         flatpak-builder-lint repo "$REPO"
+
+    - name: Export flatpak bundle
+      if: ${{ inputs.manifest-path != '' && (inputs.upload-bundle == 'true' || inputs.upload-bundle == true) }}
+      id: bundle
+      shell: bash
+      env:
+        REPO: ${{ inputs.repo-path }}
+        APP_ID: ${{ steps.resolve.outputs.app-id }}
+        BRANCH: ${{ steps.resolve.outputs.branch }}
+        ARCH: ${{ steps.resolve.outputs.arch }}
+      run: |
+        set -euo pipefail
+        BUNDLE_NAME="${APP_ID}_${ARCH}.flatpak"
+        flatpak build-bundle "$REPO" "$BUNDLE_NAME" "$APP_ID" "$BRANCH"
+        ARTIFACT_NAME="flatpak-bundle-${APP_ID}-${ARCH}"
+        echo "bundle-path=${BUNDLE_NAME}" >> "$GITHUB_OUTPUT"
+        echo "artifact-name=${ARTIFACT_NAME}" >> "$GITHUB_OUTPUT"
+
+    - name: Upload bundle artifact
+      if: ${{ inputs.manifest-path != '' && (inputs.upload-bundle == 'true' || inputs.upload-bundle == true) }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ steps.bundle.outputs.artifact-name }}
+        path: ${{ steps.bundle.outputs.bundle-path }}

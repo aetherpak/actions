@@ -46,6 +46,10 @@ inputs:
     description: "Extra flatpak-builder flags for manifest builds, one per line (e.g. --install-deps-from=flathub). Ignored for bundle/repo imports."
     required: false
     default: ""
+  upload-bundle:
+    description: "Export the built application as a single .flatpak bundle and upload it as a workflow artifact."
+    required: false
+    default: "false"
 
   registry:
     description: "OCI registry host (e.g. ghcr.io)."
@@ -124,6 +128,12 @@ outputs:
   arch:
     description: "Resolved application architecture."
     value: ${{ steps.build.outputs.arch }}
+  bundle-path:
+    description: "Path to the generated .flatpak bundle (only if manifest-path was set)."
+    value: ${{ steps.build.outputs.bundle-path }}
+  bundle-artifact-name:
+    description: "Name of the uploaded bundle artifact (only if manifest-path was set and upload-bundle is true)."
+    value: ${{ steps.build.outputs.bundle-artifact-name }}
   signing-path:
     description: "Which signing path ran: 'gpg' or 'off'."
     value: ${{ steps.publish.outputs.signing-path }}
@@ -151,6 +161,7 @@ runs:
         cache: ${{ inputs.cache }}
         repo-path: ${{ inputs.repo-path }}
         builder-args: ${{ inputs.builder-args }}
+        upload-bundle: ${{ inputs.upload-bundle }}
 
     - name: Publish OCI to GHCR & Register Index to Pages
       id: publish
