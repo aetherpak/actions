@@ -75,6 +75,8 @@ then enable **Public**.
 | `artifact-name` | `aetherpak-site` | name of the uploaded site artifact when `deploy: false` |
 | `concurrency-group` | per repository | override the publish lock; set only if a repo publishes to several independent sites |
 | `site-subpath` | _(empty)_ | Optional subdirectory under site-dir/pages-url to structure the repository files (e.g. `flatpak`) |
+| `upload-bundle` | `false` | Export the built application as a single `.flatpak` bundle and upload it as a workflow artifact |
+| `prebuilt-bundle-artifact` | _(empty)_ | Name or pattern of prebuilt bundle workflow artifacts to download and ingest. Supports `{arch}`, `{app-id}`, and `{branch}` placeholders |
 
 Secrets `gpg-private-key` and `gpg-private-key-passphrase` enable image signing.
 See [Signing](#signing-optional).
@@ -294,6 +296,35 @@ The reusable workflow pushes blobs to GHCR. To target another registry, call
     registry-token: ${{ secrets.REGISTRY_TOKEN }}
     pages-url: https://flatpak.example.com
 ```
+
+### Ingesting pre-built bundle artifacts in the reusable workflow
+
+If you package your application dynamically in a previous job on a runner (for example, via Electron Forge) and upload it as a workflow artifact, you can pass the artifact name/pattern to the reusable workflow using the `prebuilt-bundle-artifact` input:
+
+```yaml
+name: Publish Pre-built Artifact
+on: { push: { branches: [main] } }
+permissions: { contents: read, packages: write, pages: write, id-token: write }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      # ... build your .flatpak here ...
+      - uses: actions/upload-artifact@v7
+        with:
+          name: flatpak-bundle-${{ matrix.arch }}
+          path: out/make/*.flatpak
+
+  publish:
+    needs: build
+    uses: aetherpak/actions/.github/workflows/publish.yml@v3
+    with:
+      config: aetherpak.yaml
+      prebuilt-bundle-artifact: "flatpak-bundle-{arch}"
+```
+
+The workflow will download the artifact, resolve any `{arch}`, `{app-id}`, or `{branch}` placeholders in the name, find the `.flatpak` bundle inside it, and import it directly.
 
 ## More
 

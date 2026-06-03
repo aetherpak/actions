@@ -4,10 +4,10 @@ description: "Fetch a .flatpak bundle, verify SHA-256, import into an OSTree rep
 inputs:
   url:
     description: "URL to fetch the bundle from."
-    required: true
+    required: false
   sha256:
     description: "Expected SHA-256 of the downloaded bundle."
-    required: true
+    required: false
   branch:
     description: "Target channel; the imported app/* ref is rebound to this branch (xa.ref binding rewritten)."
     required: false
@@ -17,9 +17,9 @@ inputs:
     required: false
     default: "_repo"
   bundle-path:
-    description: "Intermediate bundle filename."
+    description: "Path to a local prebuilt .flatpak bundle file or target filename."
     required: false
-    default: "bundle.flatpak"
+    default: ""
   cli-version:
     description: "aetherpak CLI version to install if missing (ignored if already on PATH)."
     required: false
@@ -40,10 +40,17 @@ runs:
         SHA: ${{ inputs.sha256 }}
         BRANCH: ${{ inputs.branch }}
         REPO: ${{ inputs.repo-path }}
+        BUNDLE_PATH: ${{ inputs.bundle-path }}
       run: |
         set -euo pipefail
-        aetherpak import \
-          --bundle-url "$URL" \
-          --bundle-sha256 "$SHA" \
-          --branch "$BRANCH" \
-          --repo-path "$REPO"
+        if [ -z "$URL" ] && [ -z "$BUNDLE_PATH" ]; then
+          echo "::error::Either url or bundle-path must be specified."
+          exit 1
+        fi
+        ARGS=()
+        [ -n "$URL" ] && ARGS+=(--bundle-url "$URL")
+        [ -n "$SHA" ] && ARGS+=(--bundle-sha256 "$SHA")
+        [ -n "$BUNDLE_PATH" ] && ARGS+=(--bundle-path "$BUNDLE_PATH")
+        [ -n "$BRANCH" ] && ARGS+=(--branch "$BRANCH")
+        [ -n "$REPO" ] && ARGS+=(--repo-path "$REPO")
+        aetherpak import "${ARGS[@]}"

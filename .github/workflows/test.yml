@@ -689,6 +689,19 @@ jobs:
           ref="$(ostree refs --repo=_repo_prep | grep '^app/' | head -1)"
           test "$ref" = "app/org.flatpak.PrepApp/x86_64/stable" || { echo "ref: $ref"; exit 1; }
 
+      - name: Prep bundle from local path
+        uses: ./prep-bundle
+        with:
+          bundle-path: srv/app.flatpak
+          branch: stable-local
+          repo-path: _repo_prep_local
+
+      - name: Verify the local imported ref was rebound to stable-local
+        run: |
+          set -euo pipefail
+          ref="$(ostree refs --repo=_repo_prep_local | grep '^app/' | head -1)"
+          test "$ref" = "app/org.flatpak.PrepApp/x86_64/stable-local" || { echo "ref: $ref"; exit 1; }
+
       - name: Stop bundle server
         if: always()
         run: kill "${HTTP_PID:-}" 2>/dev/null || true
