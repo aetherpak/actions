@@ -135,6 +135,11 @@ on:
         required: false
         type: boolean
         default: false
+      prebuilt-bundle-artifact:
+        description: "Name or pattern of prebuilt bundle workflow artifacts to download and ingest. Supports {arch}, {electron-arch}, {app-id}, and {branch} placeholders."
+        required: false
+        type: string
+        default: ""
     outputs:
       pages-url:
         value: ${{ jobs.plan.outputs.pages-url }}
@@ -301,13 +306,49 @@ jobs:
           repository: aetherpak/actions
           ref: ${{ needs.plan.outputs.actions-ref }}
           path: .github/actions/aetherpak
+
+      - name: Resolve prebuilt bundle artifact name
+        id: resolve-artifact
+        if: ${{ inputs.prebuilt-bundle-artifact != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARTIFACT_NAME="${{ inputs.prebuilt-bundle-artifact }}"
+          ARTIFACT_NAME="${ARTIFACT_NAME//\{arch\}/${{ matrix.arch }}}"
+          ARTIFACT_NAME="${ARTIFACT_NAME//\{app-id\}/${{ matrix.app-id }}}"
+          ARTIFACT_NAME="${ARTIFACT_NAME//\{branch\}/${{ matrix.branch }}}"
+          echo "artifact-name=$ARTIFACT_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Download prebuilt bundle artifact
+        if: ${{ inputs.prebuilt-bundle-artifact != '' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ steps.resolve-artifact.outputs.artifact-name }}
+          path: _downloaded_bundle
+
+      - name: Find prebuilt bundle file
+        id: find-bundle
+        if: ${{ inputs.prebuilt-bundle-artifact != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          files=( _downloaded_bundle/**/*.flatpak )
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::No .flatpak bundle found in downloaded artifact."
+            exit 1
+          fi
+          echo "bundle-path=${files[0]}" >> "$GITHUB_OUTPUT"
+
       - name: Fetch + import + rebind
         uses: ./.github/actions/aetherpak/prep-bundle
         with:
-          url:    ${{ matrix.bundle-url }}
-          sha256: ${{ matrix.bundle-sha256 }}
-          branch: ${{ matrix.branch }}
-          repo-path: _repo
+          url:         ${{ inputs.prebuilt-bundle-artifact == '' && matrix.bundle-url || '' }}
+          sha256:      ${{ inputs.prebuilt-bundle-artifact == '' && matrix.bundle-sha256 || '' }}
+          bundle-path: ${{ inputs.prebuilt-bundle-artifact != '' && steps.find-bundle.outputs.bundle-path || '' }}
+          branch:      ${{ matrix.branch }}
+          repo-path:   _repo
+
       - name: Upload OSTree repo
         uses: actions/upload-artifact@v7
         with:
