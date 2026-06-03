@@ -49,19 +49,23 @@ runs:
         fi
         ARGS=()
         if [ -n "$URL" ]; then
-          IFS=$',\n' read -r -a urls <<< "$URL"
-          for u in "${urls[@]}"; do
-            u=$(echo "$u" | xargs)
-            [ -n "$u" ] && ARGS+=(--bundle-url "$u")
-          done
+          while IFS= read -r line || [ -n "$line" ]; do
+            IFS=',' read -r -a suburls <<< "$line"
+            for u in "${suburls[@]}"; do
+              u=$(echo "$u" | xargs)
+              [ -n "$u" ] && ARGS+=(--bundle-url "$u")
+            done
+          done <<< "$URL"
         fi
         [ -n "$SHA" ] && ARGS+=(--bundle-sha256 "$SHA")
         if [ -n "$BUNDLE_PATH" ]; then
-          IFS=$',\n' read -r -a paths <<< "$BUNDLE_PATH"
-          for p in "${paths[@]}"; do
-            p=$(echo "$p" | xargs)
-            [ -n "$p" ] && ARGS+=(--bundle-path "$p")
-          done
+          while IFS= read -r line || [ -n "$line" ]; do
+            IFS=',' read -r -a subpaths <<< "$line"
+            for p in "${subpaths[@]}"; do
+              p=$(echo "$p" | xargs)
+              [ -n "$p" ] && ARGS+=(--bundle-path "$p")
+            done
+          done <<< "$BUNDLE_PATH"
         fi
         [ -n "$BRANCH" ] && ARGS+=(--branch "$BRANCH")
         [ -n "$REPO" ] && ARGS+=(--repo-path "$REPO")

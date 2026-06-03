@@ -120,11 +120,13 @@ runs:
         set -euo pipefail
         ARGS=()
         if [ -n "$BUNDLE" ]; then
-          IFS=$',\n' read -r -a paths <<< "$BUNDLE"
-          for p in "${paths[@]}"; do
-            p=$(echo "$p" | xargs)
-            [ -n "$p" ] && ARGS+=(--bundle-path "$p")
-          done
+          while IFS= read -r line || [ -n "$line" ]; do
+            IFS=',' read -r -a subpaths <<< "$line"
+            for p in "${subpaths[@]}"; do
+              p=$(echo "$p" | xargs)
+              [ -n "$p" ] && ARGS+=(--bundle-path "$p")
+            done
+          done <<< "$BUNDLE"
         fi
         [ -n "$BRANCH" ] && ARGS+=(--branch "$BRANCH")
         [ -n "$ARCH" ] && ARGS+=(--arch "$ARCH")
