@@ -23,7 +23,7 @@ inputs:
   cli-version:
     description: "aetherpak CLI version to install if missing (ignored if already on PATH)."
     required: false
-    default: "v0.14.2"
+    default: "v0.15.0"
 
 runs:
   using: "composite"
