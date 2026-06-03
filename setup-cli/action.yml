@@ -24,10 +24,10 @@ runs:
           VERSION="${AETHERPAK_CLI_VERSION:-}"
         fi
         if [ -z "$VERSION" ]; then
-          if [ -f "${{ github.action_path }}/cli-version.txt" ]; then
-            VERSION="$(cat "${{ github.action_path }}/cli-version.txt")"
-          elif [ -f "${{ github.action_path }}/../cli-version.txt" ]; then
-            VERSION="$(cat "${{ github.action_path }}/../cli-version.txt")"
+          if [ -f "$GITHUB_ACTION_PATH/cli-version.txt" ]; then
+            VERSION="$(cat "$GITHUB_ACTION_PATH/cli-version.txt")"
+          elif [ -f "$GITHUB_ACTION_PATH/../cli-version.txt" ]; then
+            VERSION="$(cat "$GITHUB_ACTION_PATH/../cli-version.txt")"
           else
             VERSION="latest"
           fi
