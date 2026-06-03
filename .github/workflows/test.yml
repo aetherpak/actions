@@ -26,7 +26,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.2
+          version: v0.13.0
 
       - name: Start Local OCI Registry
         run: |
@@ -186,7 +186,7 @@ jobs:
     name: Publish path inside the CLI container
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/aetherpak/cli:v0.11.2
+      image: ghcr.io/aetherpak/cli:v0.13.0
     services:
       registry:
         image: registry:2
@@ -236,7 +236,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.2
+          version: v0.13.0
 
       - name: Start Local OCI Registry
         run: |
@@ -336,7 +336,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.2
+          version: v0.13.0
 
       - name: Create Mock OSTree Repository
         run: bash tests/mock_repo.sh
@@ -380,7 +380,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.2
+          version: v0.13.0
 
       - name: Start Local OCI Registry
         run: |
@@ -450,7 +450,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.2
+          version: v0.13.0
 
       - name: Start Local OCI Registry
         run: |
@@ -525,7 +525,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.2
+          version: v0.13.0
 
       - name: No source must fail
         id: nosrc
@@ -592,7 +592,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.2
+          version: v0.13.0
           install-dependencies: "false"
 
       - name: Write a mock aetherpak.yaml (manifest + bundle apps)
@@ -654,7 +654,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.2
+          version: v0.13.0
 
       - name: Build and serve a bundle on branch beta
         run: |
@@ -716,7 +716,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.2
+          version: v0.13.0
 
       - name: Start Local OCI Registry
         run: |
@@ -788,7 +788,7 @@ jobs:
     permissions:
       contents: read
     container:
-      image: ghcr.io/aetherpak/cli:v0.11.2-builder
+      image: ghcr.io/aetherpak/cli:v0.13.0-builder
       options: --privileged
     steps:
       - name: Checkout Code
@@ -849,7 +849,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.11.2
+          version: v0.13.0
           install-dependencies: "false"
 
       - name: Write a single manifest
