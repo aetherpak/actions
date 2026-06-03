@@ -303,7 +303,7 @@ jobs:
     permissions:
       contents: read
     container:
-      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}
+      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}-builder
     steps:
       - name: Check out actions repo
         uses: actions/checkout@v6
