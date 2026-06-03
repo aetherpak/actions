@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.5.1](https://github.com/aetherpak/actions/compare/v3.5.0...v3.5.1) (2026-06-03)
+
+
+### Features
+
+* implement smart caching and customizable controls for build action ([7571c83](https://github.com/aetherpak/actions/commit/7571c832b6d3a83d416ee93010988795120b5ed9))
+
+
+### Miscellaneous Chores
+
+* release 3.5.1 ([067f8da](https://github.com/aetherpak/actions/commit/067f8dac8bef3bfe269e44ca032ce92827ea2387))
+
 ## [3.5.0](https://github.com/aetherpak/actions/compare/v3.4.0...v3.5.0) (2026-06-03)
 
 
