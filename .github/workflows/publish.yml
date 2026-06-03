@@ -160,6 +160,11 @@ on:
         required: false
         type: string
         default: ""
+      bundle-path:
+        description: "Path to local prebuilt .flatpak bundle file(s). Supports multiple comma- or newline-separated paths and globs."
+        required: false
+        type: string
+        default: ""
       dry-run:
         description: "Dry run mode. Build and verify everything, but skip pushing to the registry and publishing the site."
         required: false
@@ -180,6 +185,7 @@ on:
 jobs:
   plan:
     name: Plan build matrix
+    if: ${{ inputs.bundle-path == '' }}
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}
@@ -522,6 +528,83 @@ jobs:
         id: deploy
         if: ${{ inputs.deploy }}
         uses: actions/deploy-pages@v5
+      - name: Upload site artifact
+        if: ${{ !inputs.deploy }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: _site
+
+  publish-standalone:
+    name: Publish prebuilt bundle(s)
+    if: ${{ inputs.bundle-path != '' }}
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ inputs.concurrency-group != '' && inputs.concurrency-group || format('aetherpak-publish-{0}', github.repository) }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+      pages: write
+      id-token: write
+    environment:
+      name: ${{ inputs.deploy && 'github-pages' || '' }}
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+        with:
+          submodules: ${{ inputs.submodules }}
+
+      - name: Resolve Pages URL
+        id: u
+        env:
+          PAGES_URL: ${{ inputs.pages-url }}
+          DEFAULT_PAGES_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+        run: |
+          url="$PAGES_URL"; [ -n "$url" ] || url="$DEFAULT_PAGES_URL"
+          echo "pages-url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve actions ref
+        id: aref
+        env:
+          JWR: ${{ github.job_workflow_ref }}
+        run: |
+          set -euo pipefail
+          ref="${JWR##*@}"
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+
+      - name: Check out actions repo
+        uses: actions/checkout@v6
+        with:
+          repository: aetherpak/actions
+          ref: ${{ steps.aref.outputs.ref }}
+          path: .github/actions/aetherpak
+
+      - name: Publish bundle(s)
+        uses: ./.github/actions/aetherpak/publish
+        with:
+          repo-path: _repo_standalone
+          bundle-path: ${{ inputs.bundle-path }}
+          registry: ${{ inputs.registry }}
+          oci-repository: ${{ inputs.oci-repository }}
+          pages-url: ${{ steps.u.outputs.pages-url }}
+          registry-token: ${{ secrets.registry-token || github.token }}
+          upload-pages-artifact: ${{ inputs.deploy }}
+          landing-page: ${{ inputs.landing-page }}
+          pages-artifact-name: ${{ inputs.artifact-name }}
+          signing: ${{ inputs.signing }}
+          gpg-private-key: ${{ secrets.gpg-private-key }}
+          gpg-private-key-passphrase: ${{ secrets.gpg-private-key-passphrase }}
+          runtime-repo: ${{ inputs.runtime-repo }}
+          site-subpath: ${{ inputs.site-subpath }}
+          cli-version: ${{ inputs.cli-version }}
+
+      - name: Deploy
+        id: deploy
+        if: ${{ inputs.deploy }}
+        uses: actions/deploy-pages@v5
+
       - name: Upload site artifact
         if: ${{ !inputs.deploy }}
         uses: actions/upload-artifact@v7
