@@ -64,6 +64,10 @@ then enable **Public**.
 | `pages-url` | project Pages URL | set this for a custom domain |
 | `run-linter` | `true` | run `flatpak-builder-lint` |
 | `cache` | `true` | cache flatpak runtimes and builder files |
+| `cache-key` | _(empty)_ | Custom cache key prefix for caching build state |
+| `cache-state` | `true` | Cache flatpak-builder state (downloads and built modules) |
+| `cache-ccache` | `true` | Cache ccache compiler artifacts |
+| `cache-build-dir` | `false` | Cache flatpak-builder build directories (requires `--keep-build-dirs` in `builder-args`) |
 | `builder-args` | `--install-deps-from=flathub` | extra `flatpak-builder` flags, one per line; installs the manifest's declared deps from Flathub |
 | `registry` | `ghcr.io` | OCI registry host for the image blobs |
 | `oci-repository` | this repository | image repository path within the registry |

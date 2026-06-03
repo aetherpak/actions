@@ -259,6 +259,10 @@ jobs:
           <div class="opt"><code>branch</code><span>Single-app: Flatpak branch (channel). <code>stable</code> on tags, <code>beta</code> on the default branch, else the ref name.</span></div>
           <div class="opt"><code>run-linter</code><span>Single-app: run <code>flatpak-builder-lint</code>. Default <code>true</code>.</span></div>
           <div class="opt"><code>cache</code><span>Single-app: cache flatpak runtimes and builder files. Default <code>true</code>.</span></div>
+          <div class="opt"><code>cache-key</code><span>Custom cache key prefix. When unset, a default including the manifest hash is used.</span></div>
+          <div class="opt"><code>cache-state</code><span>Cache flatpak-builder state (downloads and built modules). Default <code>true</code>.</span></div>
+          <div class="opt"><code>cache-ccache</code><span>Cache ccache compiler artifacts. Default <code>true</code>.</span></div>
+          <div class="opt"><code>cache-build-dir</code><span>Cache flatpak-builder build directories (requires <code>--keep-build-dirs</code>). Default <code>false</code>.</span></div>
           <div class="opt"><code>builder-args</code><span>Single-app: extra <code>flatpak-builder</code> flags, one per line. Default <code>--install-deps-from=flathub</code>.</span></div>
           <div class="opt"><code>app</code><span>Multi-app: rebuild only this app id (skip change detection).</span></div>
           <div class="opt"><code>force-all</code><span>Multi-app: rebuild every app. Default <code>false</code>.</span></div>
