@@ -277,7 +277,7 @@ jobs:
           <div class="opt"><code>submodules</code><span>Submodule fetch mode for the build checkout. Default <code>recursive</code>.</span></div>
           <div class="opt"><code>concurrency-group</code><span>Override the per-repository publish lock. Only for repos publishing several independent sites.</span></div>
           <div class="opt"><code>site-subpath</code><span>Optional subdirectory under site-dir to structure the repository files.</span></div>
-          <div class="opt"><code>prebuilt-bundle-artifact</code><span>Name or pattern of prebuilt bundle workflow artifacts to download and ingest. Supports `{arch}`, `{app-id}`, and `{branch}` placeholders.</span></div>
+          <div class="opt"><code>prebuilt-bundle-artifact</code><span>Name or pattern of prebuilt bundle workflow artifacts to download and ingest. Supports `{arch}`, `{app-id}`, and `{branch}` placeholders. If the artifact contains multiple bundles, the workflow automatically matches by matrix cell <code>app-id</code> and <code>arch</code>.</span></div>
           <div class="opt"><code>dry-run</code><span>Dry run mode: build and verify everything, but skip pushing to the registry and publishing the site. Default <code>false</code>.</span></div>
           <div class="opt"><code>reconcile-only</code><span>Skip build and push; only reconcile the index against the registry and re-deploy. Use after deleting an image.</span></div>
           <div class="opt"><code>cli-version</code><span>aetherpak CLI release / container image tag. Default <code>v0.14.0</code>.</span></div>
@@ -317,7 +317,7 @@ secrets:
         </div>
 
         <div class="panel" data-tab="prebuilt" hidden>
-          <p>Publish a pre-built <code>.flatpak</code> bundle (e.g. built in a previous job or from an external release). The action imports the bundle, resolves the coordinates (app-id, arch, branch), and deploys the site.</p>
+          <p>Publish pre-built <code>.flatpak</code> bundles (e.g. built in a previous job or from an external release). The action imports the bundle(s), resolves coordinates, and deploys the site. Supports multiple comma-separated paths or glob wildcards to publish several bundles at once.</p>
           <div class="code-block">
             <pre><code>name: Publish Pre-built Flatpak
 on: { push: { branches: [main] } }
@@ -337,7 +337,10 @@ jobs:
       # Download or fetch your pre-built app.flatpak here
       - uses: aetherpak/actions/publish@v3
         with:
-          bundle-path: app.flatpak
+          bundle-path: |
+            build/*.flatpak
+            build/org.flatpak.AppA.flatpak
+            build/org.flatpak.AppB.flatpak
           pages-url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
       - id: deploy
         uses: actions/deploy-pages@v5</code></pre>

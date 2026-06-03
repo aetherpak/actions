@@ -283,6 +283,18 @@ jobs:
         uses: actions/deploy-pages@v5
 ```
 
+You can also publish multiple pre-built bundles simultaneously (e.g., for different architectures or applications) by specifying a multiline block (newline-separated) or comma-separated list of paths/wildcard patterns to `bundle-path`. Since coordinates are auto-detected from each bundle's internal metadata, you must **not** provide `app-id` or `arch` inputs when publishing multiple bundles:
+
+```yaml
+      - uses: aetherpak/actions/publish@v3
+        with:
+          bundle-path: |
+            build/*.flatpak
+            build/org.flatpak.AppA.flatpak
+            build/org.flatpak.AppB.flatpak
+          pages-url: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+```
+
 The reusable workflow pushes blobs to GHCR. To target another registry, call
 `publish` directly with `registry`, `oci-repository`, and `registry-token` (add
 `insecure-registry: true` for a local or HTTP registry):
@@ -325,7 +337,7 @@ jobs:
       prebuilt-bundle-artifact: "flatpak-bundle-{arch}"
 ```
 
-The workflow will download the artifact, resolve any `{arch}`, `{app-id}`, or `{branch}` placeholders in the name, find the `.flatpak` bundle inside it, and import it directly.
+The workflow will download the artifact, resolve any `{arch}`, `{app-id}`, or `{branch}` placeholders in the name, and find the matching `.flatpak` bundle inside it. If the downloaded artifact contains multiple `.flatpak` files, the workflow will use `flatpak info --show-ref` to automatically identify and select the one matching the current matrix cell's `app-id` and `arch`.
 
 ## More
 
