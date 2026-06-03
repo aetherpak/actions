@@ -1,0 +1,311 @@
+name: Core Integration Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  integration-test:
+    name: Mock Integration Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.14.0
+
+      - name: Start Local OCI Registry
+        run: bash tests/integration/start_local_registry.sh
+
+      - name: Create Mock OSTree Repository
+        run: bash tests/mock_repo.sh
+
+      - name: Run Build Action
+        id: build_step
+        uses: ./build
+        with:
+          prebuilt-repo-path: tests/mock_repo
+          repo-path: _repo_test
+          run-linter: "false"
+
+      - name: Verify Build Action Outputs
+        run: |
+          bash tests/integration/verify_build_outputs.sh \
+            org.flatpak.MockApp stable x86_64 \
+            "${{ steps.build_step.outputs.app-id }}" "${{ steps.build_step.outputs.branch }}" "${{ steps.build_step.outputs.arch }}"
+
+      - name: Run Publish Action
+        id: publish_step
+        uses: ./publish
+        with:
+          repo-path: ${{ steps.build_step.outputs.repo-path }}
+          registry: "localhost:5001"
+          insecure-registry: "true"
+          oci-repository: "aetherpak/mock-app"
+          remote-name: "aetherpak-test"
+          pages-url: "http://localhost:9999"
+          registry-token: "" # skip login for local registry
+          upload-pages-artifact: "false"
+
+      - name: Verify Generated Index
+        run: |
+          bash tests/integration/verify_publish_unsigned.sh \
+            org.flatpak.MockApp stable x86_64 _repo_test \
+            "${{ steps.publish_step.outputs.app-id }}" "${{ steps.publish_step.outputs.branch }}" "${{ steps.publish_step.outputs.arch }}" "${{ steps.publish_step.outputs.repo-path }}" \
+            _site aetherpak-test "http://localhost:5001" aetherpak/mock-app "${{ steps.publish_step.outputs.signing-path }}"
+
+      - name: Reconcile drops missing entries, keeps present
+        run: |
+          bash tests/integration/verify_reconcile.sh _site _records _site_rec 9999 aetherpak-test
+
+  publish-in-cli-container:
+    name: Publish path inside the CLI container
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/aetherpak/cli:v0.14.0
+    services:
+      registry:
+        image: registry:2
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Create Mock OSTree Repository
+        run: bash tests/mock_repo.sh
+
+      - name: Build (import prebuilt repo)
+        id: build_step
+        uses: ./build
+        with:
+          prebuilt-repo-path: tests/mock_repo
+          repo-path: _repo_test
+          run-linter: "false"
+
+      - name: Publish (push-oci + build-site) against the registry service
+        uses: ./publish
+        with:
+          repo-path: ${{ steps.build_step.outputs.repo-path }}
+          registry: "registry:5000"
+          insecure-registry: "true"
+          oci-repository: "aetherpak/mock-app"
+          remote-name: "aetherpak-test"
+          pages-url: "http://localhost:9999"
+          registry-token: "" # skip login for the local service registry
+          upload-pages-artifact: "false"
+
+      - name: Verify the index built inside the container
+        run: |
+          set -euo pipefail
+          test -f _site/index/static || { echo "index/static not generated"; exit 1; }
+          test -f _site/aetherpak-test.flatpakrepo || { echo ".flatpakrepo not generated"; exit 1; }
+          name="$(jq -r '.Results[0].Name' _site/index/static)"
+          test "$name" = "aetherpak/mock-app" || { echo "wrong index Name: $name"; exit 1; }
+          echo "containerized publish path ok"
+
+  bundle-integration-test:
+    name: Mock Bundle Source Integration Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.14.0
+
+      - name: Start Local OCI Registry
+        run: bash tests/integration/start_local_registry.sh
+
+      - name: Build a one-off mock bundle
+        run: |
+          set -euo pipefail
+          mkdir -p tests/bundle_src
+          ostree init --mode=archive --repo=tests/bundle_src
+          mkdir -p tests/bundle_contents/files tests/bundle_contents/export
+          cat > tests/bundle_contents/metadata <<EOF
+          [Application]
+          name=org.flatpak.BundleApp
+          runtime=org.freedesktop.Platform/x86_64/23.08
+          sdk=org.freedesktop.Sdk/x86_64/23.08
+          EOF
+          ostree commit --repo=tests/bundle_src \
+            --branch=app/org.flatpak.BundleApp/x86_64/stable \
+            -m "mock bundle commit" tests/bundle_contents
+          flatpak build-bundle tests/bundle_src tests/mock.flatpak \
+            org.flatpak.BundleApp stable
+
+      - name: Publish from bundle (no pre-existing repo-path)
+        id: publish_step
+        uses: ./publish
+        with:
+          repo-path: _repo_from_bundle
+          bundle-path: tests/mock.flatpak
+          registry: "localhost:5001"
+          insecure-registry: "true"
+          oci-repository: "aetherpak/bundle-app"
+          remote-name: "aetherpak-bundle-test"
+          pages-url: "http://localhost:9999"
+          registry-token: ""
+          upload-pages-artifact: "false"
+
+      - name: Verify the bundle round-tripped into the index
+        run: |
+          set -euo pipefail
+          if [ ! -f "_site/index/static" ]; then
+            echo "Error: index/static not generated"
+            exit 1
+          fi
+          REF="$(jq -r '.Results[0].Images[0].Labels["org.flatpak.ref"]' _site/index/static)"
+          test "$REF" = "app/org.flatpak.BundleApp/x86_64/stable"
+
+      - name: Verify publish outputs are resolved and populated correctly
+        run: |
+          bash tests/integration/verify_build_outputs.sh \
+            org.flatpak.BundleApp stable x86_64 \
+            "${{ steps.publish_step.outputs.app-id }}" "${{ steps.publish_step.outputs.branch }}" "${{ steps.publish_step.outputs.arch }}"
+
+      - name: Verify repo path output
+        run: |
+          test "${{ steps.publish_step.outputs.repo-path }}" = "_repo_from_bundle"
+
+  split-integration-test:
+    name: Mock Split Integration Test (oci+site)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.14.0
+
+      - name: Start Local OCI Registry
+        run: bash tests/integration/start_local_registry.sh
+
+      - name: Mock two OSTree repos (AppA, AppB)
+        run: |
+          set -euo pipefail
+          for app in AppA AppB; do
+            mkdir -p tests/${app}_repo tests/${app}_contents
+            ostree init --mode=archive --repo=tests/${app}_repo
+            cat > tests/${app}_contents/metadata <<EOF
+          [Application]
+          name=org.flatpak.${app}
+          runtime=org.freedesktop.Platform/x86_64/23.08
+          sdk=org.freedesktop.Sdk/x86_64/23.08
+          EOF
+            ostree commit --repo=tests/${app}_repo \
+              --branch=app/org.flatpak.${app}/x86_64/stable \
+              -m "mock ${app} commit" tests/${app}_contents
+          done
+          rm -rf tests/AppA_repo/refs/mirrors tests/AppA_repo/refs/remotes
+
+      - name: Push AppA via publish-oci
+        uses: ./publish-oci
+        with:
+          repo-path: tests/AppA_repo
+          registry: localhost:5001
+          insecure-registry: "true"
+          oci-repository: aetherpak/app-a
+          registry-token: ""
+          records-dir: _records
+
+      - name: Push AppB via publish-oci
+        uses: ./publish-oci
+        with:
+          repo-path: tests/AppB_repo
+          registry: localhost:5001
+          insecure-registry: "true"
+          oci-repository: aetherpak/app-b
+          registry-token: ""
+          records-dir: _records
+
+      - name: Build site from both records
+        uses: ./publish-site
+        with:
+          records-dir: _records
+          pages-url: http://localhost:9999
+          insecure-registry: "true"
+          remote-name: aetherpak-split-test
+          upload-pages-artifact: "false"
+
+      - name: Verify both apps in the merged index
+        run: |
+          set -euo pipefail
+          NAMES="$(jq -r '.Results[].Name' _site/index/static | sort | tr '\n' ' ')"
+          [ "$NAMES" = "aetherpak/app-a aetherpak/app-b " ] || { echo "names mismatch: $NAMES"; exit 1; }
+          REFS="$(jq -r '.Results[].Images[].Labels["org.flatpak.ref"]' _site/index/static | sort | tr '\n' ' ')"
+          [ "$REFS" = "app/org.flatpak.AppA/x86_64/stable app/org.flatpak.AppB/x86_64/stable " ] \
+            || { echo "refs mismatch: $REFS"; exit 1; }
+          ls _site/refs/org.flatpak.AppA-stable.flatpakref _site/refs/org.flatpak.AppB-stable.flatpakref
+
+  multi-bundle-integration-test:
+    name: Mock Multi-Bundle Integration Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.14.0
+
+      - name: Start Local OCI Registry
+        run: bash tests/integration/start_local_registry.sh
+
+      - name: Build two mock bundles (AppA, AppB)
+        run: |
+          set -euo pipefail
+          for app in AppA AppB; do
+            mkdir -p tests/${app}_repo tests/${app}_contents
+            ostree init --mode=archive --repo=tests/${app}_repo
+            cat > tests/${app}_contents/metadata <<EOF
+          [Application]
+          name=org.flatpak.${app}
+          runtime=org.freedesktop.Platform/x86_64/23.08
+          sdk=org.freedesktop.Sdk/x86_64/23.08
+          EOF
+            ostree commit --repo=tests/${app}_repo \
+              --branch=app/org.flatpak.${app}/x86_64/stable \
+              -m "mock ${app} commit" tests/${app}_contents
+            flatpak build-bundle tests/${app}_repo tests/${app}.flatpak \
+              org.flatpak.${app} stable
+          done
+
+      - name: Publish both bundles simultaneously
+        uses: ./publish
+        with:
+          repo-path: _repo_multi_bundle
+          bundle-path: tests/AppA.flatpak,tests/AppB.flatpak
+          registry: "localhost:5001"
+          insecure-registry: "true"
+          oci-repository: "aetherpak/multi-app"
+          remote-name: "aetherpak-multi-test"
+          pages-url: "http://localhost:9999"
+          registry-token: ""
+          upload-pages-artifact: "false"
+
+      - name: Verify both apps rebound and published
+        run: |
+          set -euo pipefail
+          if [ ! -f "_site/index/static" ]; then
+            echo "Error: index/static not generated"
+            exit 1
+          fi
+
+          NAMES="$(jq -r '.Results[].Name' _site/index/static | sort | tr '\n' ' ')"
+          [ "$NAMES" = "aetherpak/multi-app " ] || { echo "names mismatch: $NAMES"; exit 1; }
+
+          REFS="$(jq -r '.Results[].Images[].Labels["org.flatpak.ref"]' _site/index/static | sort | tr '\n' ' ')"
+          [ "$REFS" = "app/org.flatpak.AppA/x86_64/stable app/org.flatpak.AppB/x86_64/stable " ] \
+            || { echo "refs mismatch: $REFS"; exit 1; }
+
+          ls _site/refs/org.flatpak.AppA-stable.flatpakref _site/refs/org.flatpak.AppB-stable.flatpakref

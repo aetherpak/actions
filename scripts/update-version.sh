@@ -30,9 +30,12 @@ echo "$NEW_VER" > cli-version.txt
 # 2. Update .github/workflows/publish.yml
 sed -i "s/default: \"$OLD_VER\"/default: \"$NEW_VER\"/g" .github/workflows/publish.yml
 
-# 3. Update .github/workflows/test.yml
-sed -i "s/version: $OLD_VER/version: $NEW_VER/g" .github/workflows/test.yml
-sed -i "s/cli:$OLD_VER/cli:$NEW_VER/g" .github/workflows/test.yml
+# 3. Update all test workflows
+for f in .github/workflows/test-*.yml; do
+  [ -f "$f" ] || continue
+  sed -i "s/version: $OLD_VER/version: $NEW_VER/g" "$f"
+  sed -i "s/cli:$OLD_VER/cli:$NEW_VER/g" "$f"
+done
 
 # 4. Update docs/site/index.html
 sed -i "s/Default <code>$OLD_VER<\/code>/Default <code>$NEW_VER<\/code>/g" docs/site/index.html
