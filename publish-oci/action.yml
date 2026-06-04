@@ -219,7 +219,7 @@ runs:
 
           REPO_NAME="${OCI_REPOSITORY:-$GITHUB_REPOSITORY}"
           REPO_NAME="$(printf '%s' "$REPO_NAME" | tr '[:upper:]' '[:lower:]')"
-          ARGS=(--app "$ref_app" --arch "$ref_arch" --branch "$ref_branch"
+          ARGS=(--app-id "$ref_app" --arch "$ref_arch" --branch "$ref_branch"
             --registry "$REGISTRY" --oci-repository "$REPO_NAME"
             --repo-path "$REPO" --records-dir "$RECORDS_DIR"
             --output-file "$GITHUB_OUTPUT")

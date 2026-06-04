@@ -175,7 +175,7 @@ runs:
       run: |
         set -euo pipefail
         ARGS=(--manifest "$MANIFEST" --arch "$ARCH" --branch "$BRANCH" --repo-path "$REPO")
-        [ -n "$APP_ID" ] && ARGS+=(--app "$APP_ID")
+        [ -n "$APP_ID" ] && ARGS+=(--app-id "$APP_ID")
         [ "$RUN_LINTER" = "true" ] && ARGS+=(--run-linter)
         while IFS= read -r arg; do
           [ -n "$arg" ] && ARGS+=(--builder-arg "$arg")
