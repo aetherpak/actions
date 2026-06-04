@@ -44,6 +44,10 @@ and standalone composite-action users install it with `aetherpak/setup-cli`.
   `build-manifest` uses the `-builder` tag (adds `flatpak-builder` + lint) and runs
   `--privileged`, installing the runtime from the image's baked flathub remote.
   `cli-version` must name a published container tag.
+- `.github/workflows/prune-github-container-registry.yml`: reusable `workflow_call` workflow
+  allowing users to safely prune inactive, old, or orphaned container image versions
+  from GHCR (either for a specific app-id or globally across all aetherpak images
+  that are no longer in the active static index). Requires a token with delete:packages permissions.
 - `.github/workflows/site.yml`: deploys this project's own marketing landing page
   (`docs/site/`) to Pages on push to `main`, unrelated to a published app's index.
 - `.github/workflows/test.yml`: CI. A `lint` job (pre-commit: actionlint + file

@@ -1,0 +1,201 @@
+name: Prune GitHub Container Registry
+on:
+  workflow_call:
+    inputs:
+      app-id:
+        description: "Optional: Specific flatpak App ID to prune (e.g. org.example.App). If omitted, all apps in the registry managed by aetherpak are pruned."
+        required: false
+        type: string
+        default: ""
+      registry:
+        description: "Target container registry host."
+        required: false
+        type: string
+        default: "ghcr.io"
+      oci-repository:
+        description: "OCI repository path without registry host. Defaults to GITHUB_REPOSITORY (lowercased)."
+        required: false
+        type: string
+        default: ""
+      pages-url:
+        description: "Public URL of the flatpak static index page. Defaults to the GitHub Pages URL."
+        required: false
+        type: string
+        default: ""
+      dry-run:
+        description: "Dry run mode. Only list versions that would be pruned without actually deleting them."
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      token:
+        description: "GitHub token (e.g. GitHub App token [recommended] or PAT) with packages read & delete permissions."
+        required: true
+
+jobs:
+  prune:
+    name: Prune container versions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prune Registry Versions
+        env:
+          GH_TOKEN: ${{ secrets.token }}
+          APP_ID: ${{ inputs.app-id }}
+          REGISTRY: ${{ inputs.registry }}
+          OCI_REPOSITORY_INPUT: ${{ inputs.oci-repository }}
+          PAGES_URL_INPUT: ${{ inputs.pages-url }}
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          set -euo pipefail
+
+          OWNER="${{ github.repository_owner }}"
+
+          # 1. Resolve OCI Repository
+          OCI_REPO="$OCI_REPOSITORY_INPUT"
+          if [ -z "$OCI_REPO" ]; then
+            OCI_REPO="${{ github.repository }}"
+          fi
+          # Convert to lowercase
+          OCI_REPO="$(echo "$OCI_REPO" | tr '[:upper:]' '[:lower:]')"
+
+          # Package name is target repository path under owner
+          # e.g., if OCI_REPO is owner/repo/app, package name is repo/app
+          PACKAGE_NAME="${OCI_REPO#"$OWNER/"}"
+          ENCODED_PACKAGE_NAME="${PACKAGE_NAME//\//%2F}"
+
+          # 2. Get owner type to determine API endpoint
+          echo "Resolving owner type for $OWNER..."
+          OWNER_TYPE=$(gh api "users/$OWNER" --jq '.type')
+          if [ "$OWNER_TYPE" = "Organization" ]; then
+            ENDPOINT="orgs/$OWNER/packages/container/$ENCODED_PACKAGE_NAME/versions"
+          else
+            ENDPOINT="users/$OWNER/packages/container/$ENCODED_PACKAGE_NAME/versions"
+          fi
+
+          # 3. Fetch active index
+          PAGES_URL="$PAGES_URL_INPUT"
+          if [ -z "$PAGES_URL" ]; then
+            PAGES_URL="https://$OWNER.github.io/${{ github.event.repository.name }}"
+          fi
+
+          INDEX_URL="${PAGES_URL%/}/index/static"
+          echo "Fetching active flatpak index from $INDEX_URL"
+
+          # Allow fetch to fail only if app-id is specified
+          INDEX_JSON=""
+          if ! INDEX_JSON=$(curl -s -f -L "$INDEX_URL"); then
+            echo "::warning::Could not fetch active index from $INDEX_URL"
+            if [ -z "$APP_ID" ]; then
+              echo "::error::Index fetch failed and no app-id specified. Aborting to prevent accidental pruning of all images."
+              exit 1
+            fi
+            INDEX_JSON='{"Results": []}'
+          fi
+
+          # 4. Extract active digests and tags from index
+          echo "Parsing active index..."
+          ACTIVE_DIGESTS=$(echo "$INDEX_JSON" | jq -r '.Results[].Images[].Digest' | sort -u)
+          ACTIVE_TAGS=$(echo "$INDEX_JSON" | jq -r '
+            .Results[].Images[] |
+            select(.Labels["org.flatpak.ref"] != null) |
+            .Labels["org.flatpak.ref"] |
+            split("/") |
+            if length >= 4 then
+              "\(.[1] | gsub("\\."; "_"))-\(.[3])-\(.[2])"
+            else
+              empty
+            end
+          ' | sort -u)
+
+          # Save them to temporary files to pass to jq safely
+          tags_file=$(mktemp)
+          digests_file=$(mktemp)
+          echo "$ACTIVE_TAGS" > "$tags_file"
+          echo "$ACTIVE_DIGESTS" > "$digests_file"
+
+          # Prepare app-id filter
+          SAFE_APP_ID=""
+          if [ -n "$APP_ID" ]; then
+            SAFE_APP_ID="$(echo "$APP_ID" | tr '.' '_')"
+          fi
+
+          # 5. Fetch package versions from registry
+          echo "Fetching container package versions from registry (endpoint: $ENDPOINT)..."
+          VERSIONS_JSON=""
+          if ! VERSIONS_JSON=$(gh api --paginate "$ENDPOINT" | jq -s 'add'); then
+            echo "Package '$PACKAGE_NAME' has no versions in the container registry."
+            exit 0
+          fi
+
+          # 6. Filter versions using jq to find which ones to prune
+          echo "Analyzing registry package versions..."
+          PRUNABLE_VERSIONS=$(echo "$VERSIONS_JSON" | jq \
+            --rawfile tags_raw "$tags_file" \
+            --rawfile digests_raw "$digests_file" \
+            --arg safe_app_id "$SAFE_APP_ID" '
+            ($tags_raw | split("\n") | map(select(length > 0))) as $active_tags |
+            ($digests_raw | split("\n") | map(select(length > 0))) as $active_digests |
+
+            def is_aetherpak_tag: test("^[a-zA-Z0-9_]+-[a-zA-Z0-9_.-]+-[a-zA-Z0-9_]+$");
+            def is_app_tag(safe_id): startswith(safe_id + "-") and is_aetherpak_tag;
+
+            .[] |
+            .id as $id |
+            .name as $digest |
+            (.metadata?.container?.tags // []) as $tags |
+
+            # Check active status
+            ($active_digests | index($digest) != null) as $is_digest_active |
+            (any($tags[]; . as $t | $active_tags | index($t) != null)) as $has_active_tag |
+            ($is_digest_active or $has_active_tag) as $is_active |
+
+            if $is_active then
+              empty
+            else
+              if $safe_app_id != "" then
+                if any($tags[]; is_app_tag($safe_app_id)) then
+                  {id: $id, digest: $digest, tags: $tags, reason: "Inactive version for app \($safe_app_id)"}
+                else
+                  empty
+                fi
+              else
+                if ($tags | length) == 0 then
+                  {id: $id, digest: $digest, tags: $tags, reason: "Untagged and inactive version"}
+                else
+                  if any($tags[]; is_aetherpak_tag) and all($tags[]; is_aetherpak_tag) then
+                    {id: $id, digest: $digest, tags: $tags, reason: "All tags are inactive aetherpak tags"}
+                  else
+                    empty
+                  fi
+                fi
+              end
+            end
+          ' | jq -s '.')
+
+          # Clean up temp files
+          rm -f "$tags_file" "$digests_file"
+
+          PRUNE_COUNT=$(echo "$PRUNABLE_VERSIONS" | jq '. | length')
+
+          if [ "$PRUNE_COUNT" -eq 0 ]; then
+            echo "No prunable container package versions found."
+            exit 0
+          fi
+
+          echo "Found $PRUNE_COUNT prunable version(s):"
+          echo "$PRUNABLE_VERSIONS" | jq -r '.[] | " - ID: \(.id) | Digest: \(.digest) | Tags: \(.tags | join(", ")) | Reason: \(.reason)"'
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "Dry run mode enabled. No versions were deleted."
+            exit 0
+          fi
+
+          # 7. Delete versions
+          echo "Deleting prunable versions from GHCR..."
+          echo "$PRUNABLE_VERSIONS" | jq -r '.[] | .id' | while read -r version_id; do
+            echo "Deleting version $version_id..."
+            gh api --method DELETE "$ENDPOINT/$version_id"
+            echo "Successfully deleted version $version_id"
+          done
+
+          echo "Pruning operation completed successfully."
