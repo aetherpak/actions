@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.5.3](https://github.com/aetherpak/actions/compare/v3.5.2...v3.5.3) (2026-06-04)
+
+
+### Bug Fixes
+
+* **workflow:** remove explicit job-level permissions to allow dry-run without write access ([8c0c7ab](https://github.com/aetherpak/actions/commit/8c0c7ab6b8880db25c06ebf163e66652827cefbc))
+
 ## [3.5.2](https://github.com/aetherpak/actions/compare/v3.5.1...v3.5.2) (2026-06-04)
 
 
