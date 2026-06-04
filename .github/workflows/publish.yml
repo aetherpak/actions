@@ -424,9 +424,6 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJSON(needs.plan.outputs.matrix) }}
-    permissions:
-      contents: read
-      packages: write
     container:
       image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}
     steps:
@@ -473,10 +470,6 @@ jobs:
     concurrency:
       group: ${{ inputs.concurrency-group != '' && inputs.concurrency-group || format('aetherpak-publish-{0}', github.repository) }}
       cancel-in-progress: false
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
     container:
       image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}
     environment:
