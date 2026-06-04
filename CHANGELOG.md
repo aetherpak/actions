@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.6.0](https://github.com/aetherpak/actions/compare/v3.5.3...v3.6.0) (2026-06-04)
+
+
+### Features
+
+* **workflow:** add prune-github-container-registry shared workflow ([ebe5f32](https://github.com/aetherpak/actions/commit/ebe5f32a65583bd2e19d426fff259d47fd2964d8))
+
 ## [3.5.3](https://github.com/aetherpak/actions/compare/v3.5.2...v3.5.3) (2026-06-04)
 
 
