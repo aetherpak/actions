@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.7.0](https://github.com/aetherpak/actions/compare/v3.6.1...v3.7.0) (2026-06-07)
+
+
+### Features
+
+* simplify publish-oci action by delegating ref resolution to CLI ([5644708](https://github.com/aetherpak/actions/commit/5644708f2f3254b3a430e471b87d9697699e0c99))
+
+
+### Bug Fixes
+
+* prevent non-zero exit status on unsigned/no-sign oci push and site build ([0bfacfd](https://github.com/aetherpak/actions/commit/0bfacfd00ef9114bee0959763ca6df6408ecff46))
+
 ## [3.6.1](https://github.com/aetherpak/actions/compare/v3.6.0...v3.6.1) (2026-06-07)
 
 
