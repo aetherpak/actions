@@ -22,7 +22,7 @@ inputs:
   runtime-repo: { required: false, default: "https://dl.flathub.org/repo/flathub.flatpakrepo" }
   remote-name: { required: false, default: "" }
   site-subpath: { required: false, default: "", description: "Optional subdirectory under site-dir to structure the repository files." }
-  cli-version: { required: false, default: "v0.15.1", description: "aetherpak CLI version to install if missing (ignored if already on PATH)." }
+  cli-version: { required: false, default: "v0.15.2", description: "aetherpak CLI version to install if missing (ignored if already on PATH)." }
 
 outputs:
   signing-path:

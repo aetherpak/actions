@@ -13,7 +13,7 @@ jobs:
     permissions:
       contents: read
     container:
-      image: ghcr.io/aetherpak/cli:v0.15.1-builder
+      image: ghcr.io/aetherpak/cli:v0.15.2-builder
       options: --privileged
     steps:
       - name: Checkout Code
