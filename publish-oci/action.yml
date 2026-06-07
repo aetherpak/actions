@@ -176,15 +176,21 @@ runs:
         [ -n "${{ inputs.arch }}" ] && ARGS+=(--arch "${{ inputs.arch }}")
         [ -n "${{ inputs.branch }}" ] && ARGS+=(--branch "${{ inputs.branch }}")
 
-        [ "$INSECURE" = "true" ] && ARGS+=(--insecure)
+        if [ "$INSECURE" = "true" ]; then
+          ARGS+=(--insecure)
+        fi
         if [ "$SIGN" = "true" ]; then
           keyfile="$(mktemp)"
           chmod 600 "$keyfile"
+          trap 'rm -f "$keyfile"' EXIT
           printf '%s' "$GPG_KEY" > "$keyfile"
           ARGS+=(--gpg-key "$keyfile")
         fi
-        [ "${{ steps.signing.outputs.no-sign }}" = "true" ] && ARGS+=(--no-sign)
-        [ "${{ steps.signing.outputs.allow-unsigned }}" = "true" ] && ARGS+=(--allow-unsigned)
+        if [ "${{ steps.signing.outputs.no-sign }}" = "true" ]; then
+          ARGS+=(--no-sign)
+        fi
+        if [ "${{ steps.signing.outputs.allow-unsigned }}" = "true" ]; then
+          ARGS+=(--allow-unsigned)
+        fi
 
         aetherpak push-oci "${ARGS[@]}"
-        [ "$SIGN" = "true" ] && rm -f "$keyfile"
