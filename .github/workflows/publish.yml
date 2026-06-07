@@ -425,7 +425,7 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.plan.outputs.matrix) }}
     container:
-      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}
+      image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}-builder
     steps:
       - name: Checkout
         uses: actions/checkout@v6
