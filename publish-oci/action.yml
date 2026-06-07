@@ -68,13 +68,13 @@ outputs:
     value: ${{ steps.signing.outputs.sign == 'true' && 'gpg' || 'off' }}
   app-id:
     description: "Resolved Reverse-DNS Application ID."
-    value: ${{ steps.vars.outputs.app-id }}
+    value: ${{ steps.push.outputs.app-id }}
   branch:
     description: "Resolved Flatpak branch."
-    value: ${{ steps.vars.outputs.branch }}
+    value: ${{ steps.push.outputs.branch }}
   arch:
     description: "Resolved application architecture."
-    value: ${{ steps.vars.outputs.arch }}
+    value: ${{ steps.push.outputs.arch }}
   repo-path:
     description: "OSTree repo path containing the application."
     value: ${{ inputs.repo-path }}
@@ -145,30 +145,6 @@ runs:
         # Artifact upload/download drops empty dirs; recreate the ones ostree needs.
         mkdir -p "$REPO/refs/heads" "$REPO/refs/mirrors" "$REPO/refs/remotes"
 
-    - name: Resolve coordinates
-      id: vars
-      shell: bash
-      env:
-        REPO: ${{ inputs.repo-path }}
-        IN_APP: ${{ inputs.app-id }}
-        IN_ARCH: ${{ inputs.arch }}
-        IN_BRANCH: ${{ inputs.branch }}
-      run: |
-        set -euo pipefail
-        APP="$IN_APP"; ARCH="$IN_ARCH"; BRANCH="$IN_BRANCH"
-        if [ -z "$APP" ] || [ -z "$ARCH" ] || [ -z "$BRANCH" ]; then
-          tmp="$(mktemp)"
-          aetherpak inspect-repo --repo-path "$REPO" --output-file "$tmp"
-          [ -n "$APP" ] || APP="$(sed -n 's/^app-id=//p' "$tmp")"
-          [ -n "$ARCH" ] || ARCH="$(sed -n 's/^arch=//p' "$tmp")"
-          [ -n "$BRANCH" ] || BRANCH="$(sed -n 's/^branch=//p' "$tmp")"
-        fi
-        {
-          echo "app-id=$APP"
-          echo "arch=$ARCH"
-          echo "branch=$BRANCH"
-        } >> "$GITHUB_OUTPUT"
-
     - name: Push OCI image
       id: push
       shell: bash
@@ -186,60 +162,29 @@ runs:
       run: |
         set -euo pipefail
 
-        # Get all app refs in the repo
-        refs=$(ostree refs --repo="$REPO" | grep '^app/' || true)
-        if [ -z "$refs" ]; then
-          echo "::error::No application refs found in OSTree repository."
-          exit 1
+        REPO_NAME="${OCI_REPOSITORY:-$GITHUB_REPOSITORY}"
+        REPO_NAME="$(printf '%s' "$REPO_NAME" | tr '[:upper:]' '[:lower:]')"
+        ARGS=(
+          --registry "$REGISTRY"
+          --oci-repository "$REPO_NAME"
+          --repo-path "$REPO"
+          --records-dir "$RECORDS_DIR"
+          --output-file "$GITHUB_OUTPUT"
+        )
+
+        [ -n "${{ inputs.app-id }}" ] && ARGS+=(--app-id "${{ inputs.app-id }}")
+        [ -n "${{ inputs.arch }}" ] && ARGS+=(--arch "${{ inputs.arch }}")
+        [ -n "${{ inputs.branch }}" ] && ARGS+=(--branch "${{ inputs.branch }}")
+
+        [ "$INSECURE" = "true" ] && ARGS+=(--insecure)
+        if [ "$SIGN" = "true" ]; then
+          keyfile="$(mktemp)"
+          chmod 600 "$keyfile"
+          printf '%s' "$GPG_KEY" > "$keyfile"
+          ARGS+=(--gpg-key "$keyfile")
         fi
+        [ "${{ steps.signing.outputs.no-sign }}" = "true" ] && ARGS+=(--no-sign)
+        [ "${{ steps.signing.outputs.allow-unsigned }}" = "true" ] && ARGS+=(--allow-unsigned)
 
-        pushed_any=false
-        IN_APP="${{ inputs.app-id }}"
-        IN_ARCH="${{ inputs.arch }}"
-        IN_BRANCH="${{ inputs.branch }}"
-
-        while read -r ref; do
-          [ -z "$ref" ] && continue
-
-          # ref is app/<app-id>/<arch>/<branch>
-          IFS='/' read -r _ ref_app ref_arch ref_branch <<< "$ref"
-
-          # Filter by inputs if specified
-          if [ -n "$IN_APP" ] && [ "$IN_APP" != "$ref_app" ]; then
-            continue
-          fi
-          if [ -n "$IN_ARCH" ] && [ "$IN_ARCH" != "$ref_arch" ]; then
-            continue
-          fi
-          if [ -n "$IN_BRANCH" ] && [ "$IN_BRANCH" != "$ref_branch" ]; then
-            continue
-          fi
-
-          echo "Pushing cell: $ref_app ($ref_arch) on channel $ref_branch"
-
-          REPO_NAME="${OCI_REPOSITORY:-$GITHUB_REPOSITORY}"
-          REPO_NAME="$(printf '%s' "$REPO_NAME" | tr '[:upper:]' '[:lower:]')"
-          ARGS=(--app-id "$ref_app" --arch "$ref_arch" --branch "$ref_branch"
-            --registry "$REGISTRY" --oci-repository "$REPO_NAME"
-            --repo-path "$REPO" --records-dir "$RECORDS_DIR"
-            --output-file "$GITHUB_OUTPUT")
-
-          [ "$INSECURE" = "true" ] && ARGS+=(--insecure)
-          if [ "$SIGN" = "true" ]; then
-            keyfile="$(mktemp)"
-            chmod 600 "$keyfile"
-            printf '%s' "$GPG_KEY" > "$keyfile"
-            ARGS+=(--gpg-key "$keyfile")
-          fi
-          [ "${{ steps.signing.outputs.no-sign }}" = "true" ] && ARGS+=(--no-sign)
-          [ "${{ steps.signing.outputs.allow-unsigned }}" = "true" ] && ARGS+=(--allow-unsigned)
-
-          aetherpak push-oci "${ARGS[@]}"
-          [ "$SIGN" = "true" ] && rm -f "$keyfile"
-          pushed_any=true
-        done <<< "$refs"
-
-        if [ "$pushed_any" = "false" ]; then
-          echo "::error::No refs matched the specified app-id/arch/branch filters."
-          exit 1
-        fi
+        aetherpak push-oci "${ARGS[@]}"
+        [ "$SIGN" = "true" ] && rm -f "$keyfile"
