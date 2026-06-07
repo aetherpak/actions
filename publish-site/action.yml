@@ -180,9 +180,14 @@ runs:
           printf '%s' "$GPG_KEY" > "$keyfile"
           ARGS+=(--gpg-key "$keyfile")
         fi
-        [ "${{ steps.target.outputs.no-sign }}" = "true" ] && ARGS+=(--no-sign)
-        [ "${{ steps.target.outputs.allow-unsigned }}" = "true" ] && ARGS+=(--allow-unsigned)
+        if [ "${{ steps.target.outputs.no-sign }}" = "true" ]; then
+          ARGS+=(--no-sign)
+        fi
+        if [ "${{ steps.target.outputs.allow-unsigned }}" = "true" ]; then
+          ARGS+=(--allow-unsigned)
+        fi
         aetherpak build-site "${ARGS[@]}"
+
 
     - name: Upload Pages artifact
       if: ${{ inputs.upload-pages-artifact == 'true' }}
