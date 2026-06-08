@@ -119,7 +119,8 @@ runs:
         PAGES_URL: ${{ inputs.pages-url }}
       run: |
         set -euo pipefail
-        RNAME="${INPUT_REMOTE_NAME:-$GITHUB_REPOSITORY}"
+        CFG_RNAME="$(aetherpak config get remote_name 2>/dev/null || true)"
+        RNAME="${INPUT_REMOTE_NAME:-${CFG_RNAME:-$GITHUB_REPOSITORY}}"
         RNAME="$(printf '%s' "$RNAME" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_-]#-#g')"
         echo "remote-name=$RNAME" >> "$GITHUB_OUTPUT"
         NO_SIGN=false

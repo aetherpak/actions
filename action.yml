@@ -114,6 +114,10 @@ inputs:
     description: "Optional subdirectory under site-dir to structure the repository files (e.g. flatpak)."
     required: false
     default: ""
+  remote-name:
+    description: "Flatpak remote name and .flatpakrepo filename. Defaults to '<owner>-<repo>'."
+    required: false
+    default: ""
   cli-version:
     description: "aetherpak CLI version to install if missing (ignored if already on PATH)."
     required: false
@@ -212,4 +216,5 @@ runs:
         runtime-repo: ${{ inputs.runtime-repo }}
         refs-dir: ${{ inputs.refs-dir }}
         site-subpath: ${{ inputs.site-subpath }}
+        remote-name: ${{ inputs.remote-name }}
         cli-version: ${{ inputs.cli-version }}
