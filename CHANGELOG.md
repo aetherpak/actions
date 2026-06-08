@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.0](https://github.com/aetherpak/actions/compare/v3.7.0...v3.8.0) (2026-06-08)
+
+
+### Features
+
+* resolve remote-name via aetherpak config get ([71b4fca](https://github.com/aetherpak/actions/commit/71b4fcad2ea6145c18a3005902952efc3a3b7ef4))
+
 ## [3.7.0](https://github.com/aetherpak/actions/compare/v3.6.1...v3.7.0) (2026-06-07)
 
 
