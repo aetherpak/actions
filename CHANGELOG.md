@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.8.1](https://github.com/aetherpak/actions/compare/v3.8.0...v3.8.1) (2026-06-08)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump aetherpak cli version to v0.17.1 ([#93](https://github.com/aetherpak/actions/issues/93)) ([58a96b7](https://github.com/aetherpak/actions/commit/58a96b7f405cb3d0a7382ecee8bfc6175844945c))
+
 ## [3.8.0](https://github.com/aetherpak/actions/compare/v3.7.0...v3.8.0) (2026-06-08)
 
 
