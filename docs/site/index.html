@@ -271,7 +271,7 @@ jobs:
           <div class="opt"><code>signing</code><span>GPG-sign images: <code>auto</code> (sign when a key is set), <code>gpg</code>, or <code>off</code>. Default <code>auto</code>.</span></div>
           <div class="opt"><code>registry</code><span>OCI registry host. Default <code>ghcr.io</code>.</span></div>
           <div class="opt"><code>oci-repository</code><span>Image repository path. Defaults to this repository.</span></div>
-          <div class="opt"><code>remote-name</code><span>Flatpak remote name and <code>.flatpakrepo</code> filename. Defaults to the repo slug.</span></div>
+          <div class="opt"><code>remote-name</code><span>Flatpak remote name and <code>.flatpakrepo</code> filename. Resolution priority: input value &gt; <code>AETHERPAK_REMOTE_NAME</code> env var &gt; <code>remote_name</code> in <code>aetherpak.yaml</code> &gt; sanitized repo slug.</span></div>
           <div class="opt"><code>pages-url</code><span>Public URL of the index. Defaults to the project's Pages URL.</span></div>
           <div class="opt"><code>runtime-repo</code><span><code>RuntimeRepo</code> in each one-click <code>.flatpakref</code>. Defaults to Flathub; empty omits it.</span></div>
           <div class="opt"><code>landing-page</code><span>Write the static <code>index.html</code>. Set <code>false</code> to render your own page.</span></div>

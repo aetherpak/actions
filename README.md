@@ -71,7 +71,7 @@ then enable **Public**.
 | `builder-args` | `--install-deps-from=flathub` | extra `flatpak-builder` flags, one per line; installs the manifest's declared deps from Flathub |
 | `registry` | `ghcr.io` | OCI registry host for the image blobs |
 | `oci-repository` | this repository | image repository path within the registry |
-| `remote-name` | repo slug `<owner>-<repo>` | Flatpak remote name and `.flatpakrepo` filename; override for a friendlier name |
+| `remote-name` | _(empty)_ | Flatpak remote name and `.flatpakrepo` filename. Resolution priority: input value > `AETHERPAK_REMOTE_NAME` env var > `remote_name` in `aetherpak.yaml` > sanitized repo slug `<owner>-<repo>` |
 | `signing` | `auto` | sign images: `auto` (sign when a key is set), `gpg`, or `off` (see [Signing](#signing-optional)) |
 | `runtime-repo` | Flathub `.flatpakrepo` | `RuntimeRepo` in each generated `.flatpakref`; empty omits it |
 | `landing-page` | `true` | write the static `index.html`; `false` to render your own page from `index/static` |
