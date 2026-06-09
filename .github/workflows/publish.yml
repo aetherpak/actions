@@ -65,7 +65,7 @@ on:
         type: boolean
         default: false
       base-sha:
-        description: "Config mode: commit to diff against for change detection. Defaults to github.event.before."
+        description: "Config mode: commit to diff against for change detection. Defaults to github.event.pull_request.base.sha (on PRs) or github.event.before."
         required: false
         type: string
         default: ""
@@ -232,6 +232,8 @@ jobs:
           repository: aetherpak/actions
           ref: ${{ steps.aref.outputs.ref }}
           path: .github/actions/aetherpak
+      - name: Trust workspace directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Plan
         id: p
         env:
@@ -242,7 +244,10 @@ jobs:
           CONFIG: ${{ inputs.config }}
           APP: ${{ inputs.app }}
           FORCE_ALL: ${{ github.event_name == 'schedule' || inputs.force-all }}
-          BASE_SHA: ${{ inputs.base-sha != '' && inputs.base-sha || github.event.before }}
+          BASE_SHA: >-
+            ${{ inputs.base-sha != '' && inputs.base-sha ||
+                github.event.pull_request.base.sha ||
+                github.event.before }}
           WORKFLOW_PATH: ${{ inputs.workflow-path }}
         run: |
           set -euo pipefail
