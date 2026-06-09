@@ -68,7 +68,7 @@ then enable **Public**.
 | `cache-state` | `true` | Cache flatpak-builder state (downloads and built modules) |
 | `cache-ccache` | `true` | Cache ccache compiler artifacts |
 | `cache-build-dir` | `false` | Cache flatpak-builder build directories (requires `--keep-build-dirs` in `builder-args`) |
-| `builder-args` | `--install-deps-from=flathub` | extra `flatpak-builder` flags, one per line; installs the manifest's declared deps from Flathub |
+| `builder-args` | _(empty)_ | extra `flatpak-builder` flags, one per line (note: dependency remotes configured in `aetherpak.yaml` are auto-injected by the CLI now) |
 | `registry` | `ghcr.io` | OCI registry host for the image blobs |
 | `oci-repository` | this repository | image repository path within the registry |
 | `remote-name` | _(empty)_ | Flatpak remote name and `.flatpakrepo` filename. Resolution priority: input value > `AETHERPAK_REMOTE_NAME` env var > `remote_name` in `aetherpak.yaml` > sanitized repo slug `<owner>-<repo>` |

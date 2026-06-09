@@ -149,7 +149,7 @@ on:
         description: "Extra flatpak-builder flags applied to every manifest build, one per line."
         required: false
         type: string
-        default: "--install-deps-from=flathub"
+        default: ""
       upload-bundle:
         description: "Export the built application as a single .flatpak bundle and upload it as a workflow artifact."
         required: false
