@@ -8,7 +8,8 @@ inputs:
     default: "_records"
   pages-url:
     description: "Public URL the index is served from. Required to seed the cumulative index."
-    required: true
+    required: false
+    default: ""
   site-dir:
     description: "Output directory for the website files."
     required: false
@@ -123,6 +124,13 @@ runs:
         RNAME="${INPUT_REMOTE_NAME:-${CFG_RNAME:-$GITHUB_REPOSITORY}}"
         RNAME="$(printf '%s' "$RNAME" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_-]#-#g')"
         echo "remote-name=$RNAME" >> "$GITHUB_OUTPUT"
+
+        RESOLVED_PAGES_URL="${PAGES_URL}"
+        if [ -z "$RESOLVED_PAGES_URL" ]; then
+          RESOLVED_PAGES_URL="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}"
+        fi
+        echo "resolved-pages-url=$RESOLVED_PAGES_URL" >> "$GITHUB_OUTPUT"
+
         NO_SIGN=false
         ALLOW_UNSIGNED=false
         case "$MODE" in
@@ -136,7 +144,7 @@ runs:
         echo "allow-unsigned=$ALLOW_UNSIGNED" >> "$GITHUB_OUTPUT"
         # build-site writes signatures under a fixed "sigs/" directory.
         if [ "$SIGN" = "true" ]; then
-          PAGES="${PAGES_URL%/}"
+          PAGES="${RESOLVED_PAGES_URL%/}"
           if [ -n "${{ inputs.site-subpath }}" ]; then
             PAGES="${PAGES}/${{ inputs.site-subpath }}"
           fi
@@ -148,7 +156,7 @@ runs:
       shell: bash
       env:
         RECORDS_DIR: ${{ inputs.records-dir }}
-        PAGES_URL: ${{ inputs.pages-url }}
+        PAGES_URL: ${{ steps.target.outputs.resolved-pages-url }}
         SITE_DIR: ${{ inputs.site-dir }}
         INSECURE: ${{ inputs.insecure-registry }}
         REMOTE_NAME: ${{ steps.target.outputs.remote-name }}
