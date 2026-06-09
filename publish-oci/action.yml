@@ -116,8 +116,12 @@ runs:
         BRANCH: ${{ inputs.branch }}
         ARCH: ${{ inputs.arch }}
         APP: ${{ inputs.app-id }}
+        TMPDIR: ${{ github.workspace }}/.tmp
+        FLATPAK_SYSTEM_CACHE_DIR: ${{ github.workspace }}/.tmp/flatpak-cache
       run: |
         set -euo pipefail
+        mkdir -p "$TMPDIR" "$FLATPAK_SYSTEM_CACHE_DIR"
+        trap 'rm -rf "$TMPDIR"' EXIT
         ARGS=()
         if [ -n "$BUNDLE" ]; then
           while IFS= read -r line || [ -n "$line" ]; do
@@ -148,8 +152,12 @@ runs:
         OCI_USERNAME: ${{ github.actor }}
         OCI_PASSWORD: ${{ inputs.registry-token }}
         AETHERPAK_GPG_PASSPHRASE: ${{ inputs.gpg-private-key-passphrase }}
+        TMPDIR: ${{ github.workspace }}/.tmp
+        FLATPAK_SYSTEM_CACHE_DIR: ${{ github.workspace }}/.tmp/flatpak-cache
       run: |
         set -euo pipefail
+        mkdir -p "$TMPDIR" "$FLATPAK_SYSTEM_CACHE_DIR"
+        trap 'rm -rf "$TMPDIR"' EXIT
 
         REPO_NAME="${OCI_REPOSITORY:-$GITHUB_REPOSITORY}"
         REPO_NAME="$(printf '%s' "$REPO_NAME" | tr '[:upper:]' '[:lower:]')"
