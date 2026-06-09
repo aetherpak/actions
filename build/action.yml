@@ -136,6 +136,12 @@ runs:
       if: ${{ inputs.manifest-path != '' && inputs.cache == 'true' && (inputs.cache-state == 'true' || inputs.cache-ccache == 'true' || inputs.cache-build-dir == 'true') }}
       id: cache-paths
       shell: bash
+      env:
+        MANIFEST_HASH: ${{ hashFiles(inputs.manifest-path) }}
+        APP_ID: ${{ inputs.app-id }}
+        CACHE_KEY: ${{ inputs.cache-key }}
+        ARCH: ${{ inputs.arch }}
+        SHA: ${{ github.sha }}
       run: |
         set -euo pipefail
         PATHS=""
@@ -154,15 +160,37 @@ runs:
         echo "$PATHS" >> "$GITHUB_OUTPUT"
         echo "EOF" >> "$GITHUB_OUTPUT"
 
+        # Determine cache key and restore keys
+        if [ -n "$CACHE_KEY" ]; then
+          if [ -n "$APP_ID" ]; then
+            PREFIX="${CACHE_KEY}-${APP_ID}-${ARCH}"
+            RESTORE_KEYS="${CACHE_KEY}-${APP_ID}-${ARCH}-"$'\n'"${CACHE_KEY}-${APP_ID}-"$'\n'"${CACHE_KEY}-"
+          else
+            PREFIX="${CACHE_KEY}-${ARCH}"
+            RESTORE_KEYS="${CACHE_KEY}-${ARCH}-"$'\n'"${CACHE_KEY}-"
+          fi
+        else
+          if [ -n "$APP_ID" ]; then
+            PREFIX="aetherpak-flatpak-${APP_ID}-${ARCH}-${MANIFEST_HASH}"
+            RESTORE_KEYS="aetherpak-flatpak-${APP_ID}-${ARCH}-${MANIFEST_HASH}-"$'\n'"aetherpak-flatpak-${APP_ID}-${ARCH}-"$'\n'"aetherpak-flatpak-${APP_ID}-"
+          else
+            PREFIX="aetherpak-flatpak-${ARCH}-${MANIFEST_HASH}"
+            RESTORE_KEYS="aetherpak-flatpak-${ARCH}-${MANIFEST_HASH}-"$'\n'"aetherpak-flatpak-${ARCH}-"
+          fi
+        fi
+
+        echo "key=${PREFIX}-${SHA}" >> "$GITHUB_OUTPUT"
+        echo "restore-keys<<EOF" >> "$GITHUB_OUTPUT"
+        echo "$RESTORE_KEYS" >> "$GITHUB_OUTPUT"
+        echo "EOF" >> "$GITHUB_OUTPUT"
+
     - name: Cache build state
       if: ${{ inputs.manifest-path != '' && inputs.cache == 'true' && (inputs.cache-state == 'true' || inputs.cache-ccache == 'true' || inputs.cache-build-dir == 'true') }}
       uses: actions/cache@v5
       with:
         path: ${{ steps.cache-paths.outputs.paths }}
-        key: ${{ inputs.cache-key && format('{0}-{1}-{2}', inputs.cache-key, inputs.arch, github.sha) || format('aetherpak-flatpak-{0}-{1}-{2}', inputs.arch, hashFiles(inputs.manifest-path), github.sha) }}
-        restore-keys: |
-          ${{ inputs.cache-key && format('{0}-{1}-', inputs.cache-key, inputs.arch) || format('aetherpak-flatpak-{0}-{1}-', inputs.arch, hashFiles(inputs.manifest-path)) }}
-          ${{ inputs.cache-key && format('{0}-', inputs.cache-key) || format('aetherpak-flatpak-{0}-', inputs.arch) }}
+        key: ${{ steps.cache-paths.outputs.key }}
+        restore-keys: ${{ steps.cache-paths.outputs.restore-keys }}
 
     - name: Build from manifest
       if: ${{ inputs.manifest-path != '' }}
