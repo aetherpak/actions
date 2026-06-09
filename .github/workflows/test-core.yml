@@ -309,3 +309,68 @@ jobs:
             || { echo "refs mismatch: $REFS"; exit 1; }
 
           ls _site/refs/org.flatpak.AppA-stable.flatpakref _site/refs/org.flatpak.AppB-stable.flatpakref
+
+  runtime-integration-test:
+    name: Mock Runtime Integration Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.17.1
+
+      - name: Start Local OCI Registry
+        run: bash tests/integration/start_local_registry.sh
+
+      - name: Build a mock runtime extension bundle
+        run: |
+          set -euo pipefail
+          mkdir -p tests/runtime_src
+          ostree init --mode=archive --repo=tests/runtime_src
+          mkdir -p tests/runtime_contents/files tests/runtime_contents/export
+          cat > tests/runtime_contents/metadata <<EOF
+          [Runtime]
+          name=org.freedesktop.Sdk.Extension.Mock
+          EOF
+          ostree commit --repo=tests/runtime_src \
+            --branch=runtime/org.freedesktop.Sdk.Extension.Mock/x86_64/stable \
+            -m "mock runtime commit" tests/runtime_contents
+          flatpak build-bundle --runtime tests/runtime_src tests/mock-runtime.flatpak \
+            org.freedesktop.Sdk.Extension.Mock stable
+
+      - name: Publish from bundle (no pre-existing repo-path)
+        id: publish_step
+        uses: ./publish
+        with:
+          repo-path: _repo_from_runtime
+          bundle-path: tests/mock-runtime.flatpak
+          registry: "localhost:5001"
+          insecure-registry: "true"
+          oci-repository: "aetherpak/mock-runtime"
+          remote-name: "aetherpak-runtime-test"
+          pages-url: "http://localhost:9999"
+          registry-token: ""
+          upload-pages-artifact: "false"
+
+      - name: Verify the runtime round-tripped into the index
+        run: |
+          set -euo pipefail
+          if [ ! -f "_site/index/static" ]; then
+            echo "Error: index/static not generated"
+            exit 1
+          fi
+          REF="$(jq -r '.Results[0].Images[0].Labels["org.flatpak.ref"]' _site/index/static)"
+          test "$REF" = "runtime/org.freedesktop.Sdk.Extension.Mock/x86_64/stable"
+
+      - name: Verify publish outputs are resolved and populated correctly
+        run: |
+          bash tests/integration/verify_build_outputs.sh \
+            org.freedesktop.Sdk.Extension.Mock stable x86_64 \
+            "${{ steps.publish_step.outputs.app-id }}" "${{ steps.publish_step.outputs.branch }}" "${{ steps.publish_step.outputs.arch }}"
+
+      - name: Verify repo path output
+        run: |
+          test "${{ steps.publish_step.outputs.repo-path }}" = "_repo_from_runtime"
