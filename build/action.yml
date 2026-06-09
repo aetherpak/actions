@@ -203,10 +203,10 @@ runs:
         REPO: ${{ inputs.repo-path }}
         RUN_LINTER: ${{ inputs.run-linter }}
         BUILDER_ARGS: ${{ inputs.builder-args }}
-        TMPDIR: ${{ github.workspace }}/.tmp
-        FLATPAK_SYSTEM_CACHE_DIR: ${{ github.workspace }}/.tmp/flatpak-cache
       run: |
         set -euo pipefail
+        export TMPDIR="${GITHUB_WORKSPACE}/.tmp"
+        export FLATPAK_SYSTEM_CACHE_DIR="${GITHUB_WORKSPACE}/.tmp/flatpak-cache"
         mkdir -p "$TMPDIR" "$FLATPAK_SYSTEM_CACHE_DIR"
         trap 'rm -rf "$TMPDIR"' EXIT
         ARGS=(--manifest "$MANIFEST" --arch "$ARCH" --branch "$BRANCH" --repo-path "$REPO")
@@ -288,10 +288,10 @@ runs:
         BRANCH: ${{ steps.resolve.outputs.branch }}
         ARCH: ${{ steps.resolve.outputs.arch }}
         REF_TYPE: ${{ steps.resolve.outputs.ref-type }}
-        TMPDIR: ${{ github.workspace }}/.tmp
-        FLATPAK_SYSTEM_CACHE_DIR: ${{ github.workspace }}/.tmp/flatpak-cache
       run: |
         set -euo pipefail
+        export TMPDIR="${GITHUB_WORKSPACE}/.tmp"
+        export FLATPAK_SYSTEM_CACHE_DIR="${GITHUB_WORKSPACE}/.tmp/flatpak-cache"
         mkdir -p "$TMPDIR" "$FLATPAK_SYSTEM_CACHE_DIR"
         trap 'rm -rf "$TMPDIR"' EXIT
         BUNDLE_NAME="${APP_ID}_${ARCH}.flatpak"

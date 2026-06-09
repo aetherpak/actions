@@ -287,15 +287,15 @@ jobs:
       image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}-builder
       options: --privileged
     env:
-      TMPDIR: ${{ github.workspace }}/.tmp
-      FLATPAK_SYSTEM_CACHE_DIR: ${{ github.workspace }}/.tmp/flatpak-cache
+      TMPDIR: /github/workspace/.tmp
+      FLATPAK_SYSTEM_CACHE_DIR: /github/workspace/.tmp/flatpak-cache
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           submodules: ${{ inputs.submodules }}
       - name: Create temp directories
-        run: mkdir -p "${{ github.workspace }}/.tmp/flatpak-cache"
+        run: mkdir -p /github/workspace/.tmp/flatpak-cache
       - name: Check out actions repo
         uses: actions/checkout@v6
         with:
@@ -339,11 +339,11 @@ jobs:
     container:
       image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}-builder
     env:
-      TMPDIR: ${{ github.workspace }}/.tmp
-      FLATPAK_SYSTEM_CACHE_DIR: ${{ github.workspace }}/.tmp/flatpak-cache
+      TMPDIR: /github/workspace/.tmp
+      FLATPAK_SYSTEM_CACHE_DIR: /github/workspace/.tmp/flatpak-cache
     steps:
       - name: Create temp directories
-        run: mkdir -p "${{ github.workspace }}/.tmp/flatpak-cache"
+        run: mkdir -p /github/workspace/.tmp/flatpak-cache
       - name: Check out actions repo
         uses: actions/checkout@v6
         with:
@@ -442,13 +442,13 @@ jobs:
     container:
       image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}-builder
     env:
-      TMPDIR: ${{ github.workspace }}/.tmp
-      FLATPAK_SYSTEM_CACHE_DIR: ${{ github.workspace }}/.tmp/flatpak-cache
+      TMPDIR: /github/workspace/.tmp
+      FLATPAK_SYSTEM_CACHE_DIR: /github/workspace/.tmp/flatpak-cache
     steps:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Create temp directories
-        run: mkdir -p "${{ github.workspace }}/.tmp/flatpak-cache"
+        run: mkdir -p /github/workspace/.tmp/flatpak-cache
       - name: Check out actions repo
         uses: actions/checkout@v6
         with:
