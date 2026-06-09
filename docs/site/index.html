@@ -266,7 +266,7 @@ jobs:
           <div class="opt"><code>builder-args</code><span>Single-app: extra <code>flatpak-builder</code> flags, one per line. Default <code>--install-deps-from=flathub</code>.</span></div>
           <div class="opt"><code>app</code><span>Multi-app: rebuild only this app id (skip change detection).</span></div>
           <div class="opt"><code>force-all</code><span>Multi-app: rebuild every app. Default <code>false</code>.</span></div>
-          <div class="opt"><code>base-sha</code><span>Multi-app: commit to diff against for change detection. Defaults to <code>github.event.before</code>.</span></div>
+          <div class="opt"><code>base-sha</code><span>Multi-app: commit to diff against for change detection. Defaults to <code>github.event.pull_request.base.sha</code> (on PRs) or <code>github.event.before</code>.</span></div>
           <div class="opt"><code>workflow-path</code><span>Multi-app: caller workflow path; touching it triggers a rebuild-all.</span></div>
           <div class="opt"><code>signing</code><span>GPG-sign images: <code>auto</code> (sign when a key is set), <code>gpg</code>, or <code>off</code>. Default <code>auto</code>.</span></div>
           <div class="opt"><code>registry</code><span>OCI registry host. Default <code>ghcr.io</code>.</span></div>
