@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.8.2](https://github.com/aetherpak/actions/compare/v3.8.1...v3.8.2) (2026-06-09)
+
+
+### Bug Fixes
+
+* support runtime ref types in build bundle export ([22372d9](https://github.com/aetherpak/actions/commit/22372d9fabaec8cd4602ed04f1598861448c9455))
+* support runtime refs in publish workflow prebuilt bundle match ([6547346](https://github.com/aetherpak/actions/commit/6547346c6f53e2c982be3dbd5c1ba0424552a6e8))
+
 ## [3.8.1](https://github.com/aetherpak/actions/compare/v3.8.0...v3.8.1) (2026-06-08)
 
 
