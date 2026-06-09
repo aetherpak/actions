@@ -205,10 +205,6 @@ runs:
         BUILDER_ARGS: ${{ inputs.builder-args }}
       run: |
         set -euo pipefail
-        export TMPDIR="${GITHUB_WORKSPACE}/.tmp"
-        export FLATPAK_SYSTEM_CACHE_DIR="${GITHUB_WORKSPACE}/.tmp/flatpak-cache"
-        mkdir -p "$TMPDIR" "$FLATPAK_SYSTEM_CACHE_DIR"
-        trap 'rm -rf "$TMPDIR"' EXIT
         ARGS=(--manifest "$MANIFEST" --arch "$ARCH" --branch "$BRANCH" --repo-path "$REPO")
         [ -n "$APP_ID" ] && ARGS+=(--app-id "$APP_ID")
         [ "$RUN_LINTER" = "true" ] && ARGS+=(--run-linter)
@@ -290,10 +286,6 @@ runs:
         REF_TYPE: ${{ steps.resolve.outputs.ref-type }}
       run: |
         set -euo pipefail
-        export TMPDIR="${GITHUB_WORKSPACE}/.tmp"
-        export FLATPAK_SYSTEM_CACHE_DIR="${GITHUB_WORKSPACE}/.tmp/flatpak-cache"
-        mkdir -p "$TMPDIR" "$FLATPAK_SYSTEM_CACHE_DIR"
-        trap 'rm -rf "$TMPDIR"' EXIT
         BUNDLE_NAME="${APP_ID}_${ARCH}.flatpak"
         ARGS=()
         [ "$REF_TYPE" = "runtime" ] && ARGS+=(--runtime)

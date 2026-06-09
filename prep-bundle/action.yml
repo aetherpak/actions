@@ -43,10 +43,6 @@ runs:
         BUNDLE_PATH: ${{ inputs.bundle-path }}
       run: |
         set -euo pipefail
-        export TMPDIR="${GITHUB_WORKSPACE}/.tmp"
-        export FLATPAK_SYSTEM_CACHE_DIR="${GITHUB_WORKSPACE}/.tmp/flatpak-cache"
-        mkdir -p "$TMPDIR" "$FLATPAK_SYSTEM_CACHE_DIR"
-        trap 'rm -rf "$TMPDIR"' EXIT
         if [ -z "$URL" ] && [ -z "$BUNDLE_PATH" ]; then
           echo "::error::Either url or bundle-path must be specified."
           exit 1
