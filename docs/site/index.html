@@ -284,7 +284,7 @@ jobs:
           <div class="opt"><code>prebuilt-bundle-artifact</code><span>Name or pattern of prebuilt bundle workflow artifacts to download and ingest. Supports `{arch}`, `{app-id}`, and `{branch}` placeholders. If the artifact contains multiple bundles, the workflow automatically matches by matrix cell <code>app-id</code> and <code>arch</code>.</span></div>
           <div class="opt"><code>dry-run</code><span>Dry run mode: build and verify everything, but skip pushing to the registry and publishing the site. Default <code>false</code>.</span></div>
           <div class="opt"><code>reconcile-only</code><span>Skip build and push; only reconcile the index against the registry and re-deploy. Use after deleting an image.</span></div>
-          <div class="opt"><code>cli-version</code><span>aetherpak CLI release / container image tag. Default <code>v0.19.0</code>.</span></div>
+          <div class="opt"><code>cli-version</code><span>aetherpak CLI release / container image tag. Default <code>v0.19.2</code>.</span></div>
         </div>
 
         <div class="callout"><strong>Change detection (multi-app):</strong> a manifest entry rebuilds when its manifest directory changes (including submodule gitlink bumps); any entry rebuilds when its <code>aetherpak.yaml</code> dict changes (sha256 bumps, arch additions, runtime updates). <code>force-all</code> or <code>app</code> override it.</div>
