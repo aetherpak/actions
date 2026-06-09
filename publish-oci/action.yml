@@ -118,10 +118,6 @@ runs:
         APP: ${{ inputs.app-id }}
       run: |
         set -euo pipefail
-        export TMPDIR="${GITHUB_WORKSPACE}/.tmp"
-        export FLATPAK_SYSTEM_CACHE_DIR="${GITHUB_WORKSPACE}/.tmp/flatpak-cache"
-        mkdir -p "$TMPDIR" "$FLATPAK_SYSTEM_CACHE_DIR"
-        trap 'rm -rf "$TMPDIR"' EXIT
         ARGS=()
         if [ -n "$BUNDLE" ]; then
           while IFS= read -r line || [ -n "$line" ]; do
@@ -154,10 +150,6 @@ runs:
         AETHERPAK_GPG_PASSPHRASE: ${{ inputs.gpg-private-key-passphrase }}
       run: |
         set -euo pipefail
-        export TMPDIR="${GITHUB_WORKSPACE}/.tmp"
-        export FLATPAK_SYSTEM_CACHE_DIR="${GITHUB_WORKSPACE}/.tmp/flatpak-cache"
-        mkdir -p "$TMPDIR" "$FLATPAK_SYSTEM_CACHE_DIR"
-        trap 'rm -rf "$TMPDIR"' EXIT
 
         REPO_NAME="${OCI_REPOSITORY:-$GITHUB_REPOSITORY}"
         REPO_NAME="$(printf '%s' "$REPO_NAME" | tr '[:upper:]' '[:lower:]')"
