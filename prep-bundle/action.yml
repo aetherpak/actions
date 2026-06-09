@@ -41,10 +41,10 @@ runs:
         BRANCH: ${{ inputs.branch }}
         REPO: ${{ inputs.repo-path }}
         BUNDLE_PATH: ${{ inputs.bundle-path }}
-        TMPDIR: ${{ github.workspace }}/.tmp
-        FLATPAK_SYSTEM_CACHE_DIR: ${{ github.workspace }}/.tmp/flatpak-cache
       run: |
         set -euo pipefail
+        export TMPDIR="${GITHUB_WORKSPACE}/.tmp"
+        export FLATPAK_SYSTEM_CACHE_DIR="${GITHUB_WORKSPACE}/.tmp/flatpak-cache"
         mkdir -p "$TMPDIR" "$FLATPAK_SYSTEM_CACHE_DIR"
         trap 'rm -rf "$TMPDIR"' EXIT
         if [ -z "$URL" ] && [ -z "$BUNDLE_PATH" ]; then
