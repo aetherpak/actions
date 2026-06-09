@@ -362,13 +362,13 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s globstar nullglob
-          target_ref="app/${{ matrix.app-id }}/${{ matrix.arch }}/${{ matrix.branch }}"
-          target_prefix="app/${{ matrix.app-id }}/${{ matrix.arch }}/"
+          target_suffix="${{ matrix.app-id }}/${{ matrix.arch }}/${{ matrix.branch }}"
+          target_prefix_suffix="${{ matrix.app-id }}/${{ matrix.arch }}/"
 
           matched_file=""
           for f in _downloaded_bundle/**/*.flatpak; do
             ref=$(flatpak info --show-ref "$f" 2>/dev/null || true)
-            if [ "$ref" = "$target_ref" ]; then
+            if [ "$ref" = "app/$target_suffix" ] || [ "$ref" = "runtime/$target_suffix" ]; then
               matched_file="$f"
               break
             fi
@@ -377,7 +377,7 @@ jobs:
           if [ -z "$matched_file" ]; then
             for f in _downloaded_bundle/**/*.flatpak; do
               ref=$(flatpak info --show-ref "$f" 2>/dev/null || true)
-              if [[ "$ref" == "$target_prefix"* ]]; then
+              if [[ "$ref" == "app/$target_prefix_suffix"* ]] || [[ "$ref" == "runtime/$target_prefix_suffix"* ]]; then
                 matched_file="$f"
                 break
               fi
