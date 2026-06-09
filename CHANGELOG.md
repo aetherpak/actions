@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.9.0](https://github.com/aetherpak/actions/compare/v3.8.2...v3.9.0) (2026-06-09)
+
+
+### Features
+
+* **actions:** trust workspace directory and prioritize PR base SHA fallback ([ddb8437](https://github.com/aetherpak/actions/commit/ddb843748e1b81ec14a4e9d34eb0c0f54213429d))
+* make pages-url input optional with automated fallback ([0f936ef](https://github.com/aetherpak/actions/commit/0f936efa2dbda69f4328013975118f31f14ccb96))
+* optimize cache pruning in container jobs ([210b5d8](https://github.com/aetherpak/actions/commit/210b5d8af6ff23587f744ecabd61557b3e413a7c))
+* **publish:** drop default builder-args and update docs ([#106](https://github.com/aetherpak/actions/issues/106)) ([702a2ba](https://github.com/aetherpak/actions/commit/702a2bab9924fe2c82e16f46665f69394d18dd1f))
+* remove redundant manual OSTree empty directory restoration ([54c37d7](https://github.com/aetherpak/actions/commit/54c37d79d54d61703a3c1f97b57a7f2d384e2a27))
+* scope Flatpak build caches per app ID ([9edf51a](https://github.com/aetherpak/actions/commit/9edf51a17cb478e4fd2fa7e2f7d35c1e3dc0216c))
+
+
+### Bug Fixes
+
+* resolve container workspace path mapping for TMPDIR ([b967d45](https://github.com/aetherpak/actions/commit/b967d456ee51d6f547f2c052ece8521b6650ca3d))
+* revert TMPDIR and FLATPAK_SYSTEM_CACHE_DIR redirections ([c8596a0](https://github.com/aetherpak/actions/commit/c8596a0953b6b6288c2d94773db35492101a884a))
+
 ## [3.8.2](https://github.com/aetherpak/actions/compare/v3.8.1...v3.8.2) (2026-06-09)
 
 
