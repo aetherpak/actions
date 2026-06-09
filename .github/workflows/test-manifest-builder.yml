@@ -47,7 +47,6 @@ jobs:
           branch: stable
           repo-path: _repo_smoke
           run-linter: "false"
-          builder-args: "--install-deps-from=flathub"
           upload-bundle: "true"
 
       - name: Verify the build produced the app ref
@@ -63,3 +62,40 @@ jobs:
           test "${{ steps.build.outputs.bundle-path }}" = "org.aetherpak.Smoke_x86_64.flatpak" || { echo "bundle-path mismatch: ${{ steps.build.outputs.bundle-path }}"; exit 1; }
           test "${{ steps.build.outputs.bundle-artifact-name }}" = "flatpak-bundle-org.aetherpak.Smoke-x86_64" || { echo "bundle-artifact-name mismatch: ${{ steps.build.outputs.bundle-artifact-name }}"; exit 1; }
           test -f "org.aetherpak.Smoke_x86_64.flatpak" || { echo "bundle file org.aetherpak.Smoke_x86_64.flatpak not found"; exit 1; }
+
+      - name: Write another trivial manifest for explicit builder-args test
+        run: |
+          cat > org.aetherpak.SmokeJobs.json <<'EOF'
+          {
+            "id": "org.aetherpak.SmokeJobs",
+            "runtime": "org.freedesktop.Platform",
+            "runtime-version": "24.08",
+            "sdk": "org.freedesktop.Sdk",
+            "command": "smoke-jobs",
+            "modules": [
+              {
+                "name": "smoke-jobs",
+                "buildsystem": "simple",
+                "build-commands": ["mkdir -p /app/bin", "touch /app/bin/smoke-jobs"]
+              }
+            ]
+          }
+          EOF
+
+      - name: Build with explicit builder-args
+        id: build_jobs
+        uses: ./build
+        with:
+          manifest-path: org.aetherpak.SmokeJobs.json
+          arch: x86_64
+          branch: stable
+          repo-path: _repo_smoke_jobs
+          run-linter: "false"
+          builder-args: "--jobs=2"
+
+      - name: Verify explicit build outputs
+        run: |
+          set -euo pipefail
+          test "${{ steps.build_jobs.outputs.app-id }}" = "org.aetherpak.SmokeJobs" || { echo "app-id: ${{ steps.build_jobs.outputs.app-id }}"; exit 1; }
+          ostree refs --repo=_repo_smoke_jobs | grep -qx 'app/org.aetherpak.SmokeJobs/x86_64/stable' \
+            || { echo "expected ref missing:"; ostree refs --repo=_repo_smoke_jobs; exit 1; }
