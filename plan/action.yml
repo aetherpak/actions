@@ -37,7 +37,7 @@ inputs:
   cli-version:
     description: "aetherpak CLI version to install if missing (ignored if already on PATH)."
     required: false
-    default: "v0.19.2"
+    default: "v0.20.0"
 
 outputs:
   apps:
