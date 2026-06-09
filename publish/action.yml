@@ -10,7 +10,7 @@ inputs:
   registry: { required: false, default: "ghcr.io" }
   insecure-registry: { required: false, default: "false" }
   oci-repository: { required: false, default: "" }
-  pages-url: { required: true, description: "Public URL the index is served from." }
+  pages-url: { required: false, default: "", description: "Public URL the index is served from." }
   registry-token: { required: false, default: "${{ github.token }}" }
   upload-pages-artifact: { required: false, default: "true" }
   landing-page: { required: false, default: "true" }

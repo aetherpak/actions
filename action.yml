@@ -65,7 +65,8 @@ inputs:
     default: ""
   pages-url:
     description: "The final public URL where Pages will serve this (e.g. https://owner.github.io/repo)."
-    required: true
+    required: false
+    default: ""
   registry-token:
     description: "Registry auth token (defaults to the GitHub token, used for GHCR). If blank, login is skipped."
     required: false
