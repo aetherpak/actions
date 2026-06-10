@@ -86,4 +86,5 @@ runs:
         upload-pages-artifact: ${{ inputs.upload-pages-artifact }}
         pages-artifact-name: ${{ inputs.pages-artifact-name }}
         site-subpath: ${{ inputs.site-subpath }}
+        oci-repository: ${{ inputs.oci-repository }}
         cli-version: ${{ inputs.cli-version }}

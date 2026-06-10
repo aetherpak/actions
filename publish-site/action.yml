@@ -66,6 +66,10 @@ inputs:
     description: "Optional subdirectory under site-dir to structure the repository files (e.g. flatpak)."
     required: false
     default: ""
+  oci-repository:
+    description: "Target registry repository path without host."
+    required: false
+    default: ""
   cli-version:
     description: "aetherpak CLI version to install if missing (ignored if already on PATH)."
     required: false
@@ -168,6 +172,7 @@ runs:
         LANDING: ${{ inputs.landing-page }}
         SIGN: ${{ steps.target.outputs.sign }}
         GPG_KEY: ${{ inputs.gpg-private-key }}
+        AETHERPAK_OCI_REPOSITORY: ${{ inputs.oci-repository }}
       run: |
         set -euo pipefail
         RESOLVED_PAGES_URL="${PAGES_URL%/}"
