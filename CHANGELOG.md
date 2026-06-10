@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.9.1](https://github.com/aetherpak/actions/compare/v3.9.0...v3.9.1) (2026-06-10)
+
+
+### Miscellaneous Chores
+
+* release 3.9.1 ([00cb98f](https://github.com/aetherpak/actions/commit/00cb98f748918a5c7eb4fef636c8f81c0b9c08d3))
+
 ## [3.9.0](https://github.com/aetherpak/actions/compare/v3.8.2...v3.9.0) (2026-06-09)
 
 
