@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.10.0](https://github.com/aetherpak/actions/compare/v3.9.1...v3.10.0) (2026-06-10)
+
+
+### Features
+
+* support and document plan override-branch and app-id//branch refs ([#117](https://github.com/aetherpak/actions/issues/117)) ([17a4e70](https://github.com/aetherpak/actions/commit/17a4e70c42d0af5b665c925b0389b28e8580a10f))
+
 ## [3.9.1](https://github.com/aetherpak/actions/compare/v3.9.0...v3.9.1) (2026-06-10)
 
 
