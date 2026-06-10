@@ -59,7 +59,7 @@ then enable **Public**.
 |---|---|---|
 | `manifest-path` | _(required)_ | Flatpak manifest to build |
 | `arches` | `x86_64 aarch64` | architectures to build |
-| `branch` | `stable` on tags, `beta` on the default branch, else the ref name | Flatpak branch (channel) |
+| `branch` | `stable` on tags, `beta` on the default branch, else the ref name | Flatpak branch (channel). In config mode, this overrides the branch of all planned apps. |
 | `deploy` | `true` | deploy to Pages; `false` builds and uploads the site for you to host |
 | `pages-url` | project Pages URL | set this for a custom domain |
 | `run-linter` | `true` | run `flatpak-builder-lint` |
