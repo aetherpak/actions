@@ -517,6 +517,7 @@ jobs:
           gpg-private-key-passphrase: ${{ secrets.gpg-private-key-passphrase }}
           upload-pages-artifact: ${{ inputs.deploy }}
           site-subpath: ${{ inputs.site-subpath }}
+          oci-repository: ${{ inputs.oci-repository }}
       - name: Deploy
         id: deploy
         if: ${{ inputs.deploy }}
