@@ -267,6 +267,7 @@ jobs:
             fi
             [ -n "$BASE_SHA" ] && ARGS+=(--base-sha "$BASE_SHA")
             [ -n "$WORKFLOW_PATH" ] && ARGS+=(--workflow-path "$WORKFLOW_PATH")
+            [ -n "$BRANCH" ] && ARGS+=(--override-branch "$BRANCH")
             aetherpak plan "${ARGS[@]}" --output-file "$GITHUB_OUTPUT"
           fi
 
