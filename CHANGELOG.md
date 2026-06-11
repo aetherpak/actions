@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.11.1](https://github.com/aetherpak/actions/compare/v3.11.0...v3.11.1) (2026-06-11)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump aetherpak cli version to v0.30.0 ([#126](https://github.com/aetherpak/actions/issues/126)) ([663369c](https://github.com/aetherpak/actions/commit/663369c33bdce582f6725d4538914903cab301da))
+
 ## [3.11.0](https://github.com/aetherpak/actions/compare/v3.10.1...v3.11.0) (2026-06-11)
 
 
