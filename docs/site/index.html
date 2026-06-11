@@ -9,7 +9,7 @@
   <meta property="og:description" content="GitHub Actions that build Flatpak apps and host them as a Flatpak repository on GHCR and GitHub Pages.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://aetherpak.org/">
-  <meta property="og:image" content="https://aetherpak.org/preview.png">
+  <meta property="og:image" content="https://aetherpak.org/preview.webp">
   <style>
     :root {
       --bg: #09090b; --card: #18181b; --border: #27272a;
@@ -263,7 +263,7 @@
     <section>
       <h2>What your users get</h2>
       <p>Every repository gets a landing page like this, with a one-click <code>.flatpakref</code> install button and copy-paste commands for each app and channel.</p>
-      <a class="preview" href="#" onclick="openCarousel(0); return false;" aria-label="Open screenshot carousel"><img src="preview.png" alt="Live AetherPak actions-demo registry page showing GNOME Sudoku with install commands" loading="lazy"></a>
+      <a class="preview" href="#" onclick="openCarousel(0); return false;" aria-label="Open screenshot carousel"><img src="preview.webp" alt="Live AetherPak actions-demo registry page showing GNOME Sudoku with install commands" loading="lazy"></a>
     </section>
 
     <section>
@@ -642,22 +642,22 @@ gpg --armor --export-secret-keys "$EMAIL" \
         <button class="carousel-nav prev" aria-label="Previous image" onclick="prevSlide()">&#10094;</button>
         <div class="carousel-slides">
           <div class="carousel-slide active">
-            <img src="01-Demo-Dark.png" alt="Demo - Dark Theme" loading="lazy">
+            <img src="01-Demo-Dark.webp" alt="Demo - Dark Theme" loading="lazy">
           </div>
           <div class="carousel-slide">
-            <img src="01-Demo-Light.png" alt="Demo - Light Theme" loading="lazy">
+            <img src="01-Demo-Light.webp" alt="Demo - Light Theme" loading="lazy">
           </div>
           <div class="carousel-slide">
-            <img src="02-Lemonade-Dark.png" alt="Lemonade - Dark Theme" loading="lazy">
+            <img src="02-Lemonade-Dark.webp" alt="Lemonade - Dark Theme" loading="lazy">
           </div>
           <div class="carousel-slide">
-            <img src="02-Lemonade-Light.png" alt="Lemonade - Light Theme" loading="lazy">
+            <img src="02-Lemonade-Light.webp" alt="Lemonade - Light Theme" loading="lazy">
           </div>
           <div class="carousel-slide">
-            <img src="03-Stacklok-Dark.png" alt="Stacklok - Dark Theme" loading="lazy">
+            <img src="03-Stacklok-Dark.webp" alt="Stacklok - Dark Theme" loading="lazy">
           </div>
           <div class="carousel-slide">
-            <img src="03-Stacklok-Light.png" alt="Stacklok - Light Theme" loading="lazy">
+            <img src="03-Stacklok-Light.webp" alt="Stacklok - Light Theme" loading="lazy">
           </div>
         </div>
         <button class="carousel-nav next" aria-label="Next image" onclick="nextSlide()">&#10095;</button>
@@ -721,12 +721,12 @@ gpg --armor --export-secret-keys "$EMAIL" \
     // Carousel script
     let currentSlide = 0;
     const slides = [
-      '01-Demo-Dark.png',
-      '01-Demo-Light.png',
-      '02-Lemonade-Dark.png',
-      '02-Lemonade-Light.png',
-      '03-Stacklok-Dark.png',
-      '03-Stacklok-Light.png'
+      '01-Demo-Dark.webp',
+      '01-Demo-Light.webp',
+      '02-Lemonade-Dark.webp',
+      '02-Lemonade-Light.webp',
+      '03-Stacklok-Dark.webp',
+      '03-Stacklok-Light.webp'
     ];
 
     function openCarousel(startIndex = 0) {
