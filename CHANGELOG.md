@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.11.0](https://github.com/aetherpak/actions/compare/v3.10.1...v3.11.0) (2026-06-11)
+
+
+### Features
+
+* **publish:** propagate oci-repository input to build-site step ([caed6a0](https://github.com/aetherpak/actions/commit/caed6a060716359718881371ef4834cc5b75b459))
+
 ## [3.10.1](https://github.com/aetherpak/actions/compare/v3.10.0...v3.10.1) (2026-06-10)
 
 
