@@ -17,7 +17,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.26.1
+          version: v0.28.0
 
       - name: Start Local OCI Registry
         run: bash tests/integration/start_local_registry.sh
@@ -67,7 +67,7 @@ jobs:
     name: Publish path inside the CLI container
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/aetherpak/cli:v0.26.1
+      image: ghcr.io/aetherpak/cli:v0.28.0
     services:
       registry:
         image: registry:2
@@ -117,7 +117,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.26.1
+          version: v0.28.0
 
       - name: Start Local OCI Registry
         run: bash tests/integration/start_local_registry.sh
@@ -184,7 +184,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.26.1
+          version: v0.28.0
 
       - name: Start Local OCI Registry
         run: bash tests/integration/start_local_registry.sh
@@ -256,7 +256,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.26.1
+          version: v0.28.0
 
       - name: Start Local OCI Registry
         run: bash tests/integration/start_local_registry.sh
