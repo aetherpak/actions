@@ -113,6 +113,132 @@
     section:nth-of-type(4) { animation-delay: 0.35s; }
     section:nth-of-type(5) { animation-delay: 0.45s; }
     @media (max-width: 560px) { h1 { font-size: 2.1rem; } .links, .opt { grid-template-columns: 1fr; } .opt { gap: 0.1rem; } dialog.modal { padding: 1.1rem; width: calc(100% - 1rem); max-height: calc(100vh - 1rem); max-height: calc(100dvh - 1rem); } }
+
+    /* Carousel Modal styles */
+    dialog.carousel-modal {
+      max-width: 650px;
+      width: calc(100% - 2rem);
+      max-height: 90vh;
+      max-height: 90dvh;
+      padding: 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--card);
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+    .carousel-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    .carousel-close {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      z-index: 20;
+      background: rgba(24, 24, 27, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+    .carousel-close:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+    .carousel-viewport {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0d0d0f;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      width: 100%;
+    }
+    .carousel-slides {
+      width: 100%;
+      display: flex;
+    }
+    .carousel-slide {
+      display: none;
+      width: 100%;
+      align-items: center;
+      justify-content: center;
+    }
+    .carousel-slide.active {
+      display: flex;
+    }
+    .carousel-slide img {
+      width: auto;
+      max-width: 100%;
+      height: auto;
+      max-height: 82vh;
+      max-height: 82dvh;
+      object-fit: contain;
+      display: block;
+    }
+    .carousel-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(24, 24, 27, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      font-size: 1.2rem;
+      transition: all 0.25s ease;
+      user-select: none;
+    }
+    .carousel-nav:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+      box-shadow: 0 0 10px var(--primary-glow);
+    }
+    .carousel-nav.prev { left: 1rem; }
+    .carousel-nav.next { right: 1rem; }
+    .carousel-footer {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 0.75rem;
+    }
+    .carousel-dots {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .carousel-dots .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .carousel-dots .dot:hover {
+      background: var(--text-muted);
+    }
+    .carousel-dots .dot.active {
+      background: var(--primary);
+      transform: scale(1.2);
+    }
   </style>
 </head>
 <body>
@@ -137,8 +263,7 @@
     <section>
       <h2>What your users get</h2>
       <p>Every repository gets a landing page like this, with a one-click <code>.flatpakref</code> install button and copy-paste commands for each app and channel.</p>
-      <a class="preview" href="https://aetherpak.github.io/actions-demo/" target="_blank" rel="noopener"><img src="preview.png" alt="Live AetherPak actions-demo registry page showing GNOME Sudoku with install commands" loading="lazy"></a>
-      <p class="caption">A live page AetherPak deploys — captured from the <a href="https://github.com/aetherpak/actions-demo" target="_blank" rel="noopener">actions-demo</a> repository. See also the <a href="https://abn.github.io/flatpakrepo/" target="_blank" rel="noopener">multi-app demo</a>.</p>
+      <a class="preview" href="#" onclick="openCarousel(0); return false;" aria-label="Open screenshot carousel"><img src="preview.png" alt="Live AetherPak actions-demo registry page showing GNOME Sudoku with install commands" loading="lazy"></a>
     </section>
 
     <section>
@@ -510,6 +635,46 @@ gpg --armor --export-secret-keys "$EMAIL" \
     <p class="hint">See <a href="#config-file" onclick="this.closest('dialog').close(); document.querySelector('[data-tab=&quot;config-file&quot;]').click()">Configuration → Config file</a> for the full schema.</p>
   </dialog>
 
+  <dialog id="carousel-modal" class="modal carousel-modal">
+    <div class="carousel-container">
+      <button class="carousel-close" aria-label="Close" onclick="closeCarousel()">&times;</button>
+      <div class="carousel-viewport">
+        <button class="carousel-nav prev" aria-label="Previous image" onclick="prevSlide()">&#10094;</button>
+        <div class="carousel-slides">
+          <div class="carousel-slide active">
+            <img src="01-Demo-Dark.png" alt="Demo - Dark Theme" loading="lazy">
+          </div>
+          <div class="carousel-slide">
+            <img src="01-Demo-Light.png" alt="Demo - Light Theme" loading="lazy">
+          </div>
+          <div class="carousel-slide">
+            <img src="02-Lemonade-Dark.png" alt="Lemonade - Dark Theme" loading="lazy">
+          </div>
+          <div class="carousel-slide">
+            <img src="02-Lemonade-Light.png" alt="Lemonade - Light Theme" loading="lazy">
+          </div>
+          <div class="carousel-slide">
+            <img src="03-Stacklok-Dark.png" alt="Stacklok - Dark Theme" loading="lazy">
+          </div>
+          <div class="carousel-slide">
+            <img src="03-Stacklok-Light.png" alt="Stacklok - Light Theme" loading="lazy">
+          </div>
+        </div>
+        <button class="carousel-nav next" aria-label="Next image" onclick="nextSlide()">&#10095;</button>
+      </div>
+      <div class="carousel-footer">
+        <div class="carousel-dots">
+          <span class="dot active" onclick="setSlide(0)"></span>
+          <span class="dot" onclick="setSlide(1)"></span>
+          <span class="dot" onclick="setSlide(2)"></span>
+          <span class="dot" onclick="setSlide(3)"></span>
+          <span class="dot" onclick="setSlide(4)"></span>
+          <span class="dot" onclick="setSlide(5)"></span>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
   <script>
     function copyBlock(btn) {
       const code = btn.parentElement.querySelector('code').innerText;
@@ -551,6 +716,71 @@ gpg --armor --export-secret-keys "$EMAIL" \
     // Click the backdrop (outside the dialog content) to close.
     document.querySelectorAll('dialog.modal').forEach(d => {
       d.addEventListener('click', e => { if (e.target === d) d.close(); });
+    });
+
+    // Carousel script
+    let currentSlide = 0;
+    const slides = [
+      '01-Demo-Dark.png',
+      '01-Demo-Light.png',
+      '02-Lemonade-Dark.png',
+      '02-Lemonade-Light.png',
+      '03-Stacklok-Dark.png',
+      '03-Stacklok-Light.png'
+    ];
+
+    function openCarousel(startIndex = 0) {
+      const modal = document.getElementById('carousel-modal');
+      if (modal) {
+        currentSlide = startIndex;
+        updateCarousel();
+        modal.showModal();
+      }
+    }
+
+    function closeCarousel() {
+      const modal = document.getElementById('carousel-modal');
+      if (modal) {
+        modal.close();
+      }
+    }
+
+    function prevSlide() {
+      currentSlide = (currentSlide - 1 + slides.length) % slides.length;
+      updateCarousel();
+    }
+
+    function nextSlide() {
+      currentSlide = (currentSlide + 1) % slides.length;
+      updateCarousel();
+    }
+
+    function setSlide(index) {
+      currentSlide = index;
+      updateCarousel();
+    }
+
+    function updateCarousel() {
+      const slideElements = document.querySelectorAll('.carousel-slide');
+      slideElements.forEach((el, idx) => {
+        el.classList.toggle('active', idx === currentSlide);
+      });
+
+      const dotElements = document.querySelectorAll('.carousel-dots .dot');
+      dotElements.forEach((el, idx) => {
+        el.classList.toggle('active', idx === currentSlide);
+      });
+    }
+
+    document.addEventListener('keydown', e => {
+      const modal = document.getElementById('carousel-modal');
+      if (modal && modal.open) {
+        if (e.key === 'ArrowLeft') {
+          prevSlide();
+        } else if (e.key === 'ArrowRight') {
+          nextSlide();
+        }
+      }
     });
   </script>
 </body>
