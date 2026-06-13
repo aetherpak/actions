@@ -157,7 +157,7 @@ jobs:
                   {id: $id, digest: $digest, tags: $tags, reason: "Inactive version for app \($safe_app_id)"}
                 else
                   empty
-                fi
+                end
               else
                 if ($tags | length) == 0 then
                   {id: $id, digest: $digest, tags: $tags, reason: "Untagged and inactive version"}
@@ -166,8 +166,8 @@ jobs:
                     {id: $id, digest: $digest, tags: $tags, reason: "All tags are inactive aetherpak tags"}
                   else
                     empty
-                  fi
-                fi
+                  end
+                end
               end
             end
           ' | jq -s '.')
