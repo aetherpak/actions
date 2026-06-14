@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.11.2](https://github.com/aetherpak/actions/compare/v3.11.1...v3.11.2) (2026-06-14)
+
+
+### Bug Fixes
+
+* **ci:** correct jq syntax in prune workflow ([df5e199](https://github.com/aetherpak/actions/commit/df5e1990854c882836ea2e71d810fdcb5cc277e8))
+
+
+### Miscellaneous Chores
+
+* **deps:** bump aetherpak cli version to v0.32.0 ([#129](https://github.com/aetherpak/actions/issues/129)) ([2a005eb](https://github.com/aetherpak/actions/commit/2a005ebbf354951697dc002d3c6f84b77280d58a))
+
 ## [3.11.1](https://github.com/aetherpak/actions/compare/v3.11.0...v3.11.1) (2026-06-11)
 
 
