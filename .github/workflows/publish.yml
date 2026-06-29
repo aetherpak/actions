@@ -204,7 +204,7 @@ jobs:
             exit 1
           fi
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           # Config mode only diffs gitlink trees, so contents aren't needed.
@@ -227,7 +227,7 @@ jobs:
           ref="${JWR##*@}"
           echo "ref=${ref}" >> "$GITHUB_OUTPUT"
       - name: Check out actions repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: aetherpak/actions
           ref: ${{ steps.aref.outputs.ref }}
@@ -289,11 +289,11 @@ jobs:
       options: --privileged
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: ${{ inputs.submodules }}
       - name: Check out actions repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: aetherpak/actions
           ref: ${{ needs.plan.outputs.actions-ref }}
@@ -336,7 +336,7 @@ jobs:
       image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}-builder
     steps:
       - name: Check out actions repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: aetherpak/actions
           ref: ${{ needs.plan.outputs.actions-ref }}
@@ -434,9 +434,9 @@ jobs:
       image: ghcr.io/aetherpak/cli:${{ inputs.cli-version }}-builder
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Check out actions repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: aetherpak/actions
           ref: ${{ needs.plan.outputs.actions-ref }}
@@ -483,9 +483,9 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Check out actions repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: aetherpak/actions
           ref: ${{ needs.plan.outputs.actions-ref }}
