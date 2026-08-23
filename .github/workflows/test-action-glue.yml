@@ -19,7 +19,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.32.0
+          version: v0.33.1
 
       - name: No source must fail
         id: nosrc
@@ -86,7 +86,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.32.0
+          version: v0.33.1
           install-dependencies: "false"
 
       - name: Write a mock aetherpak.yaml (manifest + bundle apps)
@@ -148,7 +148,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.32.0
+          version: v0.33.1
 
       - name: Build and serve a bundle on branch beta
         run: |
@@ -210,7 +210,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.32.0
+          version: v0.33.1
           install-dependencies: "false"
 
       - name: Write a single manifest
