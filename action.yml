@@ -202,6 +202,7 @@ runs:
       id: publish
       uses: ./publish
       with:
+        config: ${{ inputs.config }}
         repo-path: ${{ steps.build.outputs.repo-path }}
         app-id: ${{ steps.build.outputs.app-id }}
         branch: ${{ steps.build.outputs.branch }}

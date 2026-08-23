@@ -263,3 +263,44 @@ jobs:
           test "$ID" = "org.example.Single" || { echo "app-id: $ID"; exit 1; }
           RT="$(echo '${{ steps.plan.outputs.matrix-manifest }}' | jq -r '.[0].runtime')"
           test "$RT" = "org.gnome.Platform" || { echo "runtime: $RT"; exit 1; }
+
+  publish-site-config-glue-test:
+    name: Publish-site action glue (custom config remote-name resolution)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.33.1
+          install-dependencies: "false"
+
+      - name: Write a custom aetherpak.yaml in a subdirectory
+        run: |
+          set -euo pipefail
+          mkdir -p custom_dir _records_test
+          cat > custom_dir/my_config.yaml <<'EOF'
+          remote_name: custom-remote-from-config
+          apps:
+            - id: org.example.Test
+              manifest: test.json
+              branch: stable
+              arches: [x86_64]
+          EOF
+
+      - name: Test publish-site with custom config
+        id: site_step
+        uses: ./publish-site
+        with:
+          config: custom_dir/my_config.yaml
+          records-dir: _records_test
+          pages-url: "https://example.github.io/repo"
+          upload-pages-artifact: "false"
+          landing-page: "false"
+
+      - name: Assert remote-name was resolved from custom config
+        run: |
+          set -euo pipefail
+          test -f _site/custom-remote-from-config.flatpakrepo || { echo "custom-remote-from-config.flatpakrepo was not generated"; ls -la _site; exit 1; }

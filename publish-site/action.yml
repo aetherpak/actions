@@ -2,6 +2,10 @@ name: "AetherPak Publish Site"
 description: "Aggregate per-cell records into the static site (index, refs, landing, signatures)."
 
 inputs:
+  config:
+    description: "Path to the aetherpak.yaml config file (used to resolve remote_name, repo_title, repo_homepage, and branding)."
+    required: false
+    default: ""
   records-dir:
     description: "Directory holding per-cell record subdirs (one per (app, arch))."
     required: false
@@ -118,13 +122,16 @@ runs:
       id: target
       shell: bash
       env:
+        CONFIG: ${{ inputs.config }}
         INPUT_REMOTE_NAME: ${{ inputs.remote-name }}
         MODE: ${{ inputs.signing }}
         KEY: ${{ inputs.gpg-private-key }}
         PAGES_URL: ${{ inputs.pages-url }}
       run: |
         set -euo pipefail
-        CFG_RNAME="$(aetherpak config get remote_name 2>/dev/null || true)"
+        CFG_ARGS=()
+        [ -n "$CONFIG" ] && CFG_ARGS+=(--config "$CONFIG")
+        CFG_RNAME="$(aetherpak config get "${CFG_ARGS[@]}" remote_name 2>/dev/null || true)"
         RNAME="${INPUT_REMOTE_NAME:-${CFG_RNAME:-$GITHUB_REPOSITORY}}"
         RNAME="$(printf '%s' "$RNAME" | tr '[:upper:]' '[:lower:]' | sed 's#[^a-z0-9_-]#-#g')"
         echo "remote-name=$RNAME" >> "$GITHUB_OUTPUT"
@@ -159,6 +166,7 @@ runs:
     - name: Build site
       shell: bash
       env:
+        CONFIG: ${{ inputs.config }}
         RECORDS_DIR: ${{ inputs.records-dir }}
         PAGES_URL: ${{ steps.target.outputs.resolved-pages-url }}
         SITE_DIR: ${{ inputs.site-dir }}
@@ -183,6 +191,7 @@ runs:
         fi
         ARGS=(--records-dir "$RECORDS_DIR" --pages-url "$RESOLVED_PAGES_URL" --site-dir "$RESOLVED_SITE_DIR"
           --remote-name "$REMOTE_NAME" --runtime-repo "$RUNTIME_REPO" --reconcile)
+        [ -n "$CONFIG" ] && ARGS+=(--config "$CONFIG")
         [ -n "$REPO_TITLE" ] && ARGS+=(--repo-title "$REPO_TITLE")
         [ -n "$REPO_HOMEPAGE" ] && ARGS+=(--repo-homepage "$REPO_HOMEPAGE")
         [ "$INSECURE" = "true" ] && ARGS+=(--insecure)
