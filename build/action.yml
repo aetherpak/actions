@@ -2,6 +2,10 @@ name: "AetherPak Build/Import"
 description: "Compile a Flatpak app from a manifest, or import a pre-built bundle or OSTree repository."
 
 inputs:
+  config:
+    description: "Path to the aetherpak.yaml config file (provides builder-args, remotes, and resolves manifest when manifest-path is omitted)."
+    required: false
+    default: ""
   manifest-path:
     description: "Path to the Flatpak manifest (JSON/YAML) within the checked-out sources."
     required: false
@@ -84,10 +88,10 @@ outputs:
     description: "Resolved application ref type (app or runtime)."
     value: ${{ steps.resolve.outputs.ref-type }}
   bundle-path:
-    description: "Path to the generated .flatpak bundle (only if manifest-path was set)."
+    description: "Path to the generated .flatpak bundle (only if upload-bundle is true)."
     value: ${{ steps.bundle.outputs.bundle-path || '' }}
   bundle-artifact-name:
-    description: "Name of the uploaded bundle artifact (only if manifest-path was set and upload-bundle is true)."
+    description: "Name of the uploaded bundle artifact (only if upload-bundle is true)."
     value: ${{ steps.bundle.outputs.artifact-name || '' }}
 
 runs:
@@ -102,12 +106,16 @@ runs:
         if [ -n "${{ inputs.prebuilt-bundle-path }}" ]; then SRC_COUNT=$((SRC_COUNT + 1)); fi
         if [ -n "${{ inputs.prebuilt-repo-path }}" ]; then SRC_COUNT=$((SRC_COUNT + 1)); fi
 
-        if [ $SRC_COUNT -eq 0 ]; then
-          echo "::error::You must provide at least one of: manifest-path, prebuilt-bundle-path, or prebuilt-repo-path."
-          exit 1
-        elif [ $SRC_COUNT -gt 1 ]; then
+        if [ $SRC_COUNT -gt 1 ]; then
           echo "::error::Conflicting inputs. Provide only ONE of: manifest-path, prebuilt-bundle-path, or prebuilt-repo-path."
           exit 1
+        fi
+
+        if [ $SRC_COUNT -eq 0 ]; then
+          if [ -z "${{ inputs.config }}" ] || [ -z "${{ inputs.app-id }}" ]; then
+            echo "::error::No build source specified. Provide manifest-path, prebuilt-bundle-path, prebuilt-repo-path, or both config and app-id."
+            exit 1
+          fi
         fi
 
     - name: Set up aetherpak CLI
@@ -133,17 +141,41 @@ runs:
         echo "name=${name}" >> "$GITHUB_OUTPUT"
 
     - name: Determine cache paths
-      if: ${{ inputs.manifest-path != '' && inputs.cache == 'true' && (inputs.cache-state == 'true' || inputs.cache-ccache == 'true' || inputs.cache-build-dir == 'true') }}
+      if: ${{ (inputs.manifest-path != '' || (inputs.config != '' && inputs.prebuilt-bundle-path == '' && inputs.prebuilt-repo-path == '')) && inputs.cache == 'true' && (inputs.cache-state == 'true' || inputs.cache-ccache == 'true' || inputs.cache-build-dir == 'true') }}
       id: cache-paths
       shell: bash
       env:
-        MANIFEST_HASH: ${{ hashFiles(inputs.manifest-path) }}
+        MANIFEST: ${{ inputs.manifest-path }}
+        CONFIG: ${{ inputs.config }}
         APP_ID: ${{ inputs.app-id }}
         CACHE_KEY: ${{ inputs.cache-key }}
         ARCH: ${{ inputs.arch }}
         SHA: ${{ github.sha }}
       run: |
         set -euo pipefail
+
+        # Resolve files to hash for the cache key
+        HASH_FILES=()
+        if [ -n "$MANIFEST" ] && [ -f "$MANIFEST" ]; then
+          HASH_FILES+=("$MANIFEST")
+        fi
+        if [ -n "$CONFIG" ] && [ -f "$CONFIG" ]; then
+          HASH_FILES+=("$CONFIG")
+          # If MANIFEST was not specified, extract the app's manifest path from CONFIG via CLI
+          if [ -z "$MANIFEST" ] && [ -n "$APP_ID" ]; then
+            RESOLVED_MANIFEST="$(aetherpak config get --config "$CONFIG" "apps.${APP_ID}.manifest" 2>/dev/null || true)"
+            if [ -n "$RESOLVED_MANIFEST" ] && [ -f "$RESOLVED_MANIFEST" ]; then
+              HASH_FILES+=("$RESOLVED_MANIFEST")
+            fi
+          fi
+        fi
+
+        if [ ${#HASH_FILES[@]} -gt 0 ]; then
+          MANIFEST_HASH=$(sha256sum "${HASH_FILES[@]}" | sha256sum | cut -d' ' -f1)
+        else
+          MANIFEST_HASH="default"
+        fi
+
         PATHS=""
         if [ "${{ inputs.cache-state }}" = "true" ]; then
           PATHS="$PATHS"$'\n'".state/state-*"
@@ -185,7 +217,7 @@ runs:
         echo "EOF" >> "$GITHUB_OUTPUT"
 
     - name: Cache build state
-      if: ${{ inputs.manifest-path != '' && inputs.cache == 'true' && (inputs.cache-state == 'true' || inputs.cache-ccache == 'true' || inputs.cache-build-dir == 'true') }}
+      if: ${{ (inputs.manifest-path != '' || (inputs.config != '' && inputs.prebuilt-bundle-path == '' && inputs.prebuilt-repo-path == '')) && inputs.cache == 'true' && (inputs.cache-state == 'true' || inputs.cache-ccache == 'true' || inputs.cache-build-dir == 'true') }}
       uses: actions/cache@v6
       with:
         path: ${{ steps.cache-paths.outputs.paths }}
@@ -193,9 +225,10 @@ runs:
         restore-keys: ${{ steps.cache-paths.outputs.restore-keys }}
 
     - name: Build from manifest
-      if: ${{ inputs.manifest-path != '' }}
+      if: ${{ inputs.manifest-path != '' || (inputs.config != '' && inputs.prebuilt-bundle-path == '' && inputs.prebuilt-repo-path == '') }}
       shell: bash
       env:
+        CONFIG: ${{ inputs.config }}
         APP_ID: ${{ inputs.app-id }}
         MANIFEST: ${{ inputs.manifest-path }}
         ARCH: ${{ inputs.arch }}
@@ -205,7 +238,9 @@ runs:
         BUILDER_ARGS: ${{ inputs.builder-args }}
       run: |
         set -euo pipefail
-        ARGS=(--manifest "$MANIFEST" --arch "$ARCH" --branch "$BRANCH" --repo-path "$REPO")
+        ARGS=(--arch "$ARCH" --branch "$BRANCH" --repo-path "$REPO")
+        [ -n "$CONFIG" ] && ARGS+=(--config "$CONFIG")
+        [ -n "$MANIFEST" ] && ARGS+=(--manifest "$MANIFEST")
         [ -n "$APP_ID" ] && ARGS+=(--app-id "$APP_ID")
         [ "$RUN_LINTER" = "true" ] && ARGS+=(--run-linter)
         while IFS= read -r arg; do
@@ -217,6 +252,7 @@ runs:
       if: ${{ inputs.prebuilt-bundle-path != '' }}
       shell: bash
       env:
+        CONFIG: ${{ inputs.config }}
         BUNDLE: ${{ inputs.prebuilt-bundle-path }}
         ARCH: ${{ inputs.arch }}
         BRANCH: ${{ steps.channel.outputs.name }}
@@ -225,6 +261,7 @@ runs:
       run: |
         set -euo pipefail
         ARGS=()
+        [ -n "$CONFIG" ] && ARGS+=(--config "$CONFIG")
         if [ -n "$BUNDLE" ]; then
           while IFS= read -r line || [ -n "$line" ]; do
             IFS=',' read -r -a subpaths <<< "$line"
@@ -266,7 +303,7 @@ runs:
     # Manifest builds lint via `aetherpak build --run-linter`; imports have no
     # manifest, so lint the resulting repo here.
     - name: Lint imported repository
-      if: ${{ inputs.run-linter == 'true' && inputs.manifest-path == '' }}
+      if: ${{ inputs.run-linter == 'true' && (inputs.prebuilt-bundle-path != '' || inputs.prebuilt-repo-path != '') }}
       shell: bash
       env:
         REPO: ${{ inputs.repo-path }}
@@ -275,7 +312,7 @@ runs:
         flatpak-builder-lint repo "$REPO"
 
     - name: Export flatpak bundle
-      if: ${{ inputs.manifest-path != '' && (inputs.upload-bundle == 'true' || inputs.upload-bundle == true) }}
+      if: ${{ (inputs.manifest-path != '' || (inputs.config != '' && inputs.prebuilt-bundle-path == '' && inputs.prebuilt-repo-path == '')) && (inputs.upload-bundle == 'true' || inputs.upload-bundle == true) }}
       id: bundle
       shell: bash
       env:
@@ -295,7 +332,7 @@ runs:
         echo "artifact-name=${ARTIFACT_NAME}" >> "$GITHUB_OUTPUT"
 
     - name: Upload bundle artifact
-      if: ${{ inputs.manifest-path != '' && (inputs.upload-bundle == 'true' || inputs.upload-bundle == true) }}
+      if: ${{ (inputs.manifest-path != '' || (inputs.config != '' && inputs.prebuilt-bundle-path == '' && inputs.prebuilt-repo-path == '')) && (inputs.upload-bundle == 'true' || inputs.upload-bundle == true) }}
       uses: actions/upload-artifact@v7
       with:
         name: ${{ steps.bundle.outputs.artifact-name }}

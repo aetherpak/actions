@@ -251,7 +251,7 @@ specific CLI version or customize installations:
   single step. Best for prebuilt inputs (a `.flatpak` bundle or OSTree repo) on a
   standard runner; manifest builds should use the reusable workflow, which
   supplies the builder container.
-- `aetherpak/actions/build`: build a manifest with `flatpak-builder`, or import
+- `aetherpak/actions/build`: build a manifest with `flatpak-builder` (from `manifest-path` or `config` + `app-id`), or import
   a prebuilt `.flatpak` bundle or OSTree repository.
 - `aetherpak/actions/publish`: push an OSTree repo to GHCR, merge the index, and
   write the site. It works on its own with a `repo-path` (your own OSTree repo)

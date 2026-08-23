@@ -39,11 +39,32 @@ jobs:
           repo-path: _r_two
           run-linter: "false"
 
-      - name: Assert source validation rejected both
+      - name: Config without app-id must fail
+        id: noappid
+        continue-on-error: true
+        uses: ./build
+        with:
+          config: aetherpak.yaml
+          repo-path: _r_noappid
+          run-linter: "false"
+
+      - name: Conflicting bundle and manifest sources must fail
+        id: bundleplusmanifest
+        continue-on-error: true
+        uses: ./build
+        with:
+          manifest-path: apps/m.json
+          prebuilt-bundle-path: app.flatpak
+          repo-path: _r_conflicting
+          run-linter: "false"
+
+      - name: Assert source validation rejected all invalid combinations
         run: |
           set -euo pipefail
           [ "${{ steps.nosrc.outcome }}" = "failure" ] || { echo "no-source should fail"; exit 1; }
           [ "${{ steps.twosrc.outcome }}" = "failure" ] || { echo "two-source should fail"; exit 1; }
+          [ "${{ steps.noappid.outcome }}" = "failure" ] || { echo "config without app-id should fail"; exit 1; }
+          [ "${{ steps.bundleplusmanifest.outcome }}" = "failure" ] || { echo "manifest + bundle should fail"; exit 1; }
 
       - name: Build a mock bundle on branch beta
         run: |

@@ -101,3 +101,31 @@ jobs:
           test "${{ steps.build_jobs.outputs.app-id }}" = "org.aetherpak.SmokeJobs" || { echo "app-id: ${{ steps.build_jobs.outputs.app-id }}"; exit 1; }
           ostree refs --repo=_repo_smoke_jobs | grep -qx 'app/org.aetherpak.SmokeJobs/x86_64/stable' \
             || { echo "expected ref missing:"; ostree refs --repo=_repo_smoke_jobs; exit 1; }
+
+      - name: Write an aetherpak.yaml configuration
+        run: |
+          cat > aetherpak.yaml <<'EOF'
+          apps:
+            - id: org.aetherpak.Smoke
+              manifest: org.aetherpak.Smoke.json
+              branch: stable
+              arches: [x86_64]
+          EOF
+
+      - name: Build from config with app-id
+        id: build_config
+        uses: ./build
+        with:
+          config: aetherpak.yaml
+          app-id: org.aetherpak.Smoke
+          arch: x86_64
+          branch: stable
+          repo-path: _repo_smoke_config
+          run-linter: "false"
+
+      - name: Verify config-based build outputs
+        run: |
+          set -euo pipefail
+          test "${{ steps.build_config.outputs.app-id }}" = "org.aetherpak.Smoke" || { echo "app-id: ${{ steps.build_config.outputs.app-id }}"; exit 1; }
+          ostree refs --repo=_repo_smoke_config | grep -qx 'app/org.aetherpak.Smoke/x86_64/stable' \
+            || { echo "expected ref missing:"; ostree refs --repo=_repo_smoke_config; exit 1; }
