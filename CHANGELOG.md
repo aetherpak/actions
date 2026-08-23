@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.12.0](https://github.com/aetherpak/actions/compare/v3.11.2...v3.12.0) (2026-08-23)
+
+
+### Features
+
+* **build:** add config input to support aetherpak.yaml inheritance ([#135](https://github.com/aetherpak/actions/issues/135)) ([44e667d](https://github.com/aetherpak/actions/commit/44e667da0aa6bca76abb436db97e560101f97c82))
+
 ## [3.11.2](https://github.com/aetherpak/actions/compare/v3.11.1...v3.11.2) (2026-06-14)
 
 
