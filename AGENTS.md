@@ -14,7 +14,7 @@ and standalone composite-action users install it with `aetherpak/setup-cli`.
 - `action.yml`: root composite action; chains `build` then `publish`. Suited to
   prebuilt inputs on a standard runner.
 - `build/action.yml`: resolves the channel (`aetherpak resolve-channel`), then by
-  source: a manifest builds via `aetherpak build` (inside the builder container),
+  source: a manifest builds via `aetherpak build` from `manifest-path` or `config` + `app-id` (inside the builder container),
   a `.flatpak` bundle imports via `aetherpak import`, an OSTree repo is copied;
   coordinates are resolved with `aetherpak inspect-repo`.
 - `publish/action.yml`: thin one-shot wrapper around `publish-oci` then
