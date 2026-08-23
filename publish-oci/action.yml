@@ -57,7 +57,7 @@ inputs:
   cli-version:
     description: "aetherpak CLI version to install if missing (ignored if already on PATH)."
     required: false
-    default: "v0.32.0"
+    default: "v0.33.1"
 
 outputs:
   cell-dir:
