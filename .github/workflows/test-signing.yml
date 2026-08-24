@@ -19,7 +19,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.33.1
+          version: v0.33.2
 
       - name: Start Local OCI Registry
         run: bash tests/integration/start_local_registry.sh
@@ -72,7 +72,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.33.1
+          version: v0.33.2
 
       - name: Create Mock OSTree Repository
         run: bash tests/mock_repo.sh
@@ -116,7 +116,7 @@ jobs:
       - name: Set up aetherpak CLI
         uses: aetherpak/setup-cli@v1
         with:
-          version: v0.33.1
+          version: v0.33.2
 
       - name: Start Local OCI Registry
         run: bash tests/integration/start_local_registry.sh
