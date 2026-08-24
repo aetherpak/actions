@@ -301,6 +301,7 @@ jobs:
       - name: Build
         uses: ./.github/actions/aetherpak/build
         with:
+          config:        ${{ inputs.config }}
           app-id:        ${{ matrix.app-id }}
           manifest-path: ${{ matrix.manifest }}
           arch:          ${{ matrix.arch }}
@@ -506,6 +507,7 @@ jobs:
       - name: Build site
         uses: ./.github/actions/aetherpak/publish-site
         with:
+          config:       ${{ inputs.config }}
           records-dir: _records
           pages-url:    ${{ needs.plan.outputs.pages-url }}
           remote-name:  ${{ inputs.remote-name }}

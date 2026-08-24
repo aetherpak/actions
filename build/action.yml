@@ -163,7 +163,7 @@ runs:
           HASH_FILES+=("$CONFIG")
           # If MANIFEST was not specified, extract the app's manifest path from CONFIG via CLI
           if [ -z "$MANIFEST" ] && [ -n "$APP_ID" ]; then
-            RESOLVED_MANIFEST="$(aetherpak config get --config "$CONFIG" "apps.${APP_ID}.manifest" 2>/dev/null || true)"
+            RESOLVED_MANIFEST="$(aetherpak plan --config "$CONFIG" --force "$APP_ID" --output json 2>/dev/null | jq -r '."matrix-manifest"[0].manifest // .matrix[0].manifest // empty' 2>/dev/null || true)"
             if [ -n "$RESOLVED_MANIFEST" ] && [ -f "$RESOLVED_MANIFEST" ]; then
               HASH_FILES+=("$RESOLVED_MANIFEST")
             fi

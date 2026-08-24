@@ -2,6 +2,7 @@ name: "AetherPak Publish"
 description: "Convert OSTree repository to OCI, push to a registry, generate the index, and publish to GitHub Pages. Thin wrapper over publish-oci + publish-site."
 
 inputs:
+  config: { required: false, default: "", description: "Path to the aetherpak.yaml config file." }
   repo-path: { required: false, default: "_repo", description: "OSTree repo path." }
   bundle-path: { required: false, default: "", description: "Pre-built .flatpak bundle to import." }
   app-id: { required: false, default: "", description: "Reverse-DNS app id (resolved when empty)." }
@@ -73,6 +74,7 @@ runs:
       id: site
       uses: ./publish-site
       with:
+        config: ${{ inputs.config }}
         records-dir: _records
         pages-url: ${{ inputs.pages-url }}
         site-dir: ${{ inputs.site-dir }}
