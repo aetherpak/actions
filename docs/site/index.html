@@ -407,6 +407,7 @@ jobs:
           <div class="opt"><code>concurrency-group</code><span>Override the per-repository publish lock. Only for repos publishing several independent sites.</span></div>
           <div class="opt"><code>site-subpath</code><span>Optional subdirectory under site-dir to structure the repository files.</span></div>
           <div class="opt"><code>prebuilt-bundle-artifact</code><span>Name or pattern of prebuilt bundle workflow artifacts to download and ingest. Supports `{arch}`, `{app-id}`, and `{branch}` placeholders. If the artifact contains multiple bundles, the workflow automatically matches by matrix cell <code>app-id</code> and <code>arch</code>.</span></div>
+          <div class="opt"><code>bundle-path</code><span>Path to local prebuilt <code>.flatpak</code> bundle file(s). Supports multiple comma- or newline-separated paths and globs. If set, publishes in a single-instance job without running the matrix.</span></div>
           <div class="opt"><code>dry-run</code><span>Dry run mode: build and verify everything, but skip pushing to the registry and publishing the site. Default <code>false</code>.</span></div>
           <div class="opt"><code>reconcile-only</code><span>Skip build and push; only reconcile the index against the registry and re-deploy. Use after deleting an image.</span></div>
           <div class="opt"><code>cli-version</code><span>aetherpak CLI release / container image tag. Default <code>v0.33.2</code>.</span></div>
