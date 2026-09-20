@@ -81,6 +81,7 @@ then enable **Public**.
 | `site-subpath` | _(empty)_ | Optional subdirectory under site-dir/pages-url to structure the repository files (e.g. `flatpak`) |
 | `upload-bundle` | `false` | Export the built application as a single `.flatpak` bundle and upload it as a workflow artifact |
 | `prebuilt-bundle-artifact` | _(empty)_ | Name or pattern of prebuilt bundle workflow artifacts to download and ingest. Supports `{arch}`, `{app-id}`, and `{branch}` placeholders |
+| `bundle-path` | _(empty)_ | Path to local prebuilt `.flatpak` bundle file(s). Supports multiple comma- or newline-separated paths and globs |
 | `dry-run` | `false` | dry run mode: build and verify everything, but skip pushing to the registry and publishing the site |
 
 Secrets `gpg-private-key` and `gpg-private-key-passphrase` enable image signing.
@@ -342,6 +343,23 @@ jobs:
 ```
 
 The workflow will download the artifact, resolve any `{arch}`, `{app-id}`, or `{branch}` placeholders in the name, and find the matching `.flatpak` bundle inside it. If the downloaded artifact contains multiple `.flatpak` files, the workflow will use `flatpak info --show-ref` to automatically identify and select the one matching the current matrix cell's `app-id` and `arch`.
+
+### Ingesting local pre-built bundles in the reusable workflow
+
+If you have prebuilt `.flatpak` bundle files locally in the checked-out repository (or built in a previous job on a self-hosted runner where the workspace is shared), you can pass them directly using the `bundle-path` input. The reusable workflow will publish them in a single job without compiling or running a matrix:
+
+```yaml
+name: Publish Local Pre-built Bundles
+on: { push: { branches: [main] } }
+permissions: { contents: read, packages: write, pages: write, id-token: write }
+jobs:
+  publish:
+    uses: aetherpak/actions/.github/workflows/publish.yml@v3
+    with:
+      bundle-path: |
+        build/*.flatpak
+        build/org.flatpak.AppA.flatpak
+```
 
 ## More
 
