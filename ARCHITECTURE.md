@@ -158,11 +158,13 @@ The workflow runs in five stages:
    artifact shape build-manifest does.
 4. **publish-oci** (matrix) — `aetherpak/actions/publish-oci@v3` per cell;
    source-agnostic: downloads `repo-<app-id>-<arch>` and pushes. Parallel-safe;
-   writes one record artifact `aetherpak-record-<app-id>-<arch>` per cell.
+   writes one record artifact `aetherpak-record-<app-id>-<arch>` per matrix
+   cell, holding every record cell the push produced (app plus companions).
 5. **publish-site** (single, concurrency-locked) — downloads every record
-   artifact, runs `aetherpak/actions/publish-site@v3` which merges them into
-   `index/static`, reconciles, writes the `.flatpakrepo`, `.flatpakref` files,
-   landing page, signing metadata, and Pages artifact; `deploy-pages` follows.
+   artifact with `merge-multiple`, runs `aetherpak/actions/publish-site@v3`
+   which merges them into `index/static`, reconciles, writes the
+   `.flatpakrepo`, `.flatpakref` files, landing page, signing metadata, and
+   Pages artifact; `deploy-pages` follows.
 
 The concurrency lock lives on `publish-site` only — `publish-oci` cells stay
 parallel because each pushes an independent OCI image, not the shared index.
@@ -205,7 +207,7 @@ the seed-merge-deploy window.
 Each `publish-oci` cell writes:
 
 ```
-<records-dir>/<app-id>-<arch>/
+<records-dir>/<app-id>-<branch>-<arch>/
   record.json    { app-id, arch, branch, name, registry, digest, ref, tag }
   labels.json    full OCI label set read from the pushed image
   sigs/<repo>@sha256=<hex>/signature-1   # only when signed
@@ -214,6 +216,13 @@ Each `publish-oci` cell writes:
 `aetherpak build-site` walks the tree in any order, merging each record into the
 index; any `sigs/` subtree under a record is copied into `_site/sigs/` (paths are
 content-addressed by digest so cells never collide).
+
+One `publish-oci` run can write several cells: an app and its `.Debug`/`.Locale`
+companions are pushed from the same matrix cell. The reusable workflow ships
+that tree as one artifact per matrix cell. `actions/download-artifact` extracts
+a lone pattern match directly into `path`, so the publish-site job downloads
+with `merge-multiple` instead of flattening cell contents, which would collapse
+the cells into one record.
 
 ## Dependencies
 

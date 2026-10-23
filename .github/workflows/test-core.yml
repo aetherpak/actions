@@ -248,6 +248,99 @@ jobs:
             || { echo "refs mismatch: $REFS"; exit 1; }
           ls _site/refs/org.flatpak.AppA-stable.flatpakref _site/refs/org.flatpak.AppB-stable.flatpakref
 
+  record-artifact-integration-test:
+    name: Record artifact round-trip (one artifact, several cells)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Assert publish.yml merges record artifacts
+        run: python3 tests/check_record_artifact_merge.py
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.33.3
+
+      - name: Start Local OCI Registry
+        run: bash tests/integration/start_local_registry.sh
+
+      - name: Mock repo with an app and its Debug companion
+        run: |
+          set -euo pipefail
+          bash tests/mock_repo.sh tests/mock_repo_companion
+          mkdir -p tests/mock_debug_contents
+          cat > tests/mock_debug_contents/metadata <<EOF
+          [Runtime]
+          name=org.flatpak.MockApp.Debug
+
+          [ExtensionOf]
+          ref=app/org.flatpak.MockApp/x86_64/stable
+          EOF
+          ostree commit --repo=tests/mock_repo_companion \
+            --branch=runtime/org.flatpak.MockApp.Debug/x86_64/stable \
+            -m "mock debug companion" tests/mock_debug_contents
+
+      - name: Push app and companion as one matrix cell
+        uses: ./publish-oci
+        with:
+          repo-path: tests/mock_repo_companion
+          app-id: org.flatpak.MockApp
+          arch: x86_64
+          branch: stable
+          registry: localhost:5001
+          insecure-registry: "true"
+          oci-repository: aetherpak/app-companion
+          registry-token: ""
+          records-dir: _records
+
+      - name: Assert one push produced two record cells
+        run: |
+          bash tests/integration/verify_record_cells.sh _records \
+            org.flatpak.MockApp-stable-x86_64 org.flatpak.MockApp.Debug-stable-x86_64
+
+      # publish.yml uploads the whole _records tree from one matrix cell as a
+      # single artifact, then downloads it back into _records.
+      - name: Upload the record tree as a single artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: aetherpak-record-org.flatpak.MockApp-x86_64
+          path: _records
+          include-hidden-files: true
+          retention-days: 1
+
+      - name: Clear the pushed records before the round-trip
+        run: rm -rf _records
+
+      - name: Download records the way publish-site does
+        uses: actions/download-artifact@v8
+        with:
+          pattern: aetherpak-record-*
+          path: _records
+          merge-multiple: true
+
+      - name: Assert both cells survived the artifact boundary
+        run: |
+          bash tests/integration/verify_record_cells.sh _records \
+            org.flatpak.MockApp-stable-x86_64 org.flatpak.MockApp.Debug-stable-x86_64
+
+      - name: Build site from the downloaded records
+        uses: ./publish-site
+        with:
+          records-dir: _records
+          pages-url: http://localhost:9999
+          insecure-registry: "true"
+          remote-name: aetherpak-companion-test
+          upload-pages-artifact: "false"
+
+      - name: Verify the app and companion are both in the index
+        run: |
+          set -euo pipefail
+          REFS="$(jq -r '.Results[].Images[].Labels["org.flatpak.ref"]' _site/index/static | sort | tr '\n' ' ')"
+          [ "$REFS" = "app/org.flatpak.MockApp/x86_64/stable runtime/org.flatpak.MockApp.Debug/x86_64/stable " ] \
+            || { echo "refs mismatch: $REFS"; exit 1; }
+
   multi-bundle-integration-test:
     name: Mock Multi-Bundle Integration Test
     runs-on: ubuntu-latest

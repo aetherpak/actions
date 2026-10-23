@@ -7,7 +7,7 @@ inputs:
     required: false
     default: ""
   records-dir:
-    description: "Directory holding per-cell record subdirs (one per (app, arch))."
+    description: "Directory holding per-cell record subdirs (<app-id>-<branch>-<arch>)."
     required: false
     default: "_records"
   pages-url:

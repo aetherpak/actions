@@ -22,12 +22,14 @@ and standalone composite-action users install it with `aetherpak/setup-cli`.
   consumers with their own runner.
 - `publish-oci/action.yml`: parallel-safe push half. A thin signing-mode gate
   decides whether to pass a key, then `aetherpak push-oci` exports OSTree -> OCI,
-  signs, pushes, and writes a per-cell record under `<records-dir>/<app-id>-<arch>/`.
+  signs, pushes, and writes a per-cell record under
+  `<records-dir>/<app-id>-<branch>-<arch>/`.
 - `publish-site/action.yml`: single-instance aggregator. `aetherpak build-site`
   seeds `index/static` from the deployed Pages copy, merges every cell record,
   reconciles against the registry, writes `<remote>.flatpakrepo`, per-app
   `.flatpakref` files, `sigs/signing.json`, and the landing page, and backfills
-  signatures. The record contract is `<records-dir>/<app-id>-<arch>/{record.json,labels.json,sigs/...}`.
+  signatures. The record contract is
+  `<records-dir>/<app-id>-<branch>-<arch>/{record.json,labels.json,sigs/...}`.
 - `prep-bundle/action.yml`: `aetherpak import` fetches a `.flatpak` URL, verifies
   SHA-256, imports it, and rebinds the `app/<id>/<arch>/<bundle_branch>` ref to
   the consumer-declared `branch` (rewriting the commit's `xa.ref` binding, so
@@ -79,9 +81,11 @@ Keep these intact when changing the code:
    job. The index is a read-modify-write seeded from the deployed copy, so
    splitting deploy out or dropping the lock reopens the cross-run merge race.
 8. `publish-oci` and `publish-site` share the record contract
-   `<records-dir>/<app-id>-<arch>/{record.json,labels.json,sigs/...}`, owned by
-   the CLI. The actions only pass `--records-dir`; they never read or write the
-   record shape themselves.
+   `<records-dir>/<app-id>-<branch>-<arch>/{record.json,labels.json,sigs/...}`,
+   owned by the CLI. The actions only pass `--records-dir`; they never read or
+   write the record shape themselves. One `publish-oci` run may write several
+   cells (an app plus its `.Debug`/`.Locale` companions), so the workflow keeps
+   them in one artifact and merges artifacts rather than flattening cells.
 9. `aetherpak.yaml`'s `branch` field is load-bearing for both source kinds:
    manifest entries build at it; bundle entries are rebound to it by
    `prep-bundle`. The CLI's default of `'stable'` is the consumer-facing
