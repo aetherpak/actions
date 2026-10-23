@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.13.1](https://github.com/aetherpak/actions/compare/v3.13.0...v3.13.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **publish:** merge record artifacts by cell ([#143](https://github.com/aetherpak/actions/issues/143)) ([ab09860](https://github.com/aetherpak/actions/commit/ab098605a6b810e6c998765fa303625bc0433577))
+
 ## [3.13.0](https://github.com/aetherpak/actions/compare/v3.12.0...v3.13.0) (2026-08-24)
 
 
