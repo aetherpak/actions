@@ -18,6 +18,8 @@ inputs:
   pages-artifact-name: { required: false, default: "github-pages" }
   site-dir: { required: false, default: "_site" }
   signing: { required: false, default: "auto" }
+  image-deltas: { required: false, default: "auto", description: 'Publish OCI image deltas: auto (config), "true", or "false".' }
+  delta-back: { required: false, default: "0", description: "Number of previous releases to use as delta sources (1-10); 0 defers to config." }
   gpg-private-key: { required: false, default: "" }
   gpg-private-key-passphrase: { required: false, default: "" }
   runtime-repo: { required: false, default: "https://dl.flathub.org/repo/flathub.flatpakrepo" }
@@ -65,6 +67,8 @@ runs:
         oci-repository: ${{ inputs.oci-repository }}
         registry-token: ${{ inputs.registry-token }}
         signing: ${{ inputs.signing }}
+        image-deltas: ${{ inputs.image-deltas }}
+        delta-back: ${{ inputs.delta-back }}
         gpg-private-key: ${{ inputs.gpg-private-key }}
         gpg-private-key-passphrase: ${{ inputs.gpg-private-key-passphrase }}
         records-dir: _records

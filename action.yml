@@ -95,6 +95,14 @@ inputs:
     description: "Image signing mode: auto (sign iff a key is set), gpg (require a key), or off."
     required: false
     default: "auto"
+  image-deltas:
+    description: 'Publish OCI image deltas: auto (config), "true", or "false".'
+    required: false
+    default: "auto"
+  delta-back:
+    description: "Number of previous releases to use as delta sources (1-10). 0 defers to config."
+    required: false
+    default: "0"
   gpg-private-key:
     description: "ASCII-armored GPG private key used to sign images. Empty disables signing under 'auto'."
     required: false
@@ -217,6 +225,8 @@ runs:
         pages-artifact-name: ${{ inputs.pages-artifact-name }}
         site-dir: ${{ inputs.site-dir }}
         signing: ${{ inputs.signing }}
+        image-deltas: ${{ inputs.image-deltas }}
+        delta-back: ${{ inputs.delta-back }}
         gpg-private-key: ${{ inputs.gpg-private-key }}
         gpg-private-key-passphrase: ${{ inputs.gpg-private-key-passphrase }}
         sig-dir: ${{ inputs.sig-dir }}

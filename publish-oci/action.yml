@@ -54,6 +54,14 @@ inputs:
     description: "Directory where the per-cell record subtree is written (<records-dir>/<app-id>-<branch>-<arch>)."
     required: false
     default: "_records"
+  image-deltas:
+    description: 'Publish OCI image deltas: auto (config), "true", or "false".'
+    required: false
+    default: "auto"
+  delta-back:
+    description: "Number of previous releases to use as delta sources (1-10). 0 or empty defers to config."
+    required: false
+    default: "0"
   cli-version:
     description: "aetherpak CLI version to install if missing (ignored if already on PATH)."
     required: false
@@ -148,6 +156,8 @@ runs:
         OCI_USERNAME: ${{ github.actor }}
         OCI_PASSWORD: ${{ inputs.registry-token }}
         AETHERPAK_GPG_PASSPHRASE: ${{ inputs.gpg-private-key-passphrase }}
+        IMAGE_DELTAS: ${{ inputs.image-deltas }}
+        DELTA_BACK: ${{ inputs.delta-back }}
       run: |
         set -euo pipefail
 
@@ -164,6 +174,22 @@ runs:
         [ -n "${{ inputs.app-id }}" ] && ARGS+=(--app-id "${{ inputs.app-id }}")
         [ -n "${{ inputs.arch }}" ] && ARGS+=(--arch "${{ inputs.arch }}")
         [ -n "${{ inputs.branch }}" ] && ARGS+=(--branch "${{ inputs.branch }}")
+
+        case "$IMAGE_DELTAS" in
+          ""|auto) ;;
+          true|on|1) ARGS+=(--image-deltas) ;;
+          false|off|0) ARGS+=(--no-image-deltas) ;;
+          *) echo "::error::image-deltas must be auto, true, or false"; exit 1 ;;
+        esac
+        if [ -n "$DELTA_BACK" ] && [ "$DELTA_BACK" != "0" ]; then
+          case "$DELTA_BACK" in
+            *[!0-9]*) echo "::error::delta-back must be an integer between 1 and 10"; exit 1 ;;
+          esac
+          if [ "$DELTA_BACK" -lt 1 ] || [ "$DELTA_BACK" -gt 10 ]; then
+            echo "::error::delta-back must be between 1 and 10"; exit 1
+          fi
+          ARGS+=(--delta-back "$DELTA_BACK")
+        fi
 
         if [ "$INSECURE" = "true" ]; then
           ARGS+=(--insecure)

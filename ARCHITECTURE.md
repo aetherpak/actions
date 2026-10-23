@@ -160,6 +160,7 @@ The workflow runs in five stages:
    source-agnostic: downloads `repo-<app-id>-<arch>` and pushes. Parallel-safe;
    writes one record artifact `aetherpak-record-<app-id>-<arch>` per matrix
    cell, holding every record cell the push produced (app plus companions).
+   Forwards `image-deltas` and `delta-back` to the CLI push.
 5. **publish-site** (single, concurrency-locked) — downloads every record
    artifact with `merge-multiple`, runs `aetherpak/actions/publish-site@v3`
    which merges them into `index/static`, reconciles, writes the
