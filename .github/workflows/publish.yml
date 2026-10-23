@@ -493,17 +493,16 @@ jobs:
           path: .github/actions/aetherpak
       - name: Download records
         if: ${{ !inputs.reconcile-only }}
+        # merge-multiple keeps every cell one level deep no matter how many
+        # artifacts matched: download-artifact@v8 otherwise drops the
+        # artifact-name subdir for a single match, and one matrix cell can hold
+        # several cells (an app plus its .Debug/.Locale companions), so a
+        # flatten that copies directory *contents* collapses them into one.
         uses: actions/download-artifact@v8
         with:
           pattern: aetherpak-record-*
-          path: _records_in
-      - name: Flatten records
-        # nullglob keeps reconcile-only runs (empty / missing _records_in) sound.
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          mkdir -p _records
-          for dir in _records_in/*/; do cp -r "$dir." _records/; done
+          path: _records
+          merge-multiple: true
       - name: Build site
         uses: ./.github/actions/aetherpak/publish-site
         with:

@@ -51,7 +51,7 @@ inputs:
     required: false
     default: ""
   records-dir:
-    description: "Directory where the per-cell record subtree is written."
+    description: "Directory where the per-cell record subtree is written (<records-dir>/<app-id>-<branch>-<arch>)."
     required: false
     default: "_records"
   cli-version:
@@ -61,7 +61,7 @@ inputs:
 
 outputs:
   cell-dir:
-    description: "Path to this cell's record subdir (<records-dir>/<app-id>-<arch>)."
+    description: "Path to this cell's record subdir (<records-dir>/<app-id>-<branch>-<arch>)."
     value: ${{ steps.push.outputs.cell-dir }}
   signing-path:
     description: "'gpg' when signed, else 'off'."
