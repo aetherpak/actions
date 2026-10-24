@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.14.0](https://github.com/aetherpak/actions/compare/v3.13.1...v3.14.0) (2026-10-24)
+
+
+### Features
+
+* **publish:** add image delta inputs ([#146](https://github.com/aetherpak/actions/issues/146)) ([ce25d1c](https://github.com/aetherpak/actions/commit/ce25d1c022d97872a71fa63750d9c7bc2a2db459))
+
 ## [3.13.1](https://github.com/aetherpak/actions/compare/v3.13.0...v3.13.1) (2026-10-23)
 
 
