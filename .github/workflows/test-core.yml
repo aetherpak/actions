@@ -53,6 +53,39 @@ jobs:
           pages-url: "http://localhost:9999"
           registry-token: "" # skip login for local registry
           upload-pages-artifact: "false"
+          image-deltas: "true"
+          delta-back: "2"
+
+      - name: Reject invalid image-deltas value
+        id: bad_image_deltas
+        continue-on-error: true
+        uses: ./publish-oci
+        with:
+          repo-path: tests/mock_repo
+          registry: "localhost:5001"
+          insecure-registry: "true"
+          oci-repository: "aetherpak/invalid"
+          registry-token: ""
+          image-deltas: "maybe"
+
+      - name: Assert invalid image-deltas failed
+        run: test "${{ steps.bad_image_deltas.outcome }}" = "failure"
+
+      - name: Reject invalid delta-back value
+        id: bad_delta_back
+        continue-on-error: true
+        uses: ./publish-oci
+        with:
+          repo-path: tests/mock_repo
+          registry: "localhost:5001"
+          insecure-registry: "true"
+          oci-repository: "aetherpak/invalid"
+          registry-token: ""
+          image-deltas: "true"
+          delta-back: "11"
+
+      - name: Assert invalid delta-back failed
+        run: test "${{ steps.bad_delta_back.outcome }}" = "failure"
 
       - name: Verify Generated Index
         run: |

@@ -73,6 +73,8 @@ then enable **Public**.
 | `oci-repository` | this repository | image repository path within the registry |
 | `remote-name` | _(empty)_ | Flatpak remote name and `.flatpakrepo` filename. Resolution priority: input value > `AETHERPAK_REMOTE_NAME` env var > `remote_name` in `aetherpak.yaml` > sanitized repo slug `<owner>-<repo>` |
 | `signing` | `auto` | sign images: `auto` (sign when a key is set), `gpg`, or `off` (see [Signing](#signing-optional)) |
+| `image-deltas` | `auto` | publish OCI image deltas: `auto` (from config), `"true"`, or `"false"` |
+| `delta-back` | `0` | previous releases used as delta sources (1-10); `0` defers to config |
 | `runtime-repo` | Flathub `.flatpakrepo` | `RuntimeRepo` in each generated `.flatpakref`; empty omits it |
 | `landing-page` | `true` | write the static `index.html`; `false` to render your own page from `index/static` |
 | `index-template` | `aetherpak.yaml` branding | path to a custom HTML index template; overrides `branding.index_template` |

@@ -165,6 +165,16 @@ on:
         required: false
         type: boolean
         default: false
+      image-deltas:
+        description: 'Publish OCI image deltas: auto (config), "true", or "false".'
+        required: false
+        type: string
+        default: "auto"
+      delta-back:
+        description: "Number of previous releases to use as delta sources (1-10). 0 defers to config."
+        required: false
+        type: number
+        default: 0
     outputs:
       pages-url:
         value: ${{ jobs.plan.outputs.pages-url }}
@@ -461,6 +471,8 @@ jobs:
           gpg-private-key: ${{ secrets.gpg-private-key }}
           gpg-private-key-passphrase: ${{ secrets.gpg-private-key-passphrase }}
           records-dir: _records
+          image-deltas: ${{ inputs.image-deltas }}
+          delta-back: ${{ inputs.delta-back }}
       - name: Upload record
         uses: actions/upload-artifact@v7
         with:
