@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.14.1](https://github.com/aetherpak/actions/compare/v3.14.0...v3.14.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* **publish:** pass the GPG passphrase to the CLI ([b872eb0](https://github.com/aetherpak/actions/commit/b872eb0270c8bdd119b10dfc5f652abdec89df3b))
+
 ## [3.14.0](https://github.com/aetherpak/actions/compare/v3.13.1...v3.14.0) (2026-10-24)
 
 
