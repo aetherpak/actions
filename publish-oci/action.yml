@@ -155,7 +155,7 @@ runs:
         GPG_KEY: ${{ inputs.gpg-private-key }}
         OCI_USERNAME: ${{ github.actor }}
         OCI_PASSWORD: ${{ inputs.registry-token }}
-        AETHERPAK_GPG_PASSPHRASE: ${{ inputs.gpg-private-key-passphrase }}
+        AETHERPAK_GPG_KEY_PASSPHRASE: ${{ inputs.gpg-private-key-passphrase }}
         IMAGE_DELTAS: ${{ inputs.image-deltas }}
         DELTA_BACK: ${{ inputs.delta-back }}
       run: |
