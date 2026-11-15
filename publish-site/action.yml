@@ -104,7 +104,7 @@ runs:
       # Diagnostic only: reports signing/setup issues without gating the job.
       env:
         GPG_KEY: ${{ inputs.gpg-private-key }}
-        GPG_PASS: ${{ inputs.gpg-private-key-passphrase }}
+        AETHERPAK_GPG_KEY_PASSPHRASE: ${{ inputs.gpg-private-key-passphrase }}
       run: |
         set -euo pipefail
         ARGS=()
@@ -114,7 +114,6 @@ runs:
           trap 'rm -f "$keyfile"' EXIT
           printf '%s' "$GPG_KEY" > "$keyfile"
           ARGS+=(--gpg-key "$keyfile")
-          [ -n "$GPG_PASS" ] && ARGS+=(--gpg-key-passphrase "$GPG_PASS")
         fi
         aetherpak status "${ARGS[@]}" || echo "::warning::aetherpak status reported issues; see diagnostics above"
 
@@ -180,6 +179,7 @@ runs:
         LANDING: ${{ inputs.landing-page }}
         SIGN: ${{ steps.target.outputs.sign }}
         GPG_KEY: ${{ inputs.gpg-private-key }}
+        AETHERPAK_GPG_KEY_PASSPHRASE: ${{ inputs.gpg-private-key-passphrase }}
         AETHERPAK_OCI_REPOSITORY: ${{ inputs.oci-repository }}
       run: |
         set -euo pipefail

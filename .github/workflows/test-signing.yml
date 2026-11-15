@@ -62,6 +62,61 @@ jobs:
             "localhost:5001" "aetherpak/mock-app" "org.flatpak.MockApp" "stable" "x86_64" \
             _site aetherpak-test
 
+  signing-protected-key-test:
+    name: Mock Signing with a passphrase-protected key
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Set up aetherpak CLI
+        uses: aetherpak/setup-cli@v1
+        with:
+          version: v0.35.0
+
+      - name: Start Local OCI Registry
+        run: bash tests/integration/start_local_registry.sh
+
+      - name: Create Mock OSTree Repository
+        run: bash tests/mock_repo.sh
+
+      - name: Generate ephemeral protected signing key
+        run: bash tests/integration/generate_signing_key.sh "ci-test-passphrase"
+
+      - name: Run Build Action
+        id: build_step
+        uses: ./build
+        with:
+          prebuilt-repo-path: tests/mock_repo
+          repo-path: _repo_test
+          run-linter: "false"
+
+      - name: Run Publish Action (protected key, passphrase given)
+        id: signed_publish
+        uses: ./publish
+        with:
+          repo-path: ${{ steps.build_step.outputs.repo-path }}
+          registry: "localhost:5001"
+          insecure-registry: "true"
+          oci-repository: "aetherpak/mock-app"
+          remote-name: "aetherpak-test"
+          pages-url: "http://localhost:9999"
+          registry-token: ""
+          upload-pages-artifact: "false"
+          signing: "gpg"
+          gpg-private-key: ${{ env.AEP_GPG_KEY_PROTECTED }}
+          gpg-private-key-passphrase: "ci-test-passphrase"
+
+      - name: Install skopeo
+        run: sudo apt-get update && sudo apt-get install -y skopeo
+
+      - name: Verify signature, key, and metadata
+        run: |
+          bash tests/integration/verify_publish_signed.sh \
+            "${{ steps.signed_publish.outputs.signing-path }}" \
+            "localhost:5001" "aetherpak/mock-app" "org.flatpak.MockApp" "stable" "x86_64" \
+            _site aetherpak-test
+
   signing-gate-test:
     name: Mock Signing Gate (gpg requires a key)
     runs-on: ubuntu-latest

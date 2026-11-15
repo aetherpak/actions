@@ -1,17 +1,27 @@
 #!/usr/bin/env bash
-# Generate an ephemeral secret key for signing tests
+# Usage: generate_signing_key.sh [passphrase]
 set -euo pipefail
+
+PASSPHRASE="${1:-}"
+VAR_NAME="AEP_GPG_KEY"
+PROTECTION="%no-protection"
+EXPORT_ARGS=()
+if [ -n "$PASSPHRASE" ]; then
+  VAR_NAME="AEP_GPG_KEY_PROTECTED"
+  PROTECTION="Passphrase: $PASSPHRASE"
+  EXPORT_ARGS=(--pinentry-mode loopback --passphrase "$PASSPHRASE")
+fi
 
 GNUPGHOME="$(mktemp -d)"
 export GNUPGHOME
 
 cat > "$GNUPGHOME/params" <<EOF
-%no-protection
 Key-Type: RSA
 Key-Length: 2048
 Name-Real: AetherPak CI
 Name-Email: ci@aetherpak.local
 Expire-Date: 0
+$PROTECTION
 %commit
 EOF
 
@@ -22,13 +32,13 @@ gpg --batch --gen-key "$GNUPGHOME/params"
 if [ -n "${GITHUB_ENV:-}" ]; then
   echo "Exporting GPG key to GITHUB_ENV..."
   {
-    echo "AEP_GPG_KEY<<EOF"
-    gpg --armor --export-secret-keys
+    echo "${VAR_NAME}<<EOF"
+    gpg --batch "${EXPORT_ARGS[@]}" --armor --export-secret-keys
     echo "EOF"
   } >> "$GITHUB_ENV"
 else
   # Running locally, output to stdout
-  gpg --armor --export-secret-keys
+  gpg --batch "${EXPORT_ARGS[@]}" --armor --export-secret-keys
 fi
 
 # Cleanup GNUPGHOME
