@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.14.2](https://github.com/aetherpak/actions/compare/v3.14.1...v3.14.2) (2026-11-26)
+
+
+### Bug Fixes
+
+* pin consumer-facing actions to SHAs ([#151](https://github.com/aetherpak/actions/issues/151)) ([24605a7](https://github.com/aetherpak/actions/commit/24605a78f70e2a6dd89ae6e70fff79b652be185c))
+
 ## [3.14.1](https://github.com/aetherpak/actions/compare/v3.14.0...v3.14.1) (2026-11-15)
 
 
