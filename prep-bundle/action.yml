@@ -29,7 +29,7 @@ runs:
   using: "composite"
   steps:
     - name: Set up aetherpak CLI
-      uses: aetherpak/setup-cli@v1
+      uses: aetherpak/setup-cli@b0d6bfacf4a5a89be1fc3257547693e74737b226 # v1.3.0
       with:
         version: ${{ inputs.cli-version }}
 
