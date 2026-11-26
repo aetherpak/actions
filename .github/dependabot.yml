@@ -6,7 +6,11 @@ updates:
     directories:
       - "/"
       - "/build"
+      - "/plan"
+      - "/prep-bundle"
       - "/publish"
+      - "/publish-oci"
+      - "/publish-site"
     schedule:
       interval: weekly
     groups:
